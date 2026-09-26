@@ -31,8 +31,6 @@ namespace Tiramisu
 
         Rect portraits, speedPanel;
         float scale = 1f;
-        Texture2D disc;
-        GUIStyle discLabel, tinyLabel, btn, btnOn, title;
 
         Transform plumbob;
         Vector3 markerAt; float markerUntil;
@@ -43,7 +41,7 @@ namespace Tiramisu
         void Start()
         {
             var previous = OrbitCamera.IsOverUi;
-            OrbitCamera.IsOverUi = p => (previous != null && previous(p)) || portraits.Contains(p / scale) || speedPanel.Contains(p / scale) || PieContains(p);
+            OrbitCamera.IsOverUi = p => (previous != null && previous(p)) || portraits.Contains(p / scale) || PieContains(p);
             MakePlumbob();
         }
 
@@ -411,68 +409,47 @@ namespace Tiramisu
             return Vector2.Distance(screenPoint / scale, pieCenter) < PieRadius + PieDisc * 0.5f + 6f;
         }
 
-        void Styles()
-        {
-            if (btn != null) return;
-            disc = new Texture2D(96, 96, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-            for (int y = 0; y < 96; y++)
-                for (int x = 0; x < 96; x++)
-                {
-                    float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(48f, 48f));
-                    disc.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(47f - d)));
-                }
-            disc.Apply();
-            discLabel = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-            discLabel.normal.textColor = Color.white;
-            tinyLabel = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft };
-            tinyLabel.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
-            title = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            title.normal.textColor = new Color(1f, 1f, 1f, 0.95f);
-            btn = new GUIStyle(GUI.skin.button) { fontSize = 13, fixedHeight = 44, padding = new RectOffset(10, 10, 4, 4), alignment = TextAnchor.MiddleLeft, wordWrap = true };
-            btnOn = new GUIStyle(btn) { fontStyle = FontStyle.Bold };
-            btnOn.normal.textColor = btnOn.hover.textColor = new Color(1f, 0.78f, 0.86f);
-        }
-
         void OnGUI()
         {
-            Styles();
-            scale = Mathf.Max(1f, Screen.height / 900f);
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-            float w = Screen.width / scale, h = Screen.height / scale;
-
-            // speed buttons, bottom right
-            speedPanel = new Rect(w - 258, h - 98, 246, 44);
-            GUILayout.BeginArea(speedPanel);
-            GUILayout.BeginHorizontal();
-            string[] names = { "Pause", "1x", "2x", "3x" };
-            for (int i = 0; i < 4; i++)
-                if (GUILayout.Button(names[i], i == Speed ? btnOn : btn, GUILayout.Width(58))) SetSpeed(i);
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
+            Ui.Begin();
+            scale = Ui.Scale;
+            float w = Ui.W, h = Ui.H;
+            speedPanel = Rect.zero;
+            if (Splash.Showing) return;
 
             if (DecorateMode.Active) { portraits = Rect.zero; return; }
 
-            // the people, bottom left next to the main panel
+            // the people, bottom left under the needs panel: little cards like the 2D game's
             var people = new List<Character>();
             foreach (var c in Character.All) if (!c.isPet) people.Add(c);
-            portraits = new Rect(214, h - 122, 176 * Mathf.Max(1, people.Count) + 6, 56);
-            GUILayout.BeginArea(portraits);
-            GUILayout.BeginHorizontal();
+            const float cardW = 178f, cardH = 54f;
+            portraits = new Rect(12f, h - 108f, cardW * Mathf.Max(1, people.Count) + 8f * Mathf.Max(0, people.Count - 1), cardH);
+            float px = portraits.x;
             foreach (var c in people)
             {
-                string line = $"{c.displayName}\n{c.Activity}" + (c.Queued > 0 ? $" (+{c.Queued})" : "");
-                if (GUILayout.Button(line, c == Selected ? btnOn : btn, GUILayout.Width(170)))
+                var r = new Rect(px, portraits.y, cardW, cardH);
+                bool me = c == Selected;
+                Ui.Round(new Rect(r.x, r.y + 3f, r.width, r.height), new Color(0.47f, 0.23f, 0.16f, 0.09f), 16f);
+                bool hover = Ui.Hover(r);
+                Ui.Round(r, me ? Ui.Pale : Ui.Card.A(0.97f), 16f);
+                Ui.Ring(r, me || hover ? Ui.Pink : Ui.Line, 2f, 16f);
+                Ui.Round(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.sim ? c.sim.MoodColour : Ui.Line, 17f);
+                Ui.Label(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.displayName.Substring(0, 1), 18f, Ui.White, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+                Ui.Label(new Rect(r.x + 52f, r.y + 7f, cardW - 60f, 20f), c.displayName, 15f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                Ui.Label(new Rect(r.x + 52f, r.y + 27f, cardW - 60f, 18f), c.Activity + (c.Queued > 0 ? $" (+{c.Queued})" : ""), 11f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.Bold);
+                if (GUI.Button(Ui.S(r), GUIContent.none, GUIStyle.none))
                 {
+                    GameAudio.Play(GameAudio.Sfx.Click);
                     if (c == Selected) OrbitCamera.Instance.FocusOn(c.transform.position, 8f);
                     Select(c);
                 }
+                px += cardW + 8f;
             }
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
 
             if (Selected != null && (Selected.Queued > 0 || Selected.OnOrder))
             {
-                if (GUI.Button(new Rect(portraits.xMax + 6, portraits.y + 6, 64, 40), "Stop", btn)) Selected.CancelOrders();
+                if (Ui.Pill(new Rect(portraits.xMax + 8f, portraits.y + 12f, 64f, 30f), "Stop", false, 13f)) Selected.CancelOrders();
+                portraits.width += 76f;
             }
 
             // where the last walk order went
@@ -482,10 +459,9 @@ namespace Tiramisu
                 if (s.z > 0f)
                 {
                     float k = (markerUntil - Time.unscaledTime) / 0.9f;
-                    float r = (14f + 22f * (1f - k)) ;
-                    GUI.color = new Color(1f, 0.6f, 0.8f, k);
-                    GUI.DrawTexture(new Rect(s.x / scale - r, (Screen.height - s.y) / scale - r, r * 2f, r * 2f), disc);
-                    GUI.color = Color.white;
+                    float r = 12f + 22f * (1f - k);
+                    var c = new Rect(s.x / scale - r, (Screen.height - s.y) / scale - r, r * 2f, r * 2f);
+                    Ui.Ring(c, Ui.Accent.A(k), 3f, r);
                 }
             }
 
@@ -496,12 +472,15 @@ namespace Tiramisu
         {
             if (!pieOpen || options.Count == 0) return;
             var e = Event.current;
-            var centerRect = new Rect(pieCenter.x - 24, pieCenter.y - 24, 48, 48);
-            GUI.color = new Color(0.1f, 0.09f, 0.13f, 0.88f);
-            GUI.DrawTexture(centerRect, disc);
-            GUI.color = Color.white;
-            GUI.Label(new Rect(pieCenter.x - 90, pieCenter.y - PieRadius - PieDisc * 0.5f - 24, 180, 20), pieTitle, title);
-            if (GUI.Button(centerRect, GUIContent.none, GUIStyle.none)) { pieOpen = false; return; }
+            var centerRect = new Rect(pieCenter.x - 22f, pieCenter.y - 22f, 44f, 44f);
+            Ui.Box(centerRect, Ui.Card, Ui.Pink, 22f, 3f, true);
+            Ui.Label(centerRect, "x", 16f, Ui.Accent, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+            // the name of what you clicked, in a little pill above the ring
+            float tw = Ui.TextWidth(pieTitle, 13f, Ui.Weight.ExtraBold) + 28f;
+            var tr = new Rect(pieCenter.x - tw * 0.5f, pieCenter.y - PieRadius - PieDisc * 0.5f - 34f, tw, 26f);
+            Ui.Box(tr, Ui.Accent, Ui.Accent, 13f, 0f, true);
+            Ui.Label(tr, pieTitle, 13f, Ui.White, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+            if (GUI.Button(Ui.S(centerRect), GUIContent.none, GUIStyle.none)) { pieOpen = false; return; }
 
             int n = options.Count;
             for (int i = 0; i < n; i++)
@@ -510,12 +489,12 @@ namespace Tiramisu
                 var c = pieCenter + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * PieRadius;
                 var r = new Rect(c.x - PieDisc * 0.5f, c.y - PieDisc * 0.5f, PieDisc, PieDisc);
                 var o = options[i];
-                bool hover = o.enabled && r.Contains(e.mousePosition);
-                GUI.color = !o.enabled ? new Color(0.25f, 0.24f, 0.27f, 0.8f) : hover ? new Color(0.98f, 0.6f, 0.75f, 0.97f) : new Color(0.16f, 0.14f, 0.2f, 0.92f);
-                GUI.DrawTexture(r, disc);
-                GUI.color = Color.white;
-                GUI.Label(new Rect(r.x + 8, r.y + 8, r.width - 16, r.height - 16), o.label, discLabel);
-                if (o.enabled && GUI.Button(r, GUIContent.none, GUIStyle.none)) { var act = o.act; pieOpen = false; act?.Invoke(); return; }
+                bool hover = o.enabled && Ui.Hover(r);
+                Ui.Round(new Rect(r.x, r.y + 3f, r.width, r.height), new Color(0.47f, 0.23f, 0.16f, 0.12f), PieDisc);
+                Ui.Round(r, !o.enabled ? Ui.Cream2.A(0.9f) : hover ? Ui.Pale : Ui.Card, PieDisc);
+                Ui.Ring(r, !o.enabled ? Ui.Line : hover ? Ui.Accent : Ui.Pink, 3f, PieDisc);
+                Ui.Label(new Rect(r.x + 9f, r.y + 9f, r.width - 18f, r.height - 18f), o.label, 12f, !o.enabled ? Ui.Soft : hover ? Ui.Accent : Ui.Ink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold, true);
+                if (o.enabled && GUI.Button(Ui.S(r), GUIContent.none, GUIStyle.none)) { var act = o.act; pieOpen = false; GameAudio.Play(GameAudio.Sfx.Click); act?.Invoke(); return; }
             }
         }
     }

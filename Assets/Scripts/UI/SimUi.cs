@@ -4,8 +4,8 @@ using UnityEngine;
 namespace Tiramisu
 {
     /// <summary>
-    /// The Sims style panels: household funds and the date at the top, the needs and mood of the person you are playing at the bottom left,
-    /// the status window (key C: mood, feelings, traits, skills, wishes, friends, money) and the messages at the bottom.
+    /// The life sim panels, in the cream and pink look of the 2D game: the needs and mood of the person you are playing (bottom left),
+    /// the status window (key C: mood, feelings, traits, skills, wishes, friends, money) and the message at the top.
     /// The little icons are drawn in code.
     /// </summary>
     public class SimUi : MonoBehaviour
@@ -13,29 +13,31 @@ namespace Tiramisu
         public static SimUi Instance { get; private set; }
         public static bool StatusOpen { get; private set; }
 
-        Rect topBar, needsPanel, statusPanel;
-        float scale = 1f;
-        Texture2D white;
-        readonly Texture2D[] icons = new Texture2D[6];
-        GUIStyle label, bold, small, big, btn;
-        static readonly Color[] NeedColours =
+        Rect needsPanel, statusPanel;
+        static readonly Texture2D[] icons = new Texture2D[6];
+        public static readonly Color[] NeedColours =
         {
-            new Color(0.95f, 0.65f, 0.3f), new Color(0.4f, 0.75f, 0.95f), new Color(0.6f, 0.55f, 0.95f),
-            new Color(0.98f, 0.8f, 0.3f), new Color(0.95f, 0.5f, 0.7f), new Color(0.4f, 0.9f, 0.8f),
+            Ui.Hex("f0a04b"), Ui.Hex("5aaee8"), Ui.Hex("8b7fe8"), Ui.Hex("f2b84b"), Ui.Hex("ee6f9b"), Ui.Hex("49c9b5"),
         };
 
         public static void OpenStatus() { StatusOpen = true; GameAudio.Play(GameAudio.Sfx.Click); }
 
-        public bool OverPanels(Vector2 p) => topBar.Contains(p / scale) || needsPanel.Contains(p / scale) || (StatusOpen && statusPanel.Contains(p / scale));
+        public static Texture2D Icon(int i) { if (icons[i] == null) icons[i] = MakeIcon(i); return icons[i]; }
+
+        public static void DrawIcon(Rect r, int i)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            var o = GUI.color; GUI.color = NeedColours[i]; GUI.DrawTexture(Ui.S(r), Icon(i)); GUI.color = o;
+        }
+
+        public bool OverPanels(Vector2 p) { var u = Ui.ToUi(p); return needsPanel.Contains(u) || (StatusOpen && statusPanel.Contains(u)); }
 
         void Awake() { Instance = this; }
 
         void Start()
         {
-            white = Texture2D.whiteTexture;
-            for (int i = 0; i < 6; i++) icons[i] = MakeIcon(i);
             var previous = OrbitCamera.IsOverUi;
-            OrbitCamera.IsOverUi = p => (previous != null && previous(p)) || OverPanels(p);
+            OrbitCamera.IsOverUi = p => (previous != null && previous(p)) || OverPanels(p) || Splash.Showing;
         }
 
         void Update()
@@ -100,84 +102,54 @@ namespace Tiramisu
             return Mathf.Clamp01((lim - r) * 14f);
         }
 
-        // ------------------------------------------------------------ drawing helpers
-
-        void Styles()
-        {
-            if (label != null) return;
-            label = new GUIStyle(GUI.skin.label) { fontSize = 12 }; label.normal.textColor = Color.white;
-            bold = new GUIStyle(label) { fontStyle = FontStyle.Bold, fontSize = 13 };
-            small = new GUIStyle(label) { fontSize = 11 }; small.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
-            big = new GUIStyle(label) { fontSize = 20, fontStyle = FontStyle.Bold };
-            btn = new GUIStyle(GUI.skin.button) { fontSize = 12, padding = new RectOffset(8, 8, 3, 3) };
-        }
-
-        void Fill(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, white); GUI.color = o; }
-
-        void Panel(Rect r) { Fill(r, new Color(0.08f, 0.07f, 0.1f, 0.82f)); }
-
-        void Bar(Rect r, float value01, Color c)
-        {
-            Fill(r, new Color(1f, 1f, 1f, 0.14f));
-            Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(value01), r.height), value01 < 0.22f ? Color.Lerp(c, new Color(0.95f, 0.3f, 0.3f), 0.7f) : c);
-        }
-
         // ------------------------------------------------------------ the screen
 
         void OnGUI()
         {
-            Styles();
-            scale = Mathf.Max(1f, Screen.height / 900f);
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-            float w = Screen.width / scale, h = Screen.height / scale;
-
-            // ---- top bar: money, date, bills
-            topBar = new Rect(w * 0.5f - 250, 8, 500, 34);
-            Panel(topBar);
-            var hh = Household.Instance;
-            var dn = DayNightCycle.Instance; var sea = SeasonCycle.Instance;
-            GUI.Label(new Rect(topBar.x + 12, topBar.y + 6, 150, 24), $"{Household.Currency} {(hh ? hh.Funds : 0):N0}", bold);
-            string date = dn ? $"Day {dn.DayCount + 1} · {(sea ? sea.Label : "")} · {dn.Clock}" : "";
-            GUI.Label(new Rect(topBar.x + 150, topBar.y + 6, 220, 24), date, label);
-            if (hh) GUI.Label(new Rect(topBar.x + 340, topBar.y + 6, 150, 24), $"Bills day {hh.NextBillDay + 1}", small);
+            Ui.Begin();
+            float w = Ui.W, h = Ui.H;
+            var who = LiveMode.Selected;
 
             // ---- needs of the person you play
-            var who = LiveMode.Selected;
-            if (who != null && who.sim != null && !DecorateMode.Active)
+            if (who != null && who.sim != null && !DecorateMode.Active && !Splash.Showing)
             {
                 var sim = who.sim;
-                needsPanel = new Rect(214, h - 122 - 226, 240, 220);
-                Panel(needsPanel);
-                float y = needsPanel.y + 6;
-                Fill(new Rect(needsPanel.x + 8, y + 2, 18, 18), sim.MoodColour);
-                GUI.Label(new Rect(needsPanel.x + 32, y, 130, 22), $"{who.displayName} · {sim.MoodName}", bold);
-                if (GUI.Button(new Rect(needsPanel.xMax - 70, y, 62, 20), "Status", btn)) { StatusOpen = true; GameAudio.Play(GameAudio.Sfx.Click); }
-                y += 26;
+                float ch = 44f + 6f * 24f + (sim.wishes.Count > 0 ? 26f + sim.wishes.Count * 17f : 0f) + 10f;
+                needsPanel = new Rect(12f, h - 112f - ch, 262f, ch);
+                Ui.Box(needsPanel, Ui.Card.A(0.96f), Ui.Line, 18f, 2f, true);
+                float x = needsPanel.x + 14f, y = needsPanel.y + 10f;
+                Ui.Round(new Rect(x, y + 3f, 16f, 16f), sim.MoodColour, 8f);
+                Ui.Label(new Rect(x + 22f, y, 140f, 22f), who.displayName, 16f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                Ui.Label(new Rect(x + 22f, y + 19f, 150f, 16f), sim.MoodName, 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                if (Ui.Chip(new Rect(needsPanel.xMax - 82f, y + 2f, 68f, 24f), "Status", false, 12f)) StatusOpen = true;
+                y += 44f;
                 for (int i = 0; i < 6; i++)
                 {
-                    var o = GUI.color; GUI.color = NeedColours[i]; GUI.DrawTexture(new Rect(needsPanel.x + 8, y - 1, 16, 16), icons[i]); GUI.color = o;
-                    GUI.Label(new Rect(needsPanel.x + 28, y - 3, 70, 18), ((Need)i).ToString(), small);
-                    Bar(new Rect(needsPanel.x + 96, y + 2, 132, 8), sim.needs[i] / 100f, NeedColours[i]);
-                    y += 19;
+                    DrawIcon(new Rect(x, y + 1f, 16f, 16f), i);
+                    Ui.Label(new Rect(x + 22f, y, 70f, 18f), ((Need)i).ToString(), 12f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                    float v = sim.needs[i] / 100f;
+                    Ui.Bar(new Rect(x + 92f, y + 4f, needsPanel.width - 92f - 28f, 10f), v, v < 0.22f ? Ui.Hex("e35d5d") : NeedColours[i]);
+                    y += 24f;
                 }
-                y += 4;
-                GUI.Label(new Rect(needsPanel.x + 8, y, 224, 16), "Wishes", bold);
-                y += 18;
-                foreach (var wish in sim.wishes) { GUI.Label(new Rect(needsPanel.x + 8, y, 226, 16), "· " + wish.text, small); y += 15; }
+                y += 4f;
+                if (sim.wishes.Count > 0) Ui.Label(new Rect(x, y, 200f, 16f), "WISHES", 11f, Ui.Accent, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+                y += 18f;
+                foreach (var wish in sim.wishes) { Ui.Label(new Rect(x, y, needsPanel.width - 24f, 16f), "· " + wish.text, 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold); y += 17f; }
             }
             else needsPanel = Rect.zero;
 
             if (StatusOpen && who != null && who.sim != null) DrawStatus(who, w, h);
             else statusPanel = Rect.zero;
 
-            // ---- messages
+            // ---- messages, like the 2D game's toasts
             string msg = Household.CurrentToast;
-            if (!string.IsNullOrEmpty(msg))
+            if (!string.IsNullOrEmpty(msg) && !Splash.Showing)
             {
-                var r = new Rect(w * 0.5f - 300, h - 132, 600, 30);
-                Panel(r);
-                var st = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter };
-                GUI.Label(r, msg, st);
+                float cx = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
+                float tw = Mathf.Min(Ui.TextWidth(msg, 14f, Ui.Weight.ExtraBold) + 36f, w - 420f);
+                var r = new Rect(cx - tw * 0.5f, 70f, tw, 34f);
+                Ui.Box(r, Ui.Hex("fffaf2"), Ui.Pink, 14f, 2f, true);
+                Ui.Label(r, msg, 14f, Ui.Ink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
             }
         }
 
@@ -186,80 +158,83 @@ namespace Tiramisu
         void DrawStatus(Character who, float w, float h)
         {
             var sim = who.sim;
-            statusPanel = new Rect(w * 0.5f - 340, h * 0.5f - 250, 680, 500);
-            Panel(statusPanel);
-            var x0 = statusPanel.x + 16; float y = statusPanel.y + 12;
-            GUI.Label(new Rect(x0, y, 400, 30), $"{who.displayName}", big);
-            var st = new GUIStyle(label) { alignment = TextAnchor.MiddleRight };
-            GUI.Label(new Rect(statusPanel.xMax - 300, y + 4, 240, 22), $"Mood: {sim.MoodName} ({Mathf.RoundToInt(sim.Mood)})", st);
-            if (GUI.Button(new Rect(statusPanel.xMax - 44, y + 2, 30, 24), "X", btn)) StatusOpen = false;
-            Fill(new Rect(x0, y + 34, 648, 6), sim.MoodColour);
-            y += 46;
+            float cx = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
+            statusPanel = new Rect(cx - 350f, Mathf.Max(64f, h * 0.5f - 270f), 700f, 540f);
+            Ui.Box(statusPanel, Ui.Card, Ui.Pink, 22f, 3f, true);
+            float x0 = statusPanel.x + 22f, y = statusPanel.y + 16f;
+            Ui.Round(new Rect(x0, y + 6f, 18f, 18f), sim.MoodColour, 9f);
+            Ui.Label(new Rect(x0 + 26f, y, 300f, 30f), who.displayName, 24f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+            Ui.Label(new Rect(statusPanel.xMax - 320f, y, 250f, 30f), $"{sim.MoodName}  ·  mood {Mathf.RoundToInt(sim.Mood)}", 14f, Ui.Soft, TextAnchor.MiddleRight, Ui.Weight.ExtraBold);
+            if (Ui.Square(new Rect(statusPanel.xMax - 50f, y - 2f, 34f, 34f), "X")) StatusOpen = false;
+            y += 40f;
+            Ui.Bar(new Rect(x0, y, statusPanel.width - 44f, 8f), Mathf.InverseLerp(-50f, 100f, sim.Mood), sim.MoodColour);
+            y += 20f;
 
-            // people you can look at
             float px = x0;
             foreach (var c in Character.All)
                 if (!c.isPet)
                 {
-                    if (GUI.Button(new Rect(px, y, 90, 22), c.displayName, btn)) LiveMode.Select(c);
-                    px += 96;
+                    if (Ui.Chip(new Rect(px, y, 96f, 26f), c.displayName, c == who, 13f)) LiveMode.Select(c);
+                    px += 102f;
                 }
-            y += 30;
+            y += 38f;
 
-            // left column: needs, feelings, traits
-            float colW = 310;
-            GUI.Label(new Rect(x0, y, colW, 18), "Needs", bold);
-            float yy = y + 20;
+            float colW = 300f;
+            HouseHud.Kicker(x0, y, colW, "Needs");
+            float yy = y + 20f;
             for (int i = 0; i < 6; i++)
             {
                 if (sim.isPet && (i == (int)Need.Bladder || i == (int)Need.Hygiene || i == (int)Need.Social)) continue;
-                var o = GUI.color; GUI.color = NeedColours[i]; GUI.DrawTexture(new Rect(x0, yy - 1, 16, 16), icons[i]); GUI.color = o;
-                GUI.Label(new Rect(x0 + 22, yy - 2, 70, 18), ((Need)i).ToString(), small);
-                Bar(new Rect(x0 + 92, yy + 3, 170, 8), sim.needs[i] / 100f, NeedColours[i]);
-                GUI.Label(new Rect(x0 + 268, yy - 2, 40, 18), Mathf.RoundToInt(sim.needs[i]).ToString(), small);
-                yy += 20;
+                DrawIcon(new Rect(x0, yy + 1f, 16f, 16f), i);
+                Ui.Label(new Rect(x0 + 22f, yy, 70f, 18f), ((Need)i).ToString(), 12f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                Ui.Bar(new Rect(x0 + 92f, yy + 4f, 160f, 10f), sim.needs[i] / 100f, NeedColours[i]);
+                Ui.Label(new Rect(x0 + 258f, yy, 40f, 18f), Mathf.RoundToInt(sim.needs[i]).ToString(), 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                yy += 24f;
             }
-            yy += 6;
-            GUI.Label(new Rect(x0, yy, colW, 18), "Feelings", bold); yy += 20;
-            foreach (var f in sim.Feelings()) { GUI.Label(new Rect(x0, yy, colW, 16), $"{(f.value >= 0 ? "+" : "")}{Mathf.RoundToInt(f.value)}  {f.text}", small); yy += 15; if (yy > statusPanel.yMax - 90) break; }
-            yy = Mathf.Max(yy, y + 20 + 6 * 20 + 6 + 20 + 15 * 3) + 6;
-            GUI.Label(new Rect(x0, statusPanel.yMax - 76, colW, 18), "Traits", bold);
-            GUI.Label(new Rect(x0, statusPanel.yMax - 58, colW, 32), string.Join(" · ", sim.traits), label);
+            yy += 8f;
+            HouseHud.Kicker(x0, yy, colW, "Feelings"); yy += 20f;
+            int shown = 0;
+            foreach (var f in sim.Feelings())
+            {
+                Ui.Label(new Rect(x0, yy, colW, 16f), $"{(f.value >= 0 ? "+" : "")}{Mathf.RoundToInt(f.value)}   {f.text}", 12f, f.value >= 0 ? Ui.Ink : Ui.Hex("c0504d"), TextAnchor.UpperLeft, Ui.Weight.Bold);
+                yy += 17f; if (++shown >= 5) break;
+            }
+            HouseHud.Kicker(x0, statusPanel.yMax - 92f, colW, "Traits");
+            Ui.Label(new Rect(x0, statusPanel.yMax - 74f, colW, 34f), string.Join("  ·  ", sim.traits), 13f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold, true);
             if (sim.job != "")
-                GUI.Label(new Rect(x0, statusPanel.yMax - 36, colW, 22), $"Job: {sim.job} (level {1 + Mathf.FloorToInt(sim.jobXp / 300f)}), pays {Household.Currency} {Household.PayPerSecond(sim)} a second", small);
+                Ui.Label(new Rect(x0, statusPanel.yMax - 44f, colW + 20f, 32f), $"Job: {sim.job}, level {1 + Mathf.FloorToInt(sim.jobXp / 300f)}. Pays {Household.Currency} {Household.PayPerSecond(sim)} a second.", 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
 
-            // right column: skills, wishes, friends
-            float rx = x0 + colW + 24; float ry = y;
-            GUI.Label(new Rect(rx, ry, 300, 18), "Skills", bold); ry += 20;
+            float rx = x0 + colW + 30f, ry = y;
+            HouseHud.Kicker(rx, ry, 300f, "Skills"); ry += 20f;
             foreach (Skill s in System.Enum.GetValues(typeof(Skill)))
             {
-                GUI.Label(new Rect(rx, ry - 2, 90, 18), s.ToString(), small);
-                Bar(new Rect(rx + 92, ry + 3, 150, 8), sim.LevelProgress(s), new Color(0.55f, 0.85f, 0.6f));
-                GUI.Label(new Rect(rx + 248, ry - 2, 60, 18), $"Level {sim.Level(s)}", small);
-                ry += 20;
+                Ui.Label(new Rect(rx, ry, 90f, 18f), s.ToString(), 12f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                Ui.Bar(new Rect(rx + 92f, ry + 4f, 140f, 10f), sim.LevelProgress(s), Ui.Hex("6cc287"));
+                Ui.Label(new Rect(rx + 240f, ry, 60f, 18f), $"Level {sim.Level(s)}", 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                ry += 22f;
             }
-            ry += 8;
-            GUI.Label(new Rect(rx, ry, 300, 18), $"Wishes ({sim.wishesDone} come true)", bold); ry += 20;
-            foreach (var wish in sim.wishes) { GUI.Label(new Rect(rx, ry, 310, 16), $"· {wish.text}  (+{Household.Currency} {wish.reward})", small); ry += 16; }
-            ry += 8;
-            GUI.Label(new Rect(rx, ry, 300, 18), "Friends", bold); ry += 20;
+            ry += 8f;
+            HouseHud.Kicker(rx, ry, 300f, $"Wishes  ({sim.wishesDone} come true)"); ry += 20f;
+            foreach (var wish in sim.wishes) { Ui.Label(new Rect(rx, ry, 300f, 32f), $"· {wish.text}  (+{Household.Currency} {wish.reward})", 12f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.Bold, true); ry += 32f; }
+            ry += 4f;
+            HouseHud.Kicker(rx, ry, 300f, "Friends"); ry += 20f;
             foreach (var kv in sim.friendship)
             {
                 if (kv.Key == who.displayName) continue;
-                GUI.Label(new Rect(rx, ry - 2, 90, 18), kv.Key, small);
-                Bar(new Rect(rx + 92, ry + 3, 150, 8), kv.Value / 100f, new Color(0.95f, 0.5f, 0.7f));
-                GUI.Label(new Rect(rx + 248, ry - 2, 60, 18), Mathf.RoundToInt(kv.Value).ToString(), small);
-                ry += 20;
+                Ui.Label(new Rect(rx, ry, 90f, 18f), kv.Key, 12f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                Ui.Bar(new Rect(rx + 92f, ry + 4f, 140f, 10f), kv.Value / 100f, NeedColours[4]);
+                Ui.Label(new Rect(rx + 240f, ry, 60f, 18f), Mathf.RoundToInt(kv.Value).ToString(), 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                ry += 22f;
             }
-            ry += 8;
+            ry += 6f;
             var hh = Household.Instance;
             if (hh != null)
             {
-                GUI.Label(new Rect(rx, ry, 300, 18), "Recent money", bold); ry += 20;
+                HouseHud.Kicker(rx, ry, 300f, "Recent money"); ry += 20f;
                 int n = 0;
-                foreach (var l in hh.Ledger) { GUI.Label(new Rect(rx, ry, 310, 16), $"{(l.amount >= 0 ? "+" : "")}{l.amount}  {l.text}", small); ry += 15; if (++n >= 5) break; }
+                foreach (var l in hh.Ledger) { Ui.Label(new Rect(rx, ry, 300f, 16f), $"{(l.amount >= 0 ? "+" : "")}{l.amount}   {l.text}", 12f, l.amount >= 0 ? Ui.Hex("3f9a5b") : Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold); ry += 16f; if (++n >= 4) break; }
             }
-            GUI.Label(new Rect(statusPanel.x + 16, statusPanel.yMax - 20, 640, 16), "C or Esc closes this window", small);
+            Ui.Label(new Rect(statusPanel.x, statusPanel.yMax - 22f, statusPanel.width, 16f), "C or Esc closes this window", 11f, Ui.Soft, TextAnchor.UpperCenter, Ui.Weight.Bold);
         }
     }
 }

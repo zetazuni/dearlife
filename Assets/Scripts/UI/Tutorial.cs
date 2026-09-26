@@ -2,63 +2,71 @@ using UnityEngine;
 
 namespace Tiramisu
 {
-    /// <summary>A few warm hints for the first minutes (F1 shows them again). Skipping is remembered.</summary>
+    /// <summary>A few warm hints for the first minutes, as a card like the 2D game's guide (F1 shows them again). Skipping is remembered.</summary>
     public class Tutorial : MonoBehaviour
     {
         const string Key = "tiramisu.tutorial";
+        static Tutorial instance;
 
-        static readonly string[] Steps =
+        static readonly (string title, string text)[] Steps =
         {
-            "Welcome home! Click Amir or Athirah in the panel at the bottom (or in the house) to play as them. The little atom over their head shows who you are playing.",
-            "Click the floor and they walk there. Click furniture, a person or the pet (or right click) for a round menu of things to do: sit, cook, swim, work out, watch TV, chat.",
-            "The bars at the bottom left are their needs: hunger, bathroom, energy, fun, friends and hygiene. Keep them happy. Press C for the full status: skills, wishes, friends.",
-            "The money at the top pays for things and comes from work (the desks), wishes that come true and selling. Bills come every few days, and nothing bad ever happens if you cannot pay them yet.",
-            "B opens the shop, V lets you build walls, rooms, doors and windows and paint everything, M moves furniture. Space pauses, 1 2 3 change the speed, Page Up and Page Down change floors.",
-            "The seasons change as time passes (or press Season). F2 mutes the sound, N turns the music off. F1 shows these hints again. Have a lovely time together!",
+            ("Welcome home", "Click Amir or Athirah on the Family tab (or in the house) to play as them. The little atom over their head shows who you are playing."),
+            ("Walk and do things", "Click the floor and they walk there. Click furniture, a person or the pet, or right click, for a round menu of things to do: sit, cook, swim, work out, watch TV, chat."),
+            ("Needs and mood", "The bars at the bottom left are their needs: hunger, bathroom, energy, fun, friends and hygiene. Keep them happy. Press C for the full status: skills, wishes, friends."),
+            ("Money", "The money at the top pays for things and comes from work (the desks), wishes that come true and selling. Bills come every few days, and nothing bad ever happens if you cannot pay them yet."),
+            ("Shop and build", "B opens the shop, V lets you build walls, rooms, doors and windows and paint everything, M moves furniture. Space pauses, 1 2 3 change the speed, the buttons on the left change floors."),
+            ("Seasons and sound", "The seasons change as time passes (or pick one in Settings). F2 mutes the sound, N turns the music off. F1 shows these hints again. Have a lovely time together!"),
         };
 
         int step;
         bool open;
-        GUIStyle text, btn;
+        float swap;
         Rect box;
 
-        void Start()
-        {
-            open = PlayerPrefs.GetInt(Key, 0) == 0;
-            if (open) Invoke(nameof(Ready), 2f); else enabled = true;
-        }
+        void Awake() { instance = this; }
 
-        void Ready() { }
+        void Start() { open = PlayerPrefs.GetInt(Key, 0) == 0; }
+
+        public static void Restart() { if (instance) { instance.open = true; instance.step = 0; instance.swap = 0f; } }
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F1)) { open = true; step = 0; }
+            if (Input.GetKeyDown(KeyCode.F1)) Restart();
+            if (swap > 0f) swap = Mathf.Max(0f, swap - Time.unscaledDeltaTime * 5f);
         }
 
         void OnGUI()
         {
-            if (!open) { box = Rect.zero; return; }
-            if (text == null)
+            if (!open || Splash.Showing) { box = Rect.zero; return; }
+            Ui.Begin();
+            float w = Ui.W;
+            float bw = 360f, bh = 190f;
+            float cx = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
+            box = new Rect(cx - bw * 0.5f, Ui.H - bh - 60f, bw, bh);
+            Ui.Box(box, Ui.Card, Ui.Pink, 22f, 3f, true);
+            float dy = swap * 6f;
+            var a = 1f - swap;
+            Ui.Label(new Rect(box.x + 20f, box.y + 14f, bw, 16f), $"HINT {step + 1} OF {Steps.Length}", 11f, Ui.Accent.A(a), TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+            Ui.Label(new Rect(box.x + 20f, box.y + 30f + dy, bw - 40f, 28f), Steps[step].title, 21f, Ui.Ink.A(a), TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+            Ui.Label(new Rect(box.x + 20f, box.y + 62f + dy, bw - 40f, 80f), Steps[step].text, 14f, Ui.Soft.A(a), TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+
+            // the dots
+            float dx = box.x + 20f, dyy = box.yMax - 32f;
+            for (int i = 0; i < Steps.Length; i++)
             {
-                text = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true };
-                text.normal.textColor = Color.white;
-                btn = new GUIStyle(GUI.skin.button) { fontSize = 13, padding = new RectOffset(10, 10, 4, 4) };
+                float dw = i == step ? 20f : 7f;
+                Ui.Round(new Rect(dx, dyy + 9f, dw, 7f), i == step ? Ui.Accent : Hex("ecd9c6"), 4f);
+                dx += dw + 5f;
             }
-            float scale = Mathf.Max(1f, Screen.height / 900f);
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-            float w = Screen.width / scale;
-            box = new Rect(w * 0.5f - 320, 54, 640, 96);
-            var c = GUI.color; GUI.color = new Color(0.1f, 0.08f, 0.12f, 0.92f); GUI.DrawTexture(box, Texture2D.whiteTexture); GUI.color = c;
-            GUI.Label(new Rect(box.x + 14, box.y + 8, box.width - 28, 60), Steps[step], text);
-            GUI.Label(new Rect(box.x + 14, box.yMax - 26, 200, 20), $"{step + 1} of {Steps.Length}", text);
-            if (GUI.Button(new Rect(box.xMax - 240, box.yMax - 30, 110, 24), "Skip hints", btn)) { open = false; PlayerPrefs.SetInt(Key, 1); GameAudio.Play(GameAudio.Sfx.Click); }
-            if (GUI.Button(new Rect(box.xMax - 120, box.yMax - 30, 106, 24), step < Steps.Length - 1 ? "Next" : "Got it", btn))
+            if (Ui.Pill(new Rect(box.xMax - 178f, box.yMax - 42f, 76f, 30f), "Skip", false, 13f)) { open = false; PlayerPrefs.SetInt(Key, 1); }
+            if (Ui.Pill(new Rect(box.xMax - 96f, box.yMax - 42f, 82f, 30f), step < Steps.Length - 1 ? "Next" : "Got it", true, 13f))
             {
-                GameAudio.Play(GameAudio.Sfx.Click);
-                if (step < Steps.Length - 1) step++; else { open = false; PlayerPrefs.SetInt(Key, 1); }
+                if (step < Steps.Length - 1) { step++; swap = 1f; } else { open = false; PlayerPrefs.SetInt(Key, 1); }
             }
         }
 
-        public bool OverBox(Vector2 p) => open && box.Contains(p / Mathf.Max(1f, Screen.height / 900f));
+        static Color Hex(string h) => Ui.Hex(h);
+
+        public bool OverBox(Vector2 p) => open && box.Contains(Ui.ToUi(p));
     }
 }

@@ -170,10 +170,8 @@ namespace Tiramisu
         public static bool Active { get; private set; }
 
         string category;
-        Vector2 scroll;
-        GUIStyle btn, btnOn, small, title;
-        float scale = 1f;
-        public Rect panel;
+        float scroll;
+        readonly Dictionary<string, Texture2D> thumbs = new Dictionary<string, Texture2D>();
 
         void Awake() { Instance = this; }
 
@@ -190,52 +188,57 @@ namespace Tiramisu
             if (Active && Input.GetKeyDown(KeyCode.Escape) && !DecorateMode.Instance.Holding) Active = false;
         }
 
-        void Styles()
+        Texture2D Thumb(string id)
         {
-            if (btn != null) return;
-            btn = new GUIStyle(GUI.skin.button) { fontSize = 12, alignment = TextAnchor.MiddleLeft, wordWrap = true, padding = new RectOffset(8, 8, 4, 4), fixedHeight = 46 };
-            btnOn = new GUIStyle(btn) { fontStyle = FontStyle.Bold };
-            btnOn.normal.textColor = btnOn.hover.textColor = new Color(1f, 0.78f, 0.86f);
-            small = new GUIStyle(GUI.skin.label) { fontSize = 11 }; small.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
-            title = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold }; title.normal.textColor = Color.white;
+            if (!thumbs.TryGetValue(id, out var t)) thumbs[id] = t = Resources.Load<Texture2D>("Thumbs/" + id);
+            return t;
         }
 
-        void OnGUI()
+        /// <summary>The Shop tab of the side panel, like the 2D game's: category chips, then cards with a picture, a name and a price.</summary>
+        public void DrawShop(Rect area)
         {
-            if (!Active || Catalog.Instance == null) { panel = Rect.zero; return; }
-            Styles();
-            scale = Mathf.Max(1f, Screen.height / 900f);
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-            float w = Screen.width / scale, h = Screen.height / scale;
-            panel = new Rect(230, h - 262, Mathf.Min(w - 470, 900), 196);
-            GUI.Box(panel, GUIContent.none);
-            GUILayout.BeginArea(new Rect(panel.x + 8, panel.y + 6, panel.width - 16, panel.height - 12));
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Buy mode", title, GUILayout.Width(90));
+            if (Catalog.Instance == null) return;
             if (category == null) category = "Living";
+            float w = area.width;
+
+            // the money and the categories stay put, the cards scroll
+            Ui.Label(new Rect(area.x, area.y, w, 22f), $"Funds  {Household.Currency} {(Household.Instance ? Household.Instance.Funds : 0):N0}", 15f, Ui.GoldText, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+            float cx = area.x, cy = area.y + 28f;
             foreach (var c in Catalog.Instance.Categories())
-                if (GUILayout.Button(c, c == category ? btnOn : btn, GUILayout.Width(Mathf.Max(70, c.Length * 9 + 24)), GUILayout.Height(26))) { category = c; GameAudio.Play(GameAudio.Sfx.Click); }
-            GUILayout.FlexibleSpace();
-            GUILayout.Label($"Funds: {Household.Currency} {(Household.Instance ? Household.Instance.Funds : 0):N0}", title);
-            GUILayout.EndHorizontal();
-            scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(122));
-            GUILayout.BeginHorizontal();
-            foreach (var e in Catalog.Instance.entries)
             {
-                if (e.category != category) continue;
-                bool afford = Household.CanAfford(e.Price);
-                var old = GUI.color; if (!afford) GUI.color = new Color(1f, 1f, 1f, 0.5f);
-                if (GUILayout.Button($"{e.name}\n{Household.Currency} {e.Price:N0}", btn, GUILayout.Width(128)))
-                {
-                    if (!afford) { Household.Toast($"You need {Household.Currency} {e.Price:N0} for the {e.name.ToLower()}."); GameAudio.Play(GameAudio.Sfx.No); }
-                    else Buy(e);
-                }
-                GUI.color = old;
+                float cw = Ui.TextWidth(c, 12f, Ui.Weight.ExtraBold) + 22f;
+                if (cx + cw > area.xMax) { cx = area.x; cy += 28f; }
+                if (Ui.Chip(new Rect(cx, cy, cw, 24f), c, c == category, 12f)) { category = c; scroll = 0f; }
+                cx += cw + 5f;
             }
-            GUILayout.EndHorizontal();
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
-            GUI.Label(new Rect(panel.x + 10, panel.yMax + 2, 700, 20), "Click something to buy it, then move it into place and click. R turns it, Esc puts it back, Delete sells it.", small);
+            cy += 34f;
+
+            var entries = new List<CatalogEntry>();
+            foreach (var e in Catalog.Instance.entries) if (e.category == category) entries.Add(e);
+            const float cardH = 156f, gap = 10f;
+            int rows = (entries.Count + 1) / 2;
+            var view = new Rect(area.x, cy, w, area.yMax - cy);
+            scroll = Ui.Scroll(view, scroll, rows * (cardH + gap) + 6f, cw2 =>
+            {
+                float cardW = (cw2 - gap) / 2f;
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var e = entries[i];
+                    var r = new Rect((i % 2) * (cardW + gap), (i / 2) * (cardH + gap), cardW, cardH);
+                    bool afford = Household.CanAfford(e.Price);
+                    if (Ui.CardButton(r))
+                    {
+                        if (!afford) { Household.Toast($"You need {Household.Currency} {e.Price:N0} for the {e.name.ToLower()}."); GameAudio.Play(GameAudio.Sfx.No); }
+                        else Buy(e);
+                    }
+                    var img = Thumb(e.id);
+                    var pic = new Rect(r.x + (cardW - 96f) * 0.5f, r.y + 8f, 96f, 96f);
+                    if (img != null && Event.current.type == EventType.Repaint) { var o = GUI.color; GUI.color = afford ? Color.white : new Color(1f, 1f, 1f, 0.5f); GUI.DrawTexture(Ui.S(pic), img, ScaleMode.ScaleToFit, true); GUI.color = o; }
+                    else { Ui.Round(pic, Ui.Cream2, 16f); Ui.Label(pic, e.name.Substring(0, 1), 34f, Ui.Pink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold); }
+                    Ui.Label(new Rect(r.x + 4f, r.y + 106f, cardW - 8f, 20f), e.name, 13f, Ui.Ink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+                    Ui.Label(new Rect(r.x + 4f, r.y + 128f, cardW - 8f, 20f), $"{Household.Currency} {e.Price:N0}", 13f, afford ? Ui.GoldText : Ui.Soft, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+                }
+            });
         }
 
         void Buy(CatalogEntry e)

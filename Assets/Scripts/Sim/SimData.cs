@@ -165,7 +165,7 @@ namespace Tiramisu
             if (s == Skill.Fitness && Has("Handy")) xp *= 1.1f;
             int before = Level(s);
             skillXp[(int)s] += xp;
-            if (Level(s) > before) { Household.Toast($"{displayName}'s {s} skill is now level {Level(s)}!"); GameAudio.Play(GameAudio.Sfx.Chime); AddMoodlet($"Proud of their {s}", 12f, 240f); }
+            if (Level(s) > before) { Household.Toast($"{displayName}'s {s} skill is now level {Level(s)}!"); GameAudio.Play(GameAudio.Sfx.Level); AddMoodlet($"Proud of their {s}", 12f, 240f); }
         }
 
         // ------------------------------------------------------------ friendship

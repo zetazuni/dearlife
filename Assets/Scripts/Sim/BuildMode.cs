@@ -48,8 +48,7 @@ namespace Tiramisu
         bool dragging; Vector3 dragStart, dragEnd;
         GameObject preview;
         Camera cam;
-        Vector2 scroll;
-        GUIStyle btn, btnOn, small, title;
+        float scroll;
         public Rect panel;
         string hint = "";
 
@@ -400,58 +399,67 @@ namespace Tiramisu
 
         // ------------------------------------------------------------ the panel
 
-        void Styles()
+        static readonly string[] ToolNames = { "Wall", "Room", "Doorway", "Window", "Floor", "Paint", "Knock down" };
+        static readonly string[] ToolNotes =
         {
-            if (btn != null) return;
-            btn = new GUIStyle(GUI.skin.button) { fontSize = 12, padding = new RectOffset(8, 8, 4, 4), wordWrap = true };
-            btnOn = new GUIStyle(btn) { fontStyle = FontStyle.Bold };
-            btnOn.normal.textColor = btnOn.hover.textColor = new Color(1f, 0.78f, 0.86f);
-            small = new GUIStyle(GUI.skin.label) { fontSize = 11 }; small.normal.textColor = new Color(1f, 1f, 1f, 0.85f);
-            title = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold }; title.normal.textColor = Color.white;
-        }
+            "Drag to draw a wall.\nRM 40 a metre", "Drag a box: walls and a floor.", "Click a wall to cut a door.\nRM 150", "Click a wall for a window.\nRM 200",
+            "Drag to lay a new floor.\nRM 12 a square metre", "Click a wall or floor to paint it.", "Click what you built to take it away.",
+        };
 
-        void OnGUI()
+        /// <summary>The Build tab of the side panel: the tools as cards, then floors and wall finishes as chips, then a hint.</summary>
+        public void DrawBuild(Rect area)
         {
-            if (!Active) { panel = Rect.zero; return; }
-            Styles();
-            float scale = Mathf.Max(1f, Screen.height / 900f);
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-            float w = Screen.width / scale, h = Screen.height / scale;
-            panel = new Rect(230, h - 262, Mathf.Min(w - 470, 900), 196);
-            GUI.Box(panel, GUIContent.none);
-            GUILayout.BeginArea(new Rect(panel.x + 8, panel.y + 6, panel.width - 16, panel.height - 12));
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Build mode", title, GUILayout.Width(100));
-            string[] names = { "Wall", "Room", "Doorway", "Window", "Floor", "Paint", "Knock down" };
-            for (int i = 0; i < names.Length; i++)
-                if (GUILayout.Button(names[i], (int)tool == i ? btnOn : btn, GUILayout.Width(names[i].Length * 8 + 30), GUILayout.Height(26))) { tool = (Tool)i; CancelDrag(); GameAudio.Play(GameAudio.Sfx.Click); }
-            GUILayout.FlexibleSpace();
-            GUILayout.Label($"Funds: {Household.Currency} {(Household.Instance ? Household.Instance.Funds : 0):N0}", title);
-            GUILayout.EndHorizontal();
+            float w = area.width, y = area.y;
+            Ui.Label(new Rect(area.x, y, w, 22f), $"Funds  {Household.Currency} {(Household.Instance ? Household.Instance.Funds : 0):N0}", 15f, Ui.GoldText, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+            y += 30f;
+            scroll = Ui.Scroll(new Rect(area.x, y, w, area.yMax - y), scroll, 640f, cw =>
+            {
+                float yy = 0f;
+                HouseHud.Kicker(0f, yy, cw, "Tools"); yy += 20f;
+                float gap = 8f, tw = (cw - gap) / 2f, th = 74f;
+                for (int i = 0; i < ToolNames.Length; i++)
+                {
+                    var r = new Rect((i % 2) * (tw + gap), yy + (i / 2) * (th + gap), tw, th);
+                    bool on = (int)tool == i;
+                    if (Ui.CardButton(r, on)) { tool = (Tool)i; CancelDrag(); }
+                    Ui.Label(new Rect(r.x + 10f, r.y + 6f, tw - 20f, 20f), ToolNames[i], 14f, on ? Ui.Accent : Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+                    Ui.Label(new Rect(r.x + 10f, r.y + 26f, tw - 20f, 44f), ToolNotes[i], 11f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+                }
+                yy += ((ToolNames.Length + 1) / 2) * (th + gap) + 8f;
 
-            bool floors = tool == Tool.Floor || tool == Tool.Room;
-            bool walls = tool == Tool.Wall || tool == Tool.Room || tool == Tool.Paint;
-            scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(110));
-            if (floors)
-            {
-                GUILayout.Label("Floor", small);
-                GUILayout.BeginHorizontal();
-                for (int i = 0; floorNames != null && i < floorNames.Length; i++)
-                    if (GUILayout.Button(floorNames[i], floorIdx == i ? btnOn : btn, GUILayout.Width(90), GUILayout.Height(28))) { floorIdx = i; GameAudio.Play(GameAudio.Sfx.Click); }
-                GUILayout.EndHorizontal();
-            }
-            if (walls)
-            {
-                GUILayout.Label("Wall finish", small);
-                GUILayout.BeginHorizontal();
-                for (int i = 0; wallNames != null && i < wallNames.Length; i++)
-                    if (GUILayout.Button(wallNames[i], wallIdx == i ? btnOn : btn, GUILayout.Width(80), GUILayout.Height(28))) { wallIdx = i; GameAudio.Play(GameAudio.Sfx.Click); }
-                GUILayout.EndHorizontal();
-            }
-            if (!floors && !walls) GUILayout.Label(hint, small);
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
-            GUI.Label(new Rect(panel.x + 10, panel.yMax + 2, 800, 20), (floors || walls ? hint + "   " : "") + "Z undoes, Esc leaves build mode. You are on the " + (HouseView.Instance && HouseView.Instance.ActiveFloor == 1 ? "upper" : "ground") + " floor.", small);
+                bool floors = tool == Tool.Floor || tool == Tool.Room;
+                bool walls = tool == Tool.Wall || tool == Tool.Room || tool == Tool.Paint;
+                if (floors)
+                {
+                    HouseHud.Kicker(0f, yy, cw, "Floor"); yy += 20f;
+                    float cx = 0f;
+                    for (int i = 0; floorNames != null && i < floorNames.Length; i++)
+                    {
+                        float chw = Ui.TextWidth(floorNames[i], 12f, Ui.Weight.ExtraBold) + 24f;
+                        if (cx + chw > cw) { cx = 0f; yy += 30f; }
+                        if (Ui.Chip(new Rect(cx, yy, chw, 26f), floorNames[i], floorIdx == i, 12f)) floorIdx = i;
+                        cx += chw + 5f;
+                    }
+                    yy += 40f;
+                }
+                if (walls)
+                {
+                    HouseHud.Kicker(0f, yy, cw, "Wall finish"); yy += 20f;
+                    float cx = 0f;
+                    for (int i = 0; wallNames != null && i < wallNames.Length; i++)
+                    {
+                        float chw = Ui.TextWidth(wallNames[i], 12f, Ui.Weight.ExtraBold) + 24f;
+                        if (cx + chw > cw) { cx = 0f; yy += 30f; }
+                        if (Ui.Chip(new Rect(cx, yy, chw, 26f), wallNames[i], wallIdx == i, 12f)) wallIdx = i;
+                        cx += chw + 5f;
+                    }
+                    yy += 40f;
+                }
+                var box = new Rect(0f, yy, cw, 96f);
+                Ui.Round(box, Ui.Pale, 14f);
+                string floorName = HouseView.Instance && HouseView.Instance.ActiveFloor == 1 ? "upper" : "ground";
+                Ui.Label(new Rect(10f, yy + 8f, cw - 20f, 82f), (string.IsNullOrEmpty(hint) ? "Pick a tool." : hint) + $"\nZ undoes, Esc leaves build mode. You are on the {floorName} floor.", 12f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+            });
         }
     }
 }

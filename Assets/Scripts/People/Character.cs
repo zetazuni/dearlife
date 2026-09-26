@@ -552,11 +552,15 @@ namespace Tiramisu
             return true;
         }
 
+        AudioSource actSound;
+
         void BeginInteraction(Interactable it, InteractionDef d)
         {
             if (d.cost > 0 && !Household.Spend(d.cost, d.label.ToLower())) { Say("I can't afford that right now."); if (spot != null) timer = 0f; return; }
             active = d; activeIt = it; activeTime = 0f; payAccum = 0f;
             it.user = this;
+            GameAudio.StopAct(actSound);
+            actSound = GameAudio.PlayAct(d.id, d.seconds, it.Centre);
             if (d.needsTv && spot != null) { var tv = TvScreen.Facing(spot); if (tv != null && !tv.on) tv.SetOn(true, true); }
             if (d.seat) { timer = d.seconds; return; }                    // seated: TickUsing runs it
             mode = Mode.Interacting; timer = d.seconds; blend = 0f;
@@ -619,6 +623,7 @@ namespace Tiramisu
         {
             if (active == null) return;
             var d = active; active = null;
+            GameAudio.StopAct(actSound); actSound = null;
             if (activeIt) activeIt.user = null;
             activeIt = null;
             bool worth = completed || activeTime > d.seconds * 0.5f;
@@ -856,9 +861,14 @@ namespace Tiramisu
             timer = 6.2f; mode = Mode.BeingPetted;
             if (sim) sim.AddMoodlet("Loved being petted", 12f, 240f);
             rig.pose = CharacterRig.Pose.Happy;
+            var at = transform.position + Vector3.up * 0.3f;
+            GameAudio.PlayAt("cat_meow", at, 0.9f, Random.Range(0.95f, 1.1f));
+            purr = GameAudio.PlayAt("cat_purr", at, 0.8f, 1f, 6f);
         }
 
-        void EndPetted() { if (mode == Mode.BeingPetted) SetIdle(Random.Range(1f, 3f)); }
+        AudioSource purr;
+
+        void EndPetted() { GameAudio.StopAct(purr); purr = null; if (mode == Mode.BeingPetted) SetIdle(Random.Range(1f, 3f)); }
 
         void TickBeingPetted()
         {

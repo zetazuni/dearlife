@@ -445,9 +445,8 @@ namespace Tiramisu
         void OnGUI()
         {
             if (!Active && Time.time > toastUntil) return;
-            float scale = Mathf.Max(1f, Screen.height / 900f);
-            var style = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(14 * scale), alignment = TextAnchor.MiddleCenter };
-            style.normal.textColor = Color.white;
+            Ui.Begin();
+            float scale = Ui.Scale;
 
             if (held != null && cam)
             {
@@ -470,7 +469,7 @@ namespace Tiramisu
                 for (int i = 0; i < 4; i++) Line(c[i], c[(i + 1) % 4], col, 3f * scale);
                 var top = cam.WorldToScreenPoint(t.TransformPoint(new Vector3(lb.center.x, lb.max.y, lb.center.z)));
                 var r = new Rect(top.x - 100 * scale, Screen.height - top.y - 34 * scale, 200 * scale, 26 * scale);
-                GUI.Label(r, held.Label, style);
+                Ui.Tag(new Vector2(r.center.x, r.center.y), held.Label, 13f, true);
             }
 
             if (winWall != null && cam)
@@ -488,12 +487,12 @@ namespace Tiramisu
                 if (visible)
                 {
                     for (int i = 0; i < 4; i++) Line(sp[i], sp[(i + 1) % 4], col, 3f * scale);
-                    GUI.Label(new Rect(sp[3].x - 100 * scale, sp[3].y - 30 * scale, 200 * scale, 26 * scale), "Window (R changes the size)", style);
+                    Ui.Tag(new Vector2(sp[3].x, sp[3].y - 18 * scale), "Window (R changes the size)", 13f, true);
                 }
             }
 
             if (Time.time < toastUntil)
-                GUI.Label(new Rect(0, Screen.height - 96 * scale, Screen.width, 30 * scale), toast, style);
+                Ui.Tag(new Vector2(Screen.width * 0.5f - (HouseHud.PanelOpen ? 175f * scale : 0f), 84f * scale), toast, 14f, false);
         }
 
         static void Line(Vector2 a, Vector2 b, Color c, float width)
