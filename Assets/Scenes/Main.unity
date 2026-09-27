@@ -199964,7 +199964,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ceecf344ce08c01419064703c363d32c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiramisu.Character
-  displayName: Athirah
+  displayName: Lily
   isPet: 0
   scale: 1
   sim: {fileID: 0}
@@ -209849,7 +209849,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ceecf344ce08c01419064703c363d32c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiramisu.Character
-  displayName: Amir
+  displayName: James
   isPet: 0
   scale: 1
   sim: {fileID: 0}
@@ -263112,6 +263112,7 @@ MonoBehaviour:
   keyPanSpeed: 1.2
   smoothing: 12
   dragThreshold: 6
+  ExternalControl: 0
 --- !u!114 &1181371194
 MonoBehaviour:
   m_ObjectHideFlags: 0

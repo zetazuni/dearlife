@@ -100,7 +100,7 @@ namespace Tiramisu
         void HandleEscape()
         {
             if (!Input.GetKeyDown(KeyCode.Escape)) return;
-            if (page == Page.Settings && confirmExit) { confirmExit = false; return; }
+            if (confirmExit) { confirmExit = false; return; }
             if (page == Page.Settings && SettingsWindow.DropdownOpen) { SettingsWindow.CloseDropdowns(); return; }
             if (page == Page.NewSlots && confirmSlot >= 0) { confirmSlot = -1; return; }
             if (page != Page.Title) { page = Page.Title; confirmSlot = -1; confirmExit = false; SettingsWindow.CloseDropdowns(); }
@@ -155,13 +155,8 @@ namespace Tiramisu
             float leftW = w * 0.23f, fadeW = w * 0.07f;
             Ui.Rect2(new Rect(0f, 0f, leftW, h), Ui.Night);
             DrawSparks(leftW, h);
-            int strips = 40;
-            for (int i = 0; i < strips; i++)
-            {
-                float t = i / (float)(strips - 1);
-                var c = Ui.Night; c.a = 1f - t;
-                Ui.Rect2(new Rect(leftW + fadeW * t, 0f, fadeW / strips + 1f, h), c);
-            }
+            if (Event.current.type == EventType.Repaint)
+                GUI.DrawTexture(Ui.S(new Rect(leftW, 0f, fadeW, h)), FadeTex(), ScaleMode.StretchToFill, true);
 
             switch (page)
             {
@@ -176,6 +171,22 @@ namespace Tiramisu
             Ui.Box(new Rect(sx, sy, 284f, 40f), new Color(0.06f, 0.045f, 0.13f, 0.55f), new Color(1f, 1f, 1f, 0.12f), 20f, 1.5f, false);
             Ui.Label(new Rect(sx + 16f, sy, 140f, 40f), "by Zetazuni", 13f, new Color(1f, 0.95f, 0.97f, 0.9f), TextAnchor.MiddleLeft, Ui.Weight.Bold);
             if (Ui.Chip(new Rect(sx + 284f - 108f, sy + 6f, 96f, 28f), "GitHub  ↗", false, 12f)) Application.OpenURL(GameInfo.RepoUrl);
+
+            if (confirmExit) DrawExitConfirm();
+        }
+
+        static Texture2D fadeTex;
+
+        /// <summary>A smooth alpha ramp from Ui.Night to clear, sampled with bilinear filtering so stretching it never bands like a row of flat rects would.</summary>
+        static Texture2D FadeTex()
+        {
+            if (fadeTex) return fadeTex;
+            const int n = 64;
+            fadeTex = new Texture2D(n, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var night = Ui.Night;
+            for (int i = 0; i < n; i++) { var c = night; c.a = 1f - i / (float)(n - 1); fadeTex.SetPixel(i, 0, c); }
+            fadeTex.Apply();
+            return fadeTex;
         }
 
         void DrawSparks(float leftW, float h)
@@ -194,11 +205,15 @@ namespace Tiramisu
 
         void DrawTitle(float leftW, float w, float h)
         {
-            var glow = new Rect(-120f, h * 0.14f, leftW + 260f, 260f);
-            Ui.Round(glow, new Color(0.65f, 0.4f, 0.9f, 0.10f), 130f);
+            const float titleSize = 118f;
+            float titleX = 44f, titleY = h * 0.14f - 8f;
+            float titleW = Ui.TextWidth("Tiramisu", titleSize, Ui.Weight.Script);
+            // the glow sits behind the middle of the rendered glyphs, not the label's oversized layout box
+            var glowCentre = new Vector2(titleX + titleW * 0.5f, titleY + titleSize * 0.62f);
+            Ui.Round(new Rect(glowCentre.x - 230f, glowCentre.y - 130f, 460f, 260f), new Color(0.65f, 0.4f, 0.9f, 0.10f), 130f);
 
-            Ui.Label(new Rect(44f, h * 0.14f - 8f, leftW + 200f, 150f), "Tiramisu", 118f, new Color(1f, 0.93f, 0.95f, 0.15f), TextAnchor.UpperLeft, Ui.Weight.Script);
-            Ui.Label(new Rect(40f, h * 0.14f - 12f, leftW + 200f, 150f), "Tiramisu", 118f, new Color(1f, 0.93f, 0.95f, 1f), TextAnchor.UpperLeft, Ui.Weight.Script);
+            Ui.Label(new Rect(titleX + 4f, titleY - 4f, leftW + 200f, 150f), "Tiramisu", titleSize, new Color(1f, 0.93f, 0.95f, 0.15f), TextAnchor.UpperLeft, Ui.Weight.Script);
+            Ui.Label(new Rect(titleX, titleY, leftW + 200f, 150f), "Tiramisu", titleSize, new Color(1f, 0.93f, 0.95f, 1f), TextAnchor.UpperLeft, Ui.Weight.Script);
 
             float ry = h * 0.14f + 108f;
             var cols = new[] { Ui.Hex("ff8fc8"), Ui.Hex("a78bfa"), Ui.Hex("57e6ff") };
@@ -206,14 +221,16 @@ namespace Tiramisu
             for (int i = 0; i < 3; i++) Ui.Round(new Rect(44f + rw / 3f * i, ry, rw / 3f + 1f, 3f), cols[i], 1.5f);
             Ui.Label(new Rect(46f, ry + 14f, leftW - 40f, 26f), "A COSY LIFE, TOGETHER", 13f, new Color(0.86f, 0.6f, 0.75f, 0.9f), TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
 
-            float bw = Mathf.Min(300f, leftW - 88f), bx = 44f, by = h * 0.52f, bh = 54f, gap = 14f;
+            float bw = Mathf.Min(300f, leftW - 88f), bx = 44f, by = h * 0.48f, bh = 54f, gap = 14f;
             if (BigButton(new Rect(bx, by, bw, bh), "Start", true)) { page = Page.NewSlots; confirmSlot = -1; }
             by += bh + gap;
             bool anySave = AnySave();
             if (BigButton(new Rect(bx, by, bw, bh), "Load Game", false, anySave)) page = Page.LoadSlots;
+            if (!anySave) Ui.Label(new Rect(bx + 2f, by + bh + 6f, bw, 18f), "Load Game unlocks once you've played.", 11f, new Color(0.75f, 0.7f, 0.88f, 0.8f), TextAnchor.UpperLeft, Ui.Weight.Bold);
             by += bh + gap;
             if (BigButton(new Rect(bx, by, bw, bh), "Settings", false)) page = Page.Settings;
-            if (!anySave) Ui.Label(new Rect(bx + 2f, by + bh + 10f, bw, 18f), "Load Game unlocks once you've played.", 11f, new Color(0.75f, 0.7f, 0.88f, 0.8f), TextAnchor.UpperLeft, Ui.Weight.Bold);
+            by += bh + gap;
+            if (BigButton(new Rect(bx, by, bw, bh), "Exit game", false)) confirmExit = true;
 
             // a little row of what the game is about, just above the version
             string[] features = { "Decorate", "Careers", "Pets", "Build your own home" };
@@ -259,24 +276,23 @@ namespace Tiramisu
             BackButton(leftW);
             Ui.Label(new Rect(72f, 24f, leftW - 90f, 30f), isNew ? "Start a new game" : "Load a game", 22f, Color.white, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
 
-            float top = 70f, cw = (leftW - 44f - 10f) / 2f, ch = 68f, gap = 10f;
+            float top = 70f, cw = leftW - 44f, ch = 84f, gap = 12f;
             for (int i = 0; i < SaveSystem.MaxSlots; i++)
             {
                 int slot = i + 1;
-                int col = i % 2, row = i / 2;
-                var r = new Rect(22f + col * (cw + gap), top + row * (ch + gap), cw, ch);
+                var r = new Rect(22f, top + i * (ch + gap), cw, ch);
                 bool used = SaveSystem.SlotHasSave(slot);
                 bool clickable = isNew || used;
                 bool hover = clickable && Ui.Hover(r);
-                Ui.Round(r, used ? new Color(1f, 1f, 1f, hover ? 0.16f : 0.1f) : hover && isNew ? new Color(1f, 1f, 1f, 0.08f) : new Color(1f, 1f, 1f, 0.03f), 14f);
-                Ui.Ring(r, hover && clickable ? Ui.Hex("ff8fc8") : new Color(1f, 1f, 1f, 0.14f), 2f, 14f);
-                Ui.Label(new Rect(r.x + 14f, r.y + 8f, r.width - 24f, 20f), "Slot " + slot, 14f, Color.white, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+                Ui.Round(r, used ? new Color(1f, 1f, 1f, hover ? 0.16f : 0.1f) : hover && isNew ? new Color(1f, 1f, 1f, 0.08f) : new Color(1f, 1f, 1f, 0.03f), 16f);
+                Ui.Ring(r, hover && clickable ? Ui.Hex("ff8fc8") : new Color(1f, 1f, 1f, 0.14f), 2f, 16f);
+                Ui.Label(new Rect(r.x + 18f, r.y + 12f, r.width - 32f, 24f), "Slot " + slot, 16f, Color.white, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
                 string sub = used ? SaveSystem.SlotSummary(slot) : "Empty";
-                Ui.Label(new Rect(r.x + 14f, r.y + 30f, r.width - 24f, 18f), sub, 11f, new Color(0.85f, 0.8f, 0.95f, 0.85f), TextAnchor.UpperLeft, Ui.Weight.Bold);
+                Ui.Label(new Rect(r.x + 18f, r.y + 40f, r.width - 32f, 20f), sub, 12f, new Color(0.85f, 0.8f, 0.95f, 0.85f), TextAnchor.UpperLeft, Ui.Weight.Bold);
                 if (used)
                 {
                     string saved = SaveSystem.SlotLastSaved(slot);
-                    if (saved != "") Ui.Label(new Rect(r.x + 14f, r.y + 48f, r.width - 24f, 16f), "Saved " + saved, 10f, new Color(0.7f, 0.66f, 0.85f, 0.7f), TextAnchor.UpperLeft, Ui.Weight.Bold);
+                    if (saved != "") Ui.Label(new Rect(r.x + 18f, r.y + 60f, r.width - 32f, 18f), "Saved " + saved, 11f, new Color(0.7f, 0.66f, 0.85f, 0.7f), TextAnchor.UpperLeft, Ui.Weight.Bold);
                 }
                 if (clickable && Event.current.type == EventType.MouseDown && Ui.S(r).Contains(Event.current.mousePosition))
                 {
@@ -313,10 +329,10 @@ namespace Tiramisu
             Ui.Label(new Rect(72f, 24f, leftW - 90f, 30f), "Settings", 22f, Color.white, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
 
             var inner = new Rect(22f, 70f, leftW - 44f, h - 70f - 20f);
-            settingsScroll = Ui.Scroll(inner, settingsScroll, 480f + (SettingsWindow.DropdownOpen ? 190f : 0f), DrawSettingsContent);
-
-            if (confirmExit) DrawExitConfirm();
+            settingsScroll = Ui.Scroll(inner, settingsScroll, 210f + GraphicsBlockHeight, DrawSettingsContent);
         }
+
+        static float GraphicsBlockHeight => 480f + (SettingsWindow.DropdownOpen ? 190f : 0f);
 
         void DrawSettingsContent(float w)
         {
@@ -338,12 +354,9 @@ namespace Tiramisu
             Ui.Label(new Rect(0f, y, w, 20f), "GRAPHICS", 12f, new Color(0.86f, 0.6f, 0.75f, 0.9f), TextAnchor.UpperLeft, Ui.Weight.ExtraBold); y += 24f;
             DisplaySettings.Init();
             // SettingsWindow.DrawGraphics always draws from its own local y = 0, so it's nested in a group offset to here
-            GUI.BeginGroup(Ui.S(new Rect(0f, y, w, 460f)));
+            GUI.BeginGroup(Ui.S(new Rect(0f, y, w, GraphicsBlockHeight)));
             SettingsWindow.DrawGraphics(w);
             GUI.EndGroup();
-            y += 460f;
-
-            if (Ui.Pill(new Rect(0f, y, w, 36f), "Exit game", false, 14f)) confirmExit = true;
         }
 
         void DrawExitConfirm()

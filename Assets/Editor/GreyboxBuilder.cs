@@ -1721,8 +1721,8 @@ namespace Tiramisu.EditorTools
 
         static void MoveIn(Transform parent)
         {
-            Person(parent, "athirah", "Athirah", new Vector3(5.6f, 0.02f, 5.6f), 1f, 200f);
-            Person(parent, "amir", "Amir", new Vector3(11.5f, 0.02f, 6.6f), 1f, 20f);
+            Person(parent, "athirah", "Lily", new Vector3(5.6f, 0.02f, 5.6f), 1f, 200f);
+            Person(parent, "amir", "James", new Vector3(11.5f, 0.02f, 6.6f), 1f, 20f);
             Pet(parent, "bedah", "Bedah", new Vector3(3.2f, 0.02f, 6.3f));
         }
 
@@ -2003,19 +2003,19 @@ namespace Tiramisu.EditorTools
             sc.fireflyMaterial = Dot("SeasonFirefly", new Color(1f, 0.95f, 0.5f, 1f), 6f);
         }
 
-        /// <summary>The green diamond over the person you are playing.</summary>
+        /// <summary>The hexagon ring over the person you are playing: lit like everything else in the room (not a flat glowing icon), a pastel base colour with a soft gloss, and a touch of its own glow.</summary>
         static Material PlumbobMaterial()
         {
             const string path = "Assets/Art/Materials/Plumbob.mat";
             System.IO.Directory.CreateDirectory("Assets/Art/Materials");
             var m = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (!m)
-            {
-                m = new Material(Shader.Find("HDRP/Unlit"));
-                AssetDatabase.CreateAsset(m, path);
-            }
-            m.SetColor("_UnlitColor", new Color(0.45f, 0.8f, 1f, 1f));
-            m.SetColor("_EmissiveColor", new Color(0.3f, 0.65f, 1f, 1f) * 3f);
+            var lit = Shader.Find("HDRP/Lit");
+            if (!m) { m = new Material(lit); AssetDatabase.CreateAsset(m, path); }
+            else if (m.shader != lit) m.shader = lit;      // migrates an older Unlit version of this asset
+            m.SetColor("_BaseColor", new Color(0.85f, 0.75f, 0.95f, 1f));
+            m.SetFloat("_Smoothness", 0.72f);
+            m.SetFloat("_Metallic", 0.05f);
+            m.SetColor("_EmissiveColor", new Color(0.85f, 0.75f, 0.95f, 1f) * 0.5f);
             UnityEngine.Rendering.HighDefinition.HDMaterial.ValidateMaterial(m);
             EditorUtility.SetDirty(m);
             return m;

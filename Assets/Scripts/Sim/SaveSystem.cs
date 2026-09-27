@@ -11,7 +11,7 @@ namespace Tiramisu
     /// </summary>
     public static class SaveSystem
     {
-        public const int MaxSlots = 10;
+        public const int MaxSlots = 5;
         const string SlotPrefKey = "tiramisu.slot";
         const string LastSavedKeyBase = "tiramisu.lastSaved";
         const string FundsKeyBase = "tiramisu.funds";
@@ -24,7 +24,7 @@ namespace Tiramisu
         {
             "tiramisu.funds", "tiramisu.built", "tiramisu.painted", "tiramisu.bought", "tiramisu.sold",
             "tiramisu.layout", "tiramisu.windows", "tiramisu.dogs", "tiramisu.hour", "tiramisu.season",
-            "tiramisu.tutorial", "tiramisu.career.Amir", "tiramisu.career.Athirah",
+            "tiramisu.tutorial", "tiramisu.career.James", "tiramisu.career.Lily",
         };
 
         /// <summary>Turns a base key into the active slot's key. Every system that saves game state should read and write through this.</summary>

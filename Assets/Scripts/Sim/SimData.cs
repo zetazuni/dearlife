@@ -73,16 +73,16 @@ namespace Tiramisu
             displayName = who; isPet = pet;
             switch (who)
             {
-                case "Amir": traits.AddRange(new[] { "Bookworm", "Foodie", "Handy" }); job = "Engineer"; break;
-                case "Athirah": traits.AddRange(new[] { "Creative", "Cheerful", "Neat" }); job = "Teacher"; break;
+                case "James": traits.AddRange(new[] { "Bookworm", "Foodie", "Handy" }); job = "Engineer"; break;
+                case "Lily": traits.AddRange(new[] { "Creative", "Cheerful", "Neat" }); job = "Teacher"; break;
                 default: traits.AddRange(new[] { "Cuddly", "Curious" }); break;
             }
             if (!pet) { NewWish(); NewWish(); NewWish(); LoadCareer(); }
-            friendship["Amir"] = friendship["Athirah"] = friendship["Bedah"] = 0f;
+            friendship["James"] = friendship["Lily"] = friendship["Bedah"] = 0f;
             friendship[who] = 100f;
-            if (who == "Amir") { friendship["Athirah"] = 70f; friendship["Bedah"] = 40f; }
-            if (who == "Athirah") { friendship["Amir"] = 70f; friendship["Bedah"] = 50f; }
-            if (who == "Bedah") { friendship["Amir"] = 40f; friendship["Athirah"] = 50f; }
+            if (who == "James") { friendship["Lily"] = 70f; friendship["Bedah"] = 40f; }
+            if (who == "Lily") { friendship["James"] = 70f; friendship["Bedah"] = 50f; }
+            if (who == "Bedah") { friendship["James"] = 40f; friendship["Lily"] = 50f; }
         }
 
         public bool Has(string trait) => traits.Contains(trait);

@@ -316,10 +316,16 @@ namespace Tiramisu
             OpenMenu(mouse, piece.Label);
         }
 
-        // ---------------------------------------------------------------- the green diamond
+        // ---------------------------------------------------------------- the hexagon ring over the selected person
 
-        Transform[] rings;
-        Material[] atomMats;   // one material each for the core and the three rings, so they can be different colours
+        Transform ring;
+        Material[] atomMats;
+
+        /// <summary>The game's own pastel palette (pink, lavender, ice blue, soft gold), cycled through slowly.</summary>
+        static readonly Color[] PastelPalette =
+        {
+            new Color(1f, 0.72f, 0.86f), new Color(0.78f, 0.68f, 0.98f), new Color(0.6f, 0.88f, 0.95f), new Color(1f, 0.88f, 0.75f),
+        };
 
         static Mesh Torus(float radius, float tube, int seg, int sides)
         {
@@ -346,35 +352,22 @@ namespace Tiramisu
             return m;
         }
 
-        /// <summary>A small glowing atom: a ball with three rings that spin, over the person you are playing.</summary>
+        /// <summary>A pastel hexagon ring, lit like anything else in the room, spinning gently over the person you are playing.</summary>
         void MakePlumbob()
         {
             var mats = new List<Material>();
             var root = new GameObject("Plumbob");
             root.transform.SetParent(transform, false);
-            void Setup(GameObject go)
-            {
-                var mr = go.GetComponent<MeshRenderer>();
-                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                mr.receiveShadows = false;
-                if (plumbobMaterial) { var m = new Material(plumbobMaterial); mr.sharedMaterial = m; mats.Add(m); }
-            }
-            var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Destroy(core.GetComponent<Collider>());
-            core.transform.SetParent(root.transform, false);
-            core.transform.localScale = Vector3.one * 0.085f;
-            Setup(core);
-            var ringMesh = Torus(0.13f, 0.005f, 48, 6);
-            rings = new Transform[3];
-            for (int i = 0; i < 3; i++)
-            {
-                var g = new GameObject("Ring " + i);
-                g.transform.SetParent(root.transform, false);
-                g.AddComponent<MeshFilter>().sharedMesh = ringMesh;
-                g.AddComponent<MeshRenderer>();
-                Setup(g);
-                rings[i] = g.transform;
-            }
+            var ringMesh = Torus(0.15f, 0.02f, 6, 10);       // 6 straight sides = a hexagon path, a fat tube so the thickness reads clearly
+            var g = new GameObject("HexRing");
+            g.transform.SetParent(root.transform, false);
+            g.AddComponent<MeshFilter>().sharedMesh = ringMesh;
+            var mr = g.AddComponent<MeshRenderer>();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            if (plumbobMaterial) { var m = new Material(plumbobMaterial); mr.sharedMaterial = m; mats.Add(m); }
+            ring = g.transform;
+            ring.localRotation = Quaternion.Euler(55f, 0f, 0f);   // tilted like a jaunty halo, not lying dead flat
             plumbob = root.transform;
             atomMats = mats.ToArray();
         }
@@ -390,25 +383,19 @@ namespace Tiramisu
             float t = Time.unscaledTime;
             var rg = Selected.GetComponent<CharacterRig>();
             var head = rg ? rg.HeadTop : Selected.transform.position + Vector3.up * (1.75f * Selected.scale);
-            plumbob.position = head + Vector3.up * (0.36f + 0.04f * Mathf.Sin(t * 2.4f));
-            if (atomMats != null)
-                for (int i = 0; i < atomMats.Length; i++)
-                {
-                    // every part has its own colour and the colours drift round the rainbow over time
-                    var c = Color.HSVToRGB(Mathf.Repeat(t * 0.12f + i * 0.23f, 1f), 0.65f, 1f);
-                    atomMats[i].SetColor("_UnlitColor", c);
-                    atomMats[i].SetColor("_EmissiveColor", c * 3f);
-                }
-            plumbob.rotation = Quaternion.identity;
-            if (rings != null)
+            // lower than the old atom, and clear of the name tag above it
+            plumbob.position = head + Vector3.up * (0.20f + 0.03f * Mathf.Sin(t * 2.4f));
+            if (atomMats != null && atomMats.Length > 0)
             {
-                // three orbits: each ring is tilted differently and tumbles about its own axis at its own pace
-                Vector3[] axis = { Vector3.right, Vector3.up, Vector3.forward };
-                float[] pace = { 130f, 95f, 165f };
-                var start = new[] { Quaternion.Euler(0f, 0f, 0f), Quaternion.Euler(55f, 0f, 0f), Quaternion.Euler(0f, 0f, 90f) };
-                for (int i = 0; i < rings.Length; i++)
-                    rings[i].localRotation = Quaternion.AngleAxis(t * pace[i], axis[i]) * start[i];
+                // a slow lerp between the game's own pastel palette, not a raw rainbow
+                float p = Mathf.Repeat(t * 0.08f, PastelPalette.Length);
+                int a = (int)p, b = (a + 1) % PastelPalette.Length;
+                var c = Color.Lerp(PastelPalette[a], PastelPalette[b], p - a);
+                atomMats[0].SetColor("_BaseColor", c);
+                atomMats[0].SetColor("_EmissiveColor", c * 0.5f);
             }
+            plumbob.rotation = Quaternion.identity;
+            if (ring) ring.localRotation = Quaternion.Euler(55f, t * 60f, 0f);
         }
 
         // ---------------------------------------------------------------- drawing
