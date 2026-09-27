@@ -160,6 +160,7 @@ namespace Tiramisu.EditorTools
                 imp.importAnimation = false;
                 imp.importCameras = false;
                 imp.importLights = false;
+                imp.isReadable = true;
                 imp.animationType = ModelImporterAnimationType.Generic;   // keeps the skin: bones stay ordinary transforms that CharacterRig drives
                 imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
                 string json = path.Replace(".fbx", ".materials.json");

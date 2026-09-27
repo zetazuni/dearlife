@@ -15,7 +15,6 @@ namespace Tiramisu
         public static int Level { get; private set; }
         public const float StoreyHeight = 3.3f;
 
-        float fade;
         bool haveHomeLimits; Vector2 homeMin, homeMax;
 
         public static void Register(Lot l)
@@ -65,8 +64,9 @@ namespace Tiramisu
         IEnumerator Go(Lot lot)
         {
             Travelling = true;
-            for (float t = 0f; t < 0.4f; t += Time.unscaledDeltaTime) { fade = t / 0.4f; yield return null; }
-            fade = 1f;
+            LoadingScreen.Begin(lot.home ? "Home" : lot.lotName, lot.home ? "Going back home" : "Off to " + lot.lotName);
+            yield return new WaitForSecondsRealtime(0.4f);
+            LoadingScreen.Progress(0.25f);
 
             if (BuildMode.Active) BuildMode.Toggle();
             if (DecorateMode.Active && DecorateMode.Instance) DecorateMode.Instance.Toggle();
@@ -91,19 +91,13 @@ namespace Tiramisu
                 else { cam.pivotMin = new Vector2(lot.min.x - 25f, lot.min.y - 25f); cam.pivotMax = new Vector2(lot.max.x + 25f, lot.max.y + 25f); }
                 cam.JumpTo(lot.home ? new Vector3(15f, 0f, 9f) : lot.Centre, lot.home ? 38f : 32f);
             }
+            LoadingScreen.Progress(0.6f);
+            yield return new WaitForSecondsRealtime(0.7f);
+            LoadingScreen.Progress(0.9f);
+            yield return new WaitForSecondsRealtime(0.6f);
+            LoadingScreen.End();
             Household.Toast(lot.home ? "Home again." : "Welcome to " + lot.lotName + ".");
-            yield return new WaitForSecondsRealtime(0.25f);
-            for (float t = 0f; t < 0.5f; t += Time.unscaledDeltaTime) { fade = 1f - t / 0.5f; yield return null; }
-            fade = 0f;
             Travelling = false;
-        }
-
-        void OnGUI()
-        {
-            if (fade <= 0.001f) return;
-            GUI.depth = -1000;
-            Ui.Begin();
-            Ui.Rect2(new Rect(0f, 0f, Ui.W, Ui.H), new Color(0.06f, 0.04f, 0.1f, fade));
         }
     }
 }

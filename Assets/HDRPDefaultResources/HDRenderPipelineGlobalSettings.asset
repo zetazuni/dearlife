@@ -236,7 +236,30 @@ MonoBehaviour:
       - rid: 2792500637683679268
       - rid: 2792500637683679269
     m_RuntimeSettings:
-      m_List: []
+      m_List:
+      - rid: 2792500637683679236
+      - rid: 2792500637683679238
+      - rid: 2792500637683679239
+      - rid: 2792500637683679242
+      - rid: 2792500637683679243
+      - rid: 2792500637683679244
+      - rid: 2792500637683679245
+      - rid: 2792500637683679246
+      - rid: 2792500637683679247
+      - rid: 2792500637683679248
+      - rid: 2792500637683679249
+      - rid: 2792500637683679250
+      - rid: 2792500637683679253
+      - rid: 2792500637683679254
+      - rid: 2792500637683679255
+      - rid: 2792500637683679258
+      - rid: 2792500637683679260
+      - rid: 2792500637683679261
+      - rid: 2792500637683679263
+      - rid: 2792500637683679264
+      - rid: 2792500637683679265
+      - rid: 2792500637683679268
+      - rid: 2792500637683679269
   renderingLayerNames:
   - Default
   lightLayerName0: 
@@ -588,7 +611,7 @@ MonoBehaviour:
       type: {class: HDRPDefaultVolumeProfileSettings, ns: UnityEngine.Rendering.HighDefinition, asm: Unity.RenderPipelines.HighDefinition.Runtime}
       data:
         m_Version: 0
-        m_VolumeProfile: {fileID: 0}
+        m_VolumeProfile: {fileID: 11400000, guid: 5c4d7068a4e2eb94c8c549356fc9cda0, type: 2}
     - rid: 2792500637683679250
       type: {class: HDRPRayTracingResources, ns: UnityEngine.Rendering.HighDefinition, asm: Unity.RenderPipelines.HighDefinition.Runtime}
       data:

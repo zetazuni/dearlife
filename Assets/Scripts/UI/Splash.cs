@@ -20,6 +20,7 @@ namespace Tiramisu
             if (done) return;
             float t = Time.unscaledTime - t0;
             if (t > Total || (Event.current.type == EventType.MouseDown && t > 0.4f)) { done = true; return; }
+            GUI.depth = -950;        // over the loading screen, which waits underneath
             Ui.Begin();
             float fadeOut = 1f - Mathf.Clamp01((t - (Total - 0.7f)) / 0.7f);
             float w = Ui.W, h = Ui.H;

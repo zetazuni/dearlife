@@ -26,8 +26,9 @@ namespace Tiramisu
             OrbitCamera.IsOverUi = p =>
             {
                 var u = Ui.ToUi(p);
-                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || ColourPicker.Box.Contains(u);
+                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || LoadingScreen.Blocking || ColourPicker.Box.Contains(u);
             };
+            if (!GetComponent<LoadingScreen>()) gameObject.AddComponent<LoadingScreen>();
             if (!GetComponent<Splash>()) gameObject.AddComponent<Splash>();
             if (!GetComponent<SettingsWindow>()) gameObject.AddComponent<SettingsWindow>();
             if (!GetComponent<ColourPicker>()) gameObject.AddComponent<ColourPicker>();

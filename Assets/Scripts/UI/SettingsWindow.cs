@@ -1,9 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Tiramisu
 {
     /// <summary>
-    /// The settings window, opened from the top bar like the 2D game's menu: tabs for Sound, Time, Picture and Game (dark mode, hints).
+    /// The settings window, opened from the top bar like the 2D game's menu: tabs for Sound, Time, Graphics and Game (dark mode, hints).
     /// </summary>
     public class SettingsWindow : MonoBehaviour
     {
@@ -11,6 +12,7 @@ namespace Tiramisu
         public static Rect Box;
         static int tab;
         float scroll;
+        static int openDrop = -1;      // which dropdown is unfolded on the Graphics tab
 
         public static void Toggle() { Open = !Open; GameAudio.Play(GameAudio.Sfx.Click); }
 
@@ -28,13 +30,13 @@ namespace Tiramisu
             Ui.Label(new Rect(Box.x + 24f, Box.y + 14f, 300f, 34f), "Settings", 26f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
             if (Ui.Square(new Rect(Box.xMax - 54f, Box.y + 14f, 34f, 34f), "X")) Open = false;
 
-            string[] names = { "Sound", "Time", "Picture", "Game" };
+            string[] names = { "Sound", "Time", "Graphics", "Game" };
             float tw = (Box.width - 48f - 3f * 6f) / 4f;
             for (int i = 0; i < 4; i++)
-                if (Ui.Chip(new Rect(Box.x + 24f + i * (tw + 6f), Box.y + 58f, tw, 30f), names[i], tab == i, 13f)) { tab = i; scroll = 0f; }
+                if (Ui.Chip(new Rect(Box.x + 24f + i * (tw + 6f), Box.y + 58f, tw, 30f), names[i], tab == i, 13f)) { tab = i; scroll = 0f; openDrop = -1; if (i == 2) DisplaySettings.Init(); }
 
             var inner = new Rect(Box.x + 24f, Box.y + 102f, Box.width - 48f, Box.height - 102f - 22f);
-            scroll = Ui.Scroll(inner, scroll, 420f, DrawTab);
+            scroll = Ui.Scroll(inner, scroll, tab == 2 ? 520f + (openDrop >= 0 ? 190f : 0f) : 420f, DrawTab);
 
             // a click on the dark outside closes it
             if (Event.current.type == EventType.MouseDown && !Box.Contains(Ui.Mouse)) { Open = false; Event.current.Use(); }
@@ -86,16 +88,7 @@ namespace Tiramisu
                     }
                     break;
                 case 2:
-                    var gfx = GraphicsModes.Instance;
-                    if (gfx)
-                    {
-                        Ui.Label(new Rect(0f, y, w, 22f), "Picture quality: " + gfx.Label, 14f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold); y += 30f;
-                        float qw = (w - 12f) / 3f;
-                        string[] gn = { "Ultra", "Quality", "Performance" };
-                        for (int i = 0; i < 3; i++) if (Ui.Chip(new Rect(i * (qw + 6f), y, qw, 32f), gn[i], (int)gfx.mode == i, 13f)) gfx.Apply((GraphicsModes.Mode)i);
-                        y += 46f;
-                        Ui.Label(new Rect(0f, y, w, 60f), "Ultra uses ray traced reflections. Performance turns off the heaviest effects. All three use DLSS when the graphics card has it.", 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
-                    }
+                    DrawGraphics(w);
                     break;
                 default:
                     Ui.Label(new Rect(0f, y, w, 22f), "Look", 14f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold); y += 28f;
@@ -110,6 +103,65 @@ namespace Tiramisu
                     y += 60f;
                     Ui.Label(new Rect(0f, y, w, 60f), $"Tiramisu 3D v{GameInfo.Version}  ·  {GameInfo.BuildDate}\nMade by Amir (Zetazuni) for Athirah.", 13f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
                     break;
+            }
+        }
+
+        /// <summary>A drop-down: a wide button that unfolds a list under it. Returns the index chosen (or the current one).</summary>
+        int Drop(ref float y, float w, int id, string label, string[] names, int cur, bool enabled = true)
+        {
+            Ui.Label(new Rect(0f, y, w, 20f), label, 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold); y += 22f;
+            var head = new Rect(0f, y, w, 34f);
+            bool open = openDrop == id && enabled;
+            if (Ui.Pill(head, names[Mathf.Clamp(cur, 0, names.Length - 1)] + (open ? "   ▲" : "   ▼"), open, 14f) && enabled) openDrop = open ? -1 : id;
+            y += 40f;
+            int result = cur;
+            if (open)
+            {
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (Ui.Chip(new Rect(12f, y, w - 24f, 28f), names[i], i == cur, 13f)) { result = i; openDrop = -1; GameAudio.Play(GameAudio.Sfx.Click); }
+                    y += 32f;
+                }
+                y += 4f;
+            }
+            return result;
+        }
+
+        void DrawGraphics(float w)
+        {
+            DisplaySettings.Init();
+            float y = 0f;
+            int m = Drop(ref y, w, 0, "Window mode", DisplaySettings.ModeNames, DisplaySettings.Mode);
+            if (m != DisplaySettings.Mode) DisplaySettings.SetMode(m);
+
+            var sizes = DisplaySettings.Sizes;
+            var names = new string[sizes.Count];
+            int cur = 0;
+            for (int i = 0; i < sizes.Count; i++) { names[i] = DisplaySettings.SizeName(sizes[i]); if (sizes[i].x == DisplaySettings.Width && sizes[i].y == DisplaySettings.Height) cur = i; }
+            bool free = DisplaySettings.Mode != 1;         // borderless always uses the whole screen
+            if (names.Length > 0)
+            {
+                int r = Drop(ref y, w, 1, free ? "Resolution" : "Resolution (borderless uses the whole screen)", names, cur, free);
+                if (free && r != cur) DisplaySettings.SetSize(sizes[r]);
+            }
+
+            y += 4f;
+            float hw = (w - 8f) / 2f;
+            if (Ui.Pill(new Rect(0f, y, hw, 36f), DisplaySettings.VSync ? "V-Sync is on" : "V-Sync is off", DisplaySettings.VSync, 14f)) DisplaySettings.SetVSync(!DisplaySettings.VSync);
+            y += 48f;
+            int f = Drop(ref y, w, 2, DisplaySettings.VSync ? "Frame limit (V-Sync sets it)" : "Frame limit", DisplaySettings.FrameNames, DisplaySettings.Frame, !DisplaySettings.VSync);
+            if (f != DisplaySettings.Frame) DisplaySettings.SetFrame(f);
+
+            y += 6f;
+            var gfx = GraphicsModes.Instance;
+            if (gfx)
+            {
+                Ui.Label(new Rect(0f, y, w, 22f), "Graphics quality: " + gfx.Label, 14f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold); y += 30f;
+                float qw = (w - 12f) / 3f;
+                string[] gn = { "Ultra", "Quality", "Performance" };
+                for (int i = 0; i < 3; i++) if (Ui.Chip(new Rect(i * (qw + 6f), y, qw, 32f), gn[i], (int)gfx.mode == i, 13f)) gfx.Apply((GraphicsModes.Mode)i);
+                y += 42f;
+                Ui.Label(new Rect(0f, y, w, 60f), "Ultra uses ray traced reflections. Performance turns off the heaviest effects. All three use DLSS when the graphics card has it.", 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
             }
         }
     }

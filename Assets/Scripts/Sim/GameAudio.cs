@@ -303,6 +303,9 @@ namespace Tiramisu
 
         static int SeasonIndex() { var sc = SeasonCycle.Instance; return sc ? (int)sc.season : 0; }
 
+        /// <summary>The music of the current season has been made (it is built in the background when the game opens).</summary>
+        public bool MusicReady { get { int se = SeasonIndex(); return tracks[se] != null || (rendering[se] != null && rendering[se].IsCompleted); } }
+
         void StartTrack(int se)
         {
             if (tracks[se] == null)

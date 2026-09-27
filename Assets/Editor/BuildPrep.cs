@@ -30,6 +30,16 @@ namespace Tiramisu.EditorTools
             PlayerSettings.SplashScreen.show = true;
             PlayerSettings.SplashScreen.showUnityLogo = true;
 
+            // no code is stripped: HDRP finds its volume and sky types by looking through the assemblies while the game runs
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);
+
+            // the people and pets: their meshes are copied while the game runs (Athirah's glasses are cut out), which needs readable meshes
+            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/Art/Models/Characters" }))
+            {
+                var mi = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as ModelImporter;
+                if (mi != null && !mi.isReadable) { mi.isReadable = true; mi.SaveAndReimport(); }
+            }
+
             // DirectX 12 only, the pipeline needs it
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { GraphicsDeviceType.Direct3D12 });
