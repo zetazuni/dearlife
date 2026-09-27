@@ -1,8 +1,3 @@
-This license covers the game's own source code (C# scripts, editor tools, shaders written for this project).
-It does not cover third-party art, textures and audio bundled in `Assets/`, which keep their own licenses -
-see the `CREDITS.txt` file next to each asset folder (mostly CC0 and CC BY, one CC BY-NC-SA model used here
-only because this project is a private, non-commercial gift).
-
 MIT License
 
 Copyright (c) 2026 Amir Ariffin (Zetazuni)
