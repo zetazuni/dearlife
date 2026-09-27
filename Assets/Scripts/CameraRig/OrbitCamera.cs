@@ -54,6 +54,19 @@ namespace Tiramisu
         /// <summary>Set while something else (decorate mode dragging furniture) owns the mouse.</summary>
         public static bool Blocked;
 
+        /// <summary>Set while the main menu is driving the camera on its own cinematic path.</summary>
+        public bool ExternalControl;
+
+        /// <summary>For the main menu: places the camera straight away and keeps it there until the next call.</summary>
+        public void SetImmediate(Vector3 pivot_, float yaw_, float pitch_, float dist_)
+        {
+            pivot = tPivot = pivot_;
+            yaw = tYaw = yaw_;
+            pitch = tPitch = pitch_;
+            distance = tDist = dist_;
+            Apply();
+        }
+
         /// <summary>True for the frame a left click ended without dragging (for picking furniture later).</summary>
         public bool ClickedThisFrame { get; private set; }
         public bool RightClickedThisFrame { get; private set; }
@@ -92,6 +105,7 @@ namespace Tiramisu
         {
             ClickedThisFrame = false;
             RightClickedThisFrame = false;
+            if (ExternalControl) return;
             if (Input.touchSupported && Input.touchCount > 0) HandleTouch();
             else HandleMouse();
             HandleKeys();

@@ -478,7 +478,7 @@ namespace Tiramisu.EditorTools
             hl.min = new Vector2(-2.7f, -4.7f); hl.max = new Vector2(33.9f, 22.7f);
             hl.spawn = new Vector3(3.2f, 0f, 6.2f);
 
-            string[] names = { "Maple Court", "Lantern Row", "Willow Lane" };
+            string[] names = { "Gamuda Gardens", "Savannah Suites", "Kiara Greens" };
             string[] blurbs =
             {
                 "A sunny corner plot across the road from home. Flat, open and ready.",

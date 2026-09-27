@@ -181,7 +181,7 @@ namespace Tiramisu
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.V) && !Splash.Showing && !MapWindow.Open && !SettingsWindow.Open) Toggle();
+            if (Input.GetKeyDown(KeyCode.V) && !Splash.Showing && !MapWindow.Open && !SettingsWindow.Open && !MainMenu.Active) Toggle();
             if (!cam) cam = Camera.main;
             if (!LotManager.AtHome) UpdateCuts();
             if (!Active) return;

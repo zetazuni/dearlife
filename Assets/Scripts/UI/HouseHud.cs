@@ -26,16 +26,18 @@ namespace Tiramisu
             OrbitCamera.IsOverUi = p =>
             {
                 var u = Ui.ToUi(p);
-                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || LoadingScreen.Blocking || ColourPicker.Box.Contains(u);
+                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || LoadingScreen.Blocking || ColourPicker.Box.Contains(u) || MainMenu.Active;
             };
             if (!GetComponent<LoadingScreen>()) gameObject.AddComponent<LoadingScreen>();
             if (!GetComponent<Splash>()) gameObject.AddComponent<Splash>();
             if (!GetComponent<SettingsWindow>()) gameObject.AddComponent<SettingsWindow>();
             if (!GetComponent<ColourPicker>()) gameObject.AddComponent<ColourPicker>();
+            if (!GetComponent<MainMenu>()) gameObject.AddComponent<MainMenu>();
         }
 
         void Update()
         {
+            if (MainMenu.Active) return;
             // the shop and the build tool own their tab while they are on
             if (BuyMode.Active && Current != Tab.Shop) { Current = Tab.Shop; PanelOpen = true; }
             else if (BuildMode.Active && Current != Tab.Build) { Current = Tab.Build; PanelOpen = true; }
@@ -61,7 +63,7 @@ namespace Tiramisu
             Ui.Begin();
             float w = Ui.W, h = Ui.H;
             var view = HouseView.Instance; var cam = OrbitCamera.Instance;
-            if (!view || !cam) return;
+            if (!view || !cam || MainMenu.Active) return;
 
             DrawTopBar(w);
             DrawCameraColumn(view, cam);

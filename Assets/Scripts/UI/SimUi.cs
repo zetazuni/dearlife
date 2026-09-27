@@ -42,6 +42,7 @@ namespace Tiramisu
 
         void Update()
         {
+            if (MainMenu.Active) return;
             if (Input.GetKeyDown(KeyCode.C)) { StatusOpen = !StatusOpen; GameAudio.Play(GameAudio.Sfx.Click); }
             if (StatusOpen && Input.GetKeyDown(KeyCode.Escape)) StatusOpen = false;
         }
@@ -106,6 +107,7 @@ namespace Tiramisu
 
         void OnGUI()
         {
+            if (MainMenu.Active) return;
             Ui.Begin();
             float w = Ui.W, h = Ui.H;
             var who = LiveMode.Selected;
@@ -148,7 +150,7 @@ namespace Tiramisu
                 float cx = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
                 float tw = Mathf.Min(Ui.TextWidth(msg, 14f, Ui.Weight.ExtraBold) + 36f, w - 420f);
                 var r = new Rect(cx - tw * 0.5f, 70f, tw, 34f);
-                Ui.Box(r, Ui.Hex("fffaf2"), Ui.Pink, 14f, 2f, true);
+                Ui.Box(r, Ui.Card, Ui.Pink, 14f, 2f, true);
                 Ui.Label(r, msg, 14f, Ui.Ink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
             }
         }

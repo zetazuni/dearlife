@@ -108,7 +108,7 @@ namespace Tiramisu
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.P) && !SettingsWindow.Open) Toggle();
+            if (Input.GetKeyDown(KeyCode.P) && !SettingsWindow.Open && !MainMenu.Active) Toggle();
             bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
             if (ctrl && (Active || BuyMode.Active) && !BuildMode.Active && held == null)
             {

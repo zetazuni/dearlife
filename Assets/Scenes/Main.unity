@@ -89082,7 +89082,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 399128798}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1915159517}
+  m_Script: {fileID: 11500000, guid: 32b9e542581907041ad3b379e2a65d71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiramisu.LotManager
 --- !u!114 &399128811
@@ -99213,7 +99213,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b8e8531e70480c4c82bd11f182dcec0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiramisu.Lot
-  lotName: Lantern Row
+  lotName: Savannah Suites
   blurb: A quiet plot between two streets, a good place for a glass house like ours.
   home: 0
   min: {x: -9, y: 63}
@@ -187833,7 +187833,7 @@ GameObject:
   m_Component:
   - component: {fileID: 856283634}
   m_Layer: 0
-  m_Name: Lots
+  m_Name: Lot Kiara Greens
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -187905,7 +187905,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b8e8531e70480c4c82bd11f182dcec0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiramisu.Lot
-  lotName: Maple Court
+  lotName: Gamuda Gardens
   blurb: A sunny corner plot across the road from home. Flat, open and ready.
   home: 0
   min: {x: 51, y: 63}
@@ -233731,7 +233731,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b8e8531e70480c4c82bd11f182dcec0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tiramisu.Lot
-  lotName: Willow Lane
+  lotName: Kiara Greens
   blurb: A wide plot west of home, with room for a big garden and a pool.
   home: 0
   min: {x: -71, y: 1}
@@ -423012,21 +423012,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1915145673}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
---- !u!115 &1915159517
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: LotManager
-  m_Namespace: Tiramisu
-  m_AssemblyName: Assembly-CSharp
 --- !u!64 &1915252859
 MeshCollider:
   m_ObjectHideFlags: 0

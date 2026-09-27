@@ -13,8 +13,10 @@ namespace Tiramisu
         static int tab;
         float scroll;
         static int openDrop = -1;      // which dropdown is unfolded on the Graphics tab
+        bool confirmExit;
 
         public static void Toggle() { Open = !Open; GameAudio.Play(GameAudio.Sfx.Click); }
+        public static void ForceClose() { Open = false; }
 
         void Update() { if (Open && Input.GetKeyDown(KeyCode.Escape)) Open = false; }
 
@@ -36,10 +38,32 @@ namespace Tiramisu
                 if (Ui.Chip(new Rect(Box.x + 24f + i * (tw + 6f), Box.y + 58f, tw, 30f), names[i], tab == i, 13f)) { tab = i; scroll = 0f; openDrop = -1; if (i == 2) DisplaySettings.Init(); }
 
             var inner = new Rect(Box.x + 24f, Box.y + 102f, Box.width - 48f, Box.height - 102f - 22f);
-            scroll = Ui.Scroll(inner, scroll, tab == 2 ? 520f + (openDrop >= 0 ? 190f : 0f) : 420f, DrawTab);
+            scroll = Ui.Scroll(inner, scroll, tab == 2 ? 520f + (openDrop >= 0 ? 190f : 0f) : tab == 3 ? 480f : 420f, DrawTab);
 
             // a click on the dark outside closes it
-            if (Event.current.type == EventType.MouseDown && !Box.Contains(Ui.Mouse)) { Open = false; Event.current.Use(); }
+            if (Event.current.type == EventType.MouseDown && !Box.Contains(Ui.Mouse) && !confirmExit) { Open = false; Event.current.Use(); }
+
+            if (confirmExit) DrawExitConfirm(w, h);
+        }
+
+        void DrawExitConfirm(float w, float h)
+        {
+            Ui.Rect2(new Rect(0f, 0f, w, h), new Color(0.02f, 0.015f, 0.06f, 0.6f));
+            var box = new Rect(w * 0.5f - 200f, h * 0.5f - 80f, 400f, 160f);
+            Ui.Box(box, Ui.Card, Ui.Pink, 22f, 3f, true);
+            Ui.Label(new Rect(box.x + 24f, box.y + 18f, box.width - 48f, 28f), "Quit Tiramisu?", 19f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+            Ui.Label(new Rect(box.x + 24f, box.y + 50f, box.width - 48f, 40f), "Everything is saved already, so it's safe to close any time.", 13f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+            float bw = (box.width - 48f - 12f) / 2f;
+            if (Ui.Pill(new Rect(box.x + 24f, box.yMax - 52f, bw, 38f), "Cancel", false, 14f)) confirmExit = false;
+            if (Ui.Pill(new Rect(box.x + 24f + bw + 12f, box.yMax - 52f, bw, 38f), "Quit", true, 14f))
+            {
+                SaveSystem.SaveNow();
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+#else
+                Application.Quit();
+#endif
+            }
         }
 
         void DrawTab(float w)
@@ -101,6 +125,18 @@ namespace Tiramisu
                     var dec = DecorateMode.Instance;
                     if (dec && Ui.Pill(new Rect(0f, y, w, 36f), "Put all the furniture back where it started", false, 14f)) dec.ResetLayout();
                     y += 60f;
+
+                    HouseHud.Kicker(0f, y, w, "Save"); y += 22f;
+                    Ui.Label(new Rect(0f, y, w, 18f), SaveSystem.LastSavedText, 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold); y += 24f;
+                    if (Ui.Pill(new Rect(0f, y, w, 36f), "Save now", false, 14f)) { SaveSystem.SaveNow(); Household.Toast("Game saved."); }
+                    y += 60f;
+
+                    HouseHud.Kicker(0f, y, w, "Game"); y += 22f;
+                    if (Ui.Pill(new Rect(0f, y, w, 36f), "Back to title screen", false, 14f)) MainMenu.Open();
+                    y += 44f;
+                    if (Ui.Pill(new Rect(0f, y, w, 36f), "Exit game", false, 14f)) confirmExit = true;
+                    y += 60f;
+
                     Ui.Label(new Rect(0f, y, w, 60f), $"Tiramisu 3D v{GameInfo.Version}  ·  {GameInfo.BuildDate}\nMade by Amir (Zetazuni) for Athirah.", 13f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
                     break;
             }
