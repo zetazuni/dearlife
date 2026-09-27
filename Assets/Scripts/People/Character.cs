@@ -132,6 +132,24 @@ namespace Tiramisu
             }
         }
 
+        /// <summary>Puts this person or pet somewhere else at once (a trip to another lot): whatever they were doing is dropped.</summary>
+        public void TeleportTo(Vector3 p)
+        {
+            orders.Clear(); onOrder = false; arrive = null; afterSeat = null;
+            if (active != null) FinishInteraction(false);
+            if (spot) { spot.occupant = null; spot = null; }
+            holdSeat = false; partner = null;
+            if (agent)
+            {
+                agent.enabled = true;
+                if (NavMesh.SamplePosition(p, out var hit, 4f, NavMesh.AllAreas)) p = hit.position;
+                agent.Warp(p);
+            }
+            transform.position = p;
+            if (rig) { rig.pose = CharacterRig.Pose.Stand; rig.walkSpeed = 0f; }
+            SetIdle(0.6f);
+        }
+
         public void CancelOrders()
         {
             orders.Clear();
@@ -553,6 +571,45 @@ namespace Tiramisu
         }
 
         AudioSource actSound;
+        readonly List<Transform> liftedGuitar = new List<Transform>();
+
+        /// <summary>A book for reading, a mug for coffee, weights for working out, and the guitar itself lifted off its stand.</summary>
+        void HoldForInteraction(Interactable it, InteractionDef d)
+        {
+            if (rig == null || isPet) return;
+            switch (d.id)
+            {
+                case "read": rig.Hold("book"); break;
+                case "coffee": rig.Hold("mug"); break;
+                case "workout": rig.Hold("dumbbell"); break;
+                case "guitar":
+                {
+                    // the parts of the guitar (named G_...) come off the stand as a copy that goes into the hands
+                    if (it == null) break;
+                    var parts = new List<Transform>();
+                    foreach (Transform c in it.transform) if (c.name.StartsWith("G_")) parts.Add(c);
+                    if (parts.Count == 0) break;
+                    var holder = new GameObject("Guitar in hands");
+                    holder.transform.SetParent(it.transform, false);
+                    foreach (var p in parts)
+                    {
+                        var cl = Instantiate(p.gameObject, holder.transform);
+                        cl.transform.localPosition = p.localPosition; cl.transform.localRotation = p.localRotation; cl.transform.localScale = p.localScale;
+                        p.gameObject.SetActive(false);
+                        liftedGuitar.Add(p);
+                    }
+                    rig.Hold("guitar", holder);
+                    break;
+                }
+            }
+        }
+
+        void ReleaseHeld()
+        {
+            if (rig) rig.Release();
+            foreach (var p in liftedGuitar) if (p) p.gameObject.SetActive(true);
+            liftedGuitar.Clear();
+        }
 
         void BeginInteraction(Interactable it, InteractionDef d)
         {
@@ -566,6 +623,7 @@ namespace Tiramisu
             mode = Mode.Interacting; timer = d.seconds; blend = 0f;
             fromPos = transform.position; fromRot = transform.rotation;
             rig.pose = d.pose; rig.walkSpeed = 0f;
+            HoldForInteraction(it, d);
             if (agent.enabled && agent.isOnNavMesh) agent.ResetPath();
             if (d.pose == CharacterRig.Pose.Swim) { standPos = transform.position; agent.enabled = false; GameAudio.Play(GameAudio.Sfx.Splash); }
         }
@@ -578,7 +636,7 @@ namespace Tiramisu
             {
                 float mult = 1f; float.TryParse(active.category, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out mult);
                 payAccum += Household.PayPerSecond(sim) * (mult <= 0f ? 1f : mult) * dt;
-                sim.jobXp += dt;
+                sim.WorkXp(dt);
             }
         }
 
@@ -593,7 +651,8 @@ namespace Tiramisu
                 blend = Mathf.Min(1f, blend + Time.deltaTime / 1.2f);
                 float t = activeTime;
                 var c = centre;
-                var pos = new Vector3(c.x + Mathf.Sin(t * 0.45f) * 3.1f, c.y - 0.1f, c.z + Mathf.Sin(t * 0.9f) * 0.9f);
+                var half = activeIt && activeIt.poolHalf.x > 0f ? activeIt.poolHalf : new Vector2(4.1f, 2f);
+                var pos = new Vector3(c.x + Mathf.Sin(t * 0.45f) * half.x * 0.75f, c.y - 0.1f, c.z + Mathf.Sin(t * 0.9f) * half.y * 0.45f);
                 var dir = new Vector3(Mathf.Cos(t * 0.45f) * Mathf.Sign(Mathf.Cos(t * 0.45f)), 0f, 0.1f);
                 float yaw = Mathf.Cos(t * 0.45f) >= 0f ? 90f : -90f;
                 var rot = Quaternion.Euler(0f, yaw, 0f) * Quaternion.Euler(90f, 0f, 0f);
@@ -624,6 +683,7 @@ namespace Tiramisu
             if (active == null) return;
             var d = active; active = null;
             GameAudio.StopAct(actSound); actSound = null;
+            ReleaseHeld();
             if (activeIt) activeIt.user = null;
             activeIt = null;
             bool worth = completed || activeTime > d.seconds * 0.5f;
@@ -701,8 +761,8 @@ namespace Tiramisu
                 if (!it || it.user != null || !it.gameObject.activeInHierarchy) continue;
                 foreach (var d in it.defs)
                 {
-                    if (!d.job) continue;
-                    if (sim.job == "Teacher" && it.id == "officedesk" && d.id == "work") continue;      // she works at the teacher's desk
+                    if (!d.job || !Careers.Allows(sim.job, d.id)) continue;
+                    if (sim.job == "Teacher" && it.id == "officedesk" && d.id == "work") continue;      // teachers work at the teacher's desk
                     if (sim.job == "Engineer" && it.id == "teacherdesk") continue;
                     list.Add((it, d, 10f - Mathf.Sqrt(Flat(it.transform.position, transform.position)) * 0.1f + Random.Range(0f, 3f)));
                 }
@@ -775,7 +835,7 @@ namespace Tiramisu
             if (partner == null) { SetIdle(1f); return; }
             var d = partner.transform.position - transform.position; d.y = 0f;
             if (d.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(d), Time.deltaTime * 6f);
-            rig.pose = lineIndex % 2 == 0 && Speaking ? CharacterRig.Pose.Wave : CharacterRig.Pose.Stand;
+            rig.pose = Speaking ? CharacterRig.Pose.Talk : CharacterRig.Pose.Stand;
             nextLine -= Time.deltaTime;
             if (nextLine <= 0f && lineIndex % 2 == 0)
             {
@@ -862,8 +922,9 @@ namespace Tiramisu
             if (sim) sim.AddMoodlet("Loved being petted", 12f, 240f);
             rig.pose = CharacterRig.Pose.Happy;
             var at = transform.position + Vector3.up * 0.3f;
-            GameAudio.PlayAt("cat_meow", at, 0.9f, Random.Range(0.95f, 1.1f));
-            purr = GameAudio.PlayAt("cat_purr", at, 0.8f, 1f, 6f);
+            bool dog = rig && rig.kind == "dog";
+            GameAudio.PlayAt(dog ? "dog_bark" : "cat_meow", at, 0.9f, Random.Range(0.95f, 1.1f));
+            purr = GameAudio.PlayAt(dog ? "dog_panting" : "cat_purr", at, 0.8f, 1f, 6f);
         }
 
         AudioSource purr;

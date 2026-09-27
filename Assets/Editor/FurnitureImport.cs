@@ -129,6 +129,7 @@ namespace Tiramisu.EditorTools
                 imp.importLights = false;
                 imp.animationType = ModelImporterAnimationType.None;
                 imp.importNormals = ModelImporterNormals.Import;
+                imp.isReadable = true;      // the walkable surface is built from these colliders while the game runs, which needs readable meshes in a built game
                 imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
 
                 foreach (var slot in SlotNames(path))

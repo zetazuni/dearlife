@@ -26,7 +26,7 @@ namespace Tiramisu
             OrbitCamera.IsOverUi = p =>
             {
                 var u = Ui.ToUi(p);
-                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || ColourPicker.Box.Contains(u);
+                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || ColourPicker.Box.Contains(u);
             };
             if (!GetComponent<Splash>()) gameObject.AddComponent<Splash>();
             if (!GetComponent<SettingsWindow>()) gameObject.AddComponent<SettingsWindow>();
@@ -40,7 +40,7 @@ namespace Tiramisu
             else if (BuildMode.Active && Current != Tab.Build) { Current = Tab.Build; PanelOpen = true; }
             if (Current == Tab.Shop && !BuyMode.Active) Current = Tab.Home;
             if (Current == Tab.Build && !BuildMode.Active) Current = Tab.Home;
-            if (Input.GetKeyDown(KeyCode.P) && !DecorateMode.Active) PanelOpen = !PanelOpen;
+            if (Input.GetKeyDown(KeyCode.H) && !DecorateMode.Active && !SettingsWindow.Open) PanelOpen = !PanelOpen;
         }
 
         public static void Show(Tab t)
@@ -117,11 +117,13 @@ namespace Tiramisu
             float rx = w - 12f;
             var setBtn = new Rect(rx - 92f, y, 92f, ph); rx -= 102f;
             if (Ui.Pill(setBtn, "Settings", SettingsWindow.Open, 13f)) SettingsWindow.Toggle();
+            var mapBtn = new Rect(rx - 84f, y, 84f, ph); rx -= 94f;
+            if (Ui.Pill(mapBtn, "Map (M)", MapWindow.Open, 13f)) MapWindow.Toggle();
             var dec = DecorateMode.Instance;
             if (dec)
             {
                 var moveBtn = new Rect(rx - 88f, y, 88f, ph); rx -= 98f;
-                if (Ui.Pill(moveBtn, "Move (M)", DecorateMode.Active, 13f)) dec.Toggle();
+                if (Ui.Pill(moveBtn, "Move (P)", DecorateMode.Active, 13f)) dec.Toggle();
             }
             string[] names = { "II", "1x", "2x", "3x" };
             float gw = 44f * 4f + 4f;
@@ -199,8 +201,8 @@ namespace Tiramisu
         {
             string s = BuyMode.Active ? "Pick something in the shop, move it into place and click. R turns it, Esc puts it back."
                      : BuildMode.Active ? "Build mode: choose a tool on the right. Shift draws diagonal walls, Z undoes, Esc leaves."
-                     : DecorateMode.Active ? "Move mode: press a piece to pick it up, click to put it down. R turns it, Delete sells it."
-                     : "Click the floor to walk  ·  click things for their menu  ·  WASD move  ·  Q E turn  ·  scroll zoom  ·  Space pause";
+                     : DecorateMode.Active ? "Move mode: click a piece to pick it up, click again to put it down. R turns it, Delete sells it."
+                     : "Click the floor to walk  ·  click things for their menu  ·  WASD move  ·  M map  ·  P move furniture  ·  Space pause";
             float tw = Mathf.Min(Ui.TextWidth(s, 13f) + 26f, w - (PanelOpen ? SideW : 0f) - 40f);
             var r = new Rect(12f, h - 40f, tw, 28f);
             Ui.Round(r, Ui.Card.A(0.92f), 14f);
@@ -248,6 +250,7 @@ namespace Tiramisu
         {
             get
             {
+                if (!LotManager.AtHome) return 320f;
                 var v = HouseView.Instance; int rooms = 0;
                 if (v) foreach (var r in RoomMarker.All) if (r.floor == v.ActiveFloor) rooms++;
                 return 46f + 20f + rooms * 50f + 6f + 66f + 66f + 40f + 20f;
@@ -257,6 +260,29 @@ namespace Tiramisu
         void DrawHome(float w, HouseView view, OrbitCamera cam)
         {
             float y = 0f;
+            if (!LotManager.AtHome)
+            {
+                // on an empty lot: what this place is, the storeys, and the way back
+                var lot = LotManager.Current;
+                Kicker(0f, y, w, "You are at"); y += 20f;
+                Ui.Label(new Rect(0f, y, w, 26f), lot.lotName, 20f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold); y += 28f;
+                Ui.Label(new Rect(0f, y, w, 46f), lot.blurb + $" ({lot.Size.x:0} x {lot.Size.y:0} m)", 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true); y += 52f;
+                Kicker(0f, y, w, "Storey"); y += 20f;
+                float cw3 = (w - 12f) / 3f;
+                if (Ui.Chip(new Rect(0f, y, cw3, 30f), "Ground", view.view == HouseView.View.Ground, 13f)) view.SetView(HouseView.View.Ground, false);
+                if (Ui.Chip(new Rect(cw3 + 6f, y, cw3, 30f), "Upper", view.view == HouseView.View.Upper, 13f)) view.SetView(HouseView.View.Upper, false);
+                if (Ui.Chip(new Rect((cw3 + 6f) * 2f, y, cw3, 30f), "Roofs too", view.view == HouseView.View.Whole, 13f)) view.SetView(HouseView.View.Whole, false);
+                y += 46f;
+                float hw2 = (w - 6f) / 2f;
+                if (Ui.Pill(new Rect(0f, y, hw2, 34f), "Shop (B)", false, 13f)) Show(Tab.Shop);
+                if (Ui.Pill(new Rect(hw2 + 6f, y, hw2, 34f), "Build (V)", false, 13f)) Show(Tab.Build);
+                y += 46f;
+                if (Ui.Pill(new Rect(0f, y, hw2, 34f), "Move (P)", DecorateMode.Active, 13f) && DecorateMode.Instance) DecorateMode.Instance.Toggle();
+                if (Ui.Pill(new Rect(hw2 + 6f, y, hw2, 34f), "Map (M)", false, 13f)) MapWindow.Toggle();
+                y += 46f;
+                if (Ui.Pill(new Rect(0f, y, w, 34f), "Go home", false, 13f) && LotManager.Home != null) LotManager.Instance.Travel(LotManager.Home);
+                return;
+            }
             Kicker(0f, y, w, "Floors"); y += 20f;
             float cw = (w - 12f) / 3f;
             if (Ui.Chip(new Rect(0f, y, cw, 30f), "Ground", view.view == HouseView.View.Ground, 13f)) view.SetView(HouseView.View.Ground);
@@ -290,7 +316,7 @@ namespace Tiramisu
             var dec = DecorateMode.Instance;
             if (dec)
             {
-                if (Ui.Pill(new Rect(0f, y, hw, 34f), "Move (M)", DecorateMode.Active, 13f)) dec.Toggle();
+                if (Ui.Pill(new Rect(0f, y, hw, 34f), "Move (P)", DecorateMode.Active, 13f)) dec.Toggle();
                 if (Ui.Pill(new Rect(hw + 6f, y, hw, 34f), "Reset layout", false, 13f)) dec.ResetLayout();
             }
             y += 46f;

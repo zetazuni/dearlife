@@ -14,7 +14,7 @@ namespace Tiramisu
             ("Walk and do things", "Click the floor and they walk there. Click furniture, a person or the pet, or right click, for a round menu of things to do: sit, cook, swim, work out, watch TV, chat."),
             ("Needs and mood", "The bars at the bottom left are their needs: hunger, bathroom, energy, fun, friends and hygiene. Keep them happy. Press C for the full status: skills, wishes, friends."),
             ("Money", "The money at the top pays for things and comes from work (the desks), wishes that come true and selling. Bills come every few days, and nothing bad ever happens if you cannot pay them yet."),
-            ("Shop and build", "B opens the shop, V lets you build walls, rooms, doors and windows and paint everything, M moves furniture. Space pauses, 1 2 3 change the speed, the buttons on the left change floors."),
+            ("Shop and build", "B opens the shop, V is build mode (the home can only be painted, so open the map with M and go to an empty lot to build your own house, pool and stairs), P moves furniture. Space pauses, 1 2 3 change the speed, the buttons on the left change floors."),
             ("Seasons and sound", "The seasons change as time passes (or pick one in Settings). F2 mutes the sound, N turns the music off. F1 shows these hints again. Have a lovely time together!"),
         };
 

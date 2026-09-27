@@ -121,6 +121,16 @@ namespace Tiramisu
             {
                 case "cook": case "grill": case "takeaway": c = Instance.sizzle; vol = 0.5f; break;
                 case "shower": case "bath": case "washface": case "laundry": case "swim": c = Instance.water; vol = 0.55f; break;
+                case "guitar": case "synth":
+                {
+                    // the real recordings of the 2D game, looped for as long as somebody plays, fading in and out
+                    var rec = Recording(id);
+                    if (rec == null) return null;
+                    var src = Spawn(rec, pos, 0.9f * VolSfx, 1f, seconds + 0.5f, true);
+                    src.gameObject.name = "act sound";
+                    src.gameObject.AddComponent<AudioFade>().Begin(src, seconds + 0.5f, 0.9f * VolSfx);
+                    return src;
+                }
             }
             if (c == null) return null;
             var s = Spawn(c, pos, vol * VolSfx, 1f, seconds + 0.5f, true);
@@ -412,12 +422,28 @@ namespace Tiramisu
             if (Time.time > nextMeow)
             {
                 nextMeow = Time.time + Random.Range(35f, 90f);
-                foreach (var c in Character.All) if (c && c.isPet && c.isActiveAndEnabled) { PlayAt("cat_meow", c.transform.position + Vector3.up * 0.3f, 0.7f, Random.Range(0.92f, 1.1f)); break; }
+                var pets = new List<Character>(); foreach (var c in Character.All) if (c && c.isPet && c.isActiveAndEnabled) pets.Add(c);
+                if (pets.Count > 0) { var p = pets[Random.Range(0, pets.Count)]; PlayAt(p.name.StartsWith("dog") ? "dog_bark" : "cat_meow", p.transform.position + Vector3.up * 0.3f, 0.7f, Random.Range(0.92f, 1.1f)); }
             }
             if (Input.GetKeyDown(KeyCode.N)) ToggleMusic();
             if (Input.GetKeyDown(KeyCode.F2)) ToggleMute();
         }
 
         System.Collections.IEnumerator Twice() { yield return new WaitForSeconds(0.28f); if (!Muted) birds.PlayOneShot(birdChirp, 0.4f * VolSfx); }
+    }
+
+    /// <summary>Fades a looped sound in at the start and out at the end.</summary>
+    public class AudioFade : MonoBehaviour
+    {
+        AudioSource src; float length, volume, t;
+
+        public void Begin(AudioSource s, float seconds, float vol) { src = s; length = seconds; volume = vol; s.volume = 0f; }
+
+        void Update()
+        {
+            if (!src) return;
+            t += Time.deltaTime;
+            src.volume = volume * Mathf.Clamp01(t / 0.5f) * Mathf.Clamp01((length - t) / 0.7f);
+        }
     }
 }

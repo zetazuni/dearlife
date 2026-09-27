@@ -14,25 +14,26 @@ namespace Tiramisu
         public static BuildMode Instance { get; private set; }
         public static bool Active { get; private set; }
 
-        public enum Tool { Wall, Room, Floor, Doorway, Window, Paint, Eyedropper, Demolish }
+        public enum Tool { Wall, Room, Floor, Pool, Stairs, Roof, Doorway, Window, Paint, Eyedropper, Demolish }
 
         [Tooltip("floor coverings, in the order of the palette")] public Material[] floorMaterials;
         public string[] floorNames;
         [Tooltip("wall finishes; more are made from the first one with colours")] public Material[] wallMaterials;
         public string[] wallNames;
         public Material previewMaterial;
-        public Material glassMaterial;
+        public Material glassMaterial, waterMaterial, roofMaterial, stepMaterial;
         public Rect panel;
 
         Tool tool = Tool.Wall;
-        int floorIdx, wallIdx, heightIdx, doorStyle, windowStyle;
+        int floorIdx, wallIdx, heightIdx, doorStyle, windowStyle, poolLayout, roofStyle;
+        float placeRot;
         Transform root;
         Material frameMat;
         readonly List<Piece> pieces = new List<Piece>();
 
         const float Snap = 0.25f, Thick = 0.15f, Height = 3f;
-        const float XMin = -2.7f, XMax = 33.9f, ZMin = -4.7f, ZMax = 22.7f;
-        const int FloorPerSqm = 12;
+        const int FloorPerSqm = 12, PoolPerSqm = 110, RoofPerSqm = 30, StairsCost = 900;
+        const float Storey = 3.3f;
         const string SaveKey = "tiramisu.built", PaintKey = "tiramisu.painted";
 
         static readonly (string name, float h)[] Heights = { ("Full wall", 3f), ("Half wall", 1.2f), ("Low wall", 0.6f) };
@@ -48,13 +49,13 @@ namespace Tiramisu
 
         // ---- what is built
         [System.Serializable] public class Opening { public float u, w, sill, top; public bool window; }
-        [System.Serializable] public class PieceData { public bool isFloor; public Vector3 a, b; public float y, h; public int mat; public List<Opening> openings = new List<Opening>(); }
+        [System.Serializable] public class PieceData { public bool isFloor; public int kind; public Vector3 a, b; public float y, h; public int mat, style; public List<Opening> openings = new List<Opening>(); }   // kind: 0 wall or floor, 2 pool, 3 stairs, 4 roof
         [System.Serializable] class SaveData { public List<PieceData> pieces = new List<PieceData>(); }
         [System.Serializable] class PaintEntry { public string path; public int mat; public bool floor; }
         [System.Serializable] class PaintData { public List<PaintEntry> items = new List<PaintEntry>(); }
         [System.Serializable] class Snapshot { public string built, paint; }
 
-        public class Piece : MonoBehaviour { public PieceData d; public int cost; }
+        public class Piece : MonoBehaviour { public PieceData d; public int cost; public bool cut; }
 
         PaintData painted = new PaintData();
         readonly Dictionary<string, Material> originalMat = new Dictionary<string, Material>();
@@ -78,12 +79,19 @@ namespace Tiramisu
 
         void Awake() { Instance = this; }
 
+        /// <summary>The house that came ready built cannot be built on, only painted (the eyedropper helps with that). Empty lots allow everything.</summary>
+        public static bool Locked => LotManager.AtHome;
+        public bool Allowed(Tool t) => !Locked || t == Tool.Paint || t == Tool.Eyedropper;
+        const string LockedText = "This house came ready built, so you can only paint it. Open the map (M) and travel to an empty lot to build your own.";
+
         public static void Toggle()
         {
             Active = !Active;
             GameAudio.Play(GameAudio.Sfx.Click);
             if (Active && BuyMode.Active) BuyMode.Toggle();
-            if (!Active && Instance) { Instance.CancelDrag(); Instance.HideGhost(); }
+            if (Active && Instance && !Instance.Allowed(Instance.tool)) Instance.tool = Tool.Paint;
+            if (!Active && Instance) { Instance.CancelDrag(); Instance.HideGhost(); Instance.ApplyLevel(); }
+            if (Instance) Instance.ApplyLevel();
         }
 
         void Start()
@@ -173,9 +181,11 @@ namespace Tiramisu
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.V)) Toggle();
-            if (!Active) return;
+            if (Input.GetKeyDown(KeyCode.V) && !Splash.Showing && !MapWindow.Open && !SettingsWindow.Open) Toggle();
             if (!cam) cam = Camera.main;
+            if (!LotManager.AtHome) UpdateCuts();
+            if (!Active) return;
+            if (!Allowed(tool)) tool = Tool.Paint;
             if (Input.GetKeyDown(KeyCode.Escape)) { if (dragging) CancelDrag(); else Toggle(); return; }
             bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
@@ -188,7 +198,9 @@ namespace Tiramisu
 
             switch (tool)
             {
-                case Tool.Wall: case Tool.Room: case Tool.Floor: DragTool(overUi); HideGhostIfNotHovering(); break;
+                case Tool.Wall: case Tool.Room: case Tool.Floor: case Tool.Roof: DragTool(overUi); HideGhostIfNotHovering(); break;
+                case Tool.Pool when poolLayout == 0: DragTool(overUi); HideGhostIfNotHovering(); break;
+                case Tool.Pool: case Tool.Stairs: PlaceTool(overUi); break;
                 default: ClickTool(overUi); break;
             }
         }
@@ -203,8 +215,9 @@ namespace Tiramisu
             var ray = cam.ScreenPointToRay(Input.mousePosition);
             if (!plane.Raycast(ray, out float e)) return false;
             p = ray.GetPoint(e);
-            p.x = Mathf.Clamp(Mathf.Round(p.x / Snap) * Snap, XMin, XMax);
-            p.z = Mathf.Clamp(Mathf.Round(p.z / Snap) * Snap, ZMin, ZMax);
+            var lb = LotManager.Bounds;
+            p.x = Mathf.Clamp(Mathf.Round(p.x / Snap) * Snap, lb.xMin, lb.xMax);
+            p.z = Mathf.Clamp(Mathf.Round(p.z / Snap) * Snap, lb.yMin, lb.yMax);
             p.y = FloorY;
             return true;
         }
@@ -219,6 +232,8 @@ namespace Tiramisu
             {
                 hint = tool == Tool.Wall ? "Press and drag to draw a wall. Hold Shift for diagonal walls."
                      : tool == Tool.Room ? "Press and drag a box to make a room with its walls and floor."
+                     : tool == Tool.Pool ? "Drag a box to dig a pool (at least 2 x 3 m). Pools go on the ground level."
+                     : tool == Tool.Roof ? "Drag a box over your walls to put a roof on them. You see roofs in the whole house view."
                      : "Drag a box to lay a floor. A single click repaints the floor under it.";
                 if (Input.GetMouseButtonDown(0) && !overUi) { dragging = true; dragStart = dragEnd = p; MakePreview(); }
                 return;
@@ -245,6 +260,8 @@ namespace Tiramisu
                 float dx = Mathf.Abs(dragEnd.x - dragStart.x), dz = Mathf.Abs(dragEnd.z - dragStart.z);
                 if (tool == Tool.Wall) MakeWall(dragStart, dragEnd, wallIdx, HeightOptions.h, true);
                 else if (tool == Tool.Room) MakeRoom(dragStart, dragEnd);
+                else if (tool == Tool.Pool) MakePool(dragStart, dragEnd);
+                else if (tool == Tool.Roof) MakeRoof(dragStart, dragEnd);
                 else if (dx < 0.6f && dz < 0.6f) PaintFloorAtMouse();
                 else MakeFloor(dragStart, dragEnd);
                 CancelDrag();
@@ -278,12 +295,13 @@ namespace Tiramisu
             else
             {
                 float sx = Mathf.Max(Mathf.Abs(b.x - a.x), Thick), sz = Mathf.Max(Mathf.Abs(b.z - a.z), Thick);
-                bool room = tool == Tool.Room;
-                float h = room ? HeightOptions.h : 0.08f;
-                preview.transform.SetPositionAndRotation(new Vector3(c.x, FloorY + (room ? 0.04f : 0.04f), c.z), Quaternion.identity);
-                preview.transform.localScale = new Vector3(sx, room ? 0.08f : 0.08f, sz);
-                int cost = Mathf.RoundToInt(sx * sz * FloorPerSqm + (room ? (sx + sz) * 2f * PerMetre(HeightOptions.h) : 0f));
-                dragCost = (room && (sx < 1f || sz < 1f)) ? "Too small" : $"RM {cost}";
+                bool room = tool == Tool.Room, pool = tool == Tool.Pool, roof = tool == Tool.Roof;
+                float py = roof ? FloorY + Height + 0.15f : FloorY + 0.04f;
+                preview.transform.SetPositionAndRotation(new Vector3(c.x, pool ? FloorY - 0.5f : py, c.z), Quaternion.identity);
+                preview.transform.localScale = new Vector3(sx, pool ? 1f : 0.08f, sz);
+                int cost = pool ? Mathf.RoundToInt(sx * sz * PoolPerSqm) : roof ? Mathf.RoundToInt(sx * sz * RoofPerSqm) : Mathf.RoundToInt(sx * sz * FloorPerSqm + (room ? (sx + sz) * 2f * PerMetre(HeightOptions.h) : 0f));
+                bool small = (room && (sx < 1f || sz < 1f)) || (pool && (Mathf.Min(sx, sz) < 2f || Mathf.Max(sx, sz) < 3f));
+                dragCost = small ? "Too small" : $"RM {cost}";
             }
         }
 
@@ -338,6 +356,7 @@ namespace Tiramisu
         void ClickTool(bool overUi)
         {
             HideGhost();
+            if (!Allowed(tool)) { hint = LockedText; return; }
             hint = tool == Tool.Doorway ? "Move over a wall you built: the preview shows where the archway goes. Click to cut it."
                  : tool == Tool.Window ? "Move over a wall you built: the preview shows where the window goes. Click to put it in."
                  : tool == Tool.Paint ? "Click a wall (or a floor) to paint it with the chosen finish."
@@ -368,10 +387,27 @@ namespace Tiramisu
                     return;
                 }
                 case Tool.Demolish:
+                    if (piece == null)
+                    {
+                        // a pool has no solid top to point at: look at the ground under the mouse
+                        var gp = new Plane(Vector3.up, Vector3.zero);
+                        var ray2 = cam.ScreenPointToRay(Input.mousePosition);
+                        if (gp.Raycast(ray2, out float ge))
+                        {
+                            var gpt = ray2.GetPoint(ge);
+                            foreach (var pp in pieces) if (pp && pp.d.kind == 2 && RectOf(pp.d).Contains(new Vector2(gpt.x, gpt.z))) { piece = pp; break; }
+                        }
+                    }
                     if (piece != null)
                     {
-                        var bnd = piece.GetComponentInChildren<Collider>().bounds;
-                        foreach (var col in piece.GetComponentsInChildren<Collider>()) bnd.Encapsulate(col.bounds);
+                        Bounds bnd;
+                        if (piece.d.kind == 2) { var pr = RectOf(piece.d); bnd = new Bounds(new Vector3(pr.center.x, -0.4f, pr.center.y), new Vector3(pr.width, 0.8f, pr.height)); }
+                        else
+                        {
+                            var cols = piece.GetComponentsInChildren<Collider>();
+                            bnd = cols.Length > 0 ? cols[0].bounds : new Bounds(piece.transform.position, Vector3.one);
+                            foreach (var col in cols) bnd.Encapsulate(col.bounds);
+                        }
                         ShowGhost(bnd.center, Quaternion.identity, bnd.size + Vector3.one * 0.04f, false);
                         dragCost = $"+ RM {Mathf.RoundToInt(piece.cost * 0.7f)}"; cursorValid = true; cursor = bnd.center + Vector3.up * bnd.extents.y;
                         if (click) Remove(piece);
@@ -450,6 +486,9 @@ namespace Tiramisu
 
         static int CostOf(PieceData d)
         {
+            if (d.kind == 2) return Mathf.RoundToInt((d.b.x - d.a.x) * (d.b.z - d.a.z) * PoolPerSqm);
+            if (d.kind == 3) return StairsCost;
+            if (d.kind == 4) return Mathf.RoundToInt((d.b.x - d.a.x) * (d.b.z - d.a.z) * RoofPerSqm);
             if (d.isFloor) return Mathf.RoundToInt((d.b.x - d.a.x) * (d.b.z - d.a.z) * FloorPerSqm);
             int cost = Mathf.RoundToInt(Vector3.Distance(d.a, d.b) * PerMetre(HeightOf(d)));
             foreach (var o in d.openings) cost += o.window ? 200 : 150;
@@ -513,6 +552,9 @@ namespace Tiramisu
 
         void Rebuild(Piece p)
         {
+            if (p.d.kind == 2) { RebuildPool(p); return; }
+            if (p.d.kind == 3) { RebuildStairs(p); return; }
+            if (p.d.kind == 4) { RebuildRoof(p); return; }
             if (p.d.isFloor) { RebuildFloor(p); return; }
             foreach (Transform c in p.transform) Destroy(c.gameObject);
             var a = p.d.a; var b = p.d.b;
@@ -547,6 +589,7 @@ namespace Tiramisu
 
         void Box(Piece p, Vector3 a, Vector3 dir, float len, float u0, float u1, float y0, float y1, Material m, float thick = Thick, bool collide = true)
         {
+            if (p.cut) y1 = Mathf.Min(y1, 0.55f);        // a wall cut down so you can see into the room
             if (u1 - u0 < 0.005f || y1 - y0 < 0.005f) return;
             // the ends of a wall reach half a thickness further so two walls meeting at a corner leave no notch
             if (thick >= Thick) { if (u0 <= 0.001f) u0 -= Thick * 0.5f; if (u1 >= len - 0.001f) u1 += Thick * 0.5f; }
@@ -598,7 +641,11 @@ namespace Tiramisu
             Nav();
         }
 
-        static void Nav() { if (TiramisuNav.Instance) TiramisuNav.Instance.RequestRebuild(); }
+        static void Nav()
+        {
+            if (Instance) Instance.SyncPools();
+            if (TiramisuNav.Instance) TiramisuNav.Instance.RequestRebuild();
+        }
 
         // ------------------------------------------------------------ painting what the house came with
 
@@ -638,6 +685,285 @@ namespace Tiramisu
                     var m = e.floor ? FloorMat(e.mat) : WallMat(e.mat);
                     if (m) r.sharedMaterial = m;
                 }
+        }
+
+
+        // ------------------------------------------------------------ pools, stairs, roofs
+
+        static Rect RectOf(PieceData d) => new Rect(Mathf.Min(d.a.x, d.b.x), Mathf.Min(d.a.z, d.b.z), Mathf.Abs(d.b.x - d.a.x), Mathf.Abs(d.b.z - d.a.z));
+
+        bool PoolFits(Rect r, out string why)
+        {
+            why = null;
+            var lb = LotManager.Bounds;
+            if (r.xMin < lb.xMin - 0.01f || r.xMax > lb.xMax + 0.01f || r.yMin < lb.yMin - 0.01f || r.yMax > lb.yMax + 0.01f) { why = "That is outside your lot."; return false; }
+            if (FloorY > 0.1f) { why = "Pools go on the ground level."; return false; }
+            foreach (var p in pieces) if (p && p.d.kind == 2 && RectOf(p.d).Overlaps(r)) { why = "There is a pool there already."; return false; }
+            return true;
+        }
+
+        void MakePool(Vector3 a, Vector3 b)
+        {
+            var r = new Rect(Mathf.Min(a.x, b.x), Mathf.Min(a.z, b.z), Mathf.Abs(b.x - a.x), Mathf.Abs(b.z - a.z));
+            if (Mathf.Min(r.width, r.height) < 2f || Mathf.Max(r.width, r.height) < 3f) { hint = "That pool is too small (at least 2 x 3 m)."; return; }
+            CommitPools(new[] { r }, "a pool");
+        }
+
+        /// <summary>One or more pool rectangles as a single purchase (the L-shaped pool is two).</summary>
+        void CommitPools(Rect[] rects, string what)
+        {
+            int cost = 0;
+            foreach (var r in rects) { if (!PoolFits(r, out var why)) { hint = why; GameAudio.Play(GameAudio.Sfx.No); return; } cost += Mathf.RoundToInt(r.width * r.height * PoolPerSqm); }
+            var before = Capture();
+            if (!Household.Spend(cost, what)) { GameAudio.Play(GameAudio.Sfx.No); return; }
+            foreach (var r in rects)
+                Spawn(new PieceData { kind = 2, a = new Vector3(r.xMin, 0f, r.yMin), b = new Vector3(r.xMax, 0f, r.yMax), y = 0f }, Mathf.RoundToInt(r.width * r.height * PoolPerSqm));
+            Commit(before, cost, what);
+            GameAudio.Play(GameAudio.Sfx.Splash);
+            Nav();
+        }
+
+        void RebuildPool(Piece p)
+        {
+            foreach (Transform c in p.transform) Destroy(c.gameObject);
+            var r = RectOf(p.d);
+            var go = new GameObject("Pool water");
+            go.SetActive(false);
+            go.transform.SetParent(p.transform, false);
+            var pr = go.AddComponent<PoolRipples>();
+            pr.min = new Vector2(r.xMin + 0.05f, r.yMin + 0.05f);
+            pr.max = new Vector2(r.xMax - 0.05f, r.yMax - 0.05f);
+            pr.surfaceY = -0.15f; pr.floorY = -1.7f;
+            pr.material = waterMaterial;
+            go.SetActive(true);
+            InteractionSetup.AddPool(pr, go.transform, 0f);
+        }
+
+        /// <summary>The ground of every empty lot has a hole where a pool was dug.</summary>
+        void SyncPools()
+        {
+            foreach (var lot in LotManager.Lots)
+            {
+                if (lot.home) continue;
+                var rects = new List<Rect>();
+                foreach (var p in pieces)
+                    if (p && p.d.kind == 2) { var r = RectOf(p.d); if (lot.Contains(new Vector3(r.center.x, 0f, r.center.y))) rects.Add(r); }
+                bool same = rects.Count == lot.holes.Count;
+                for (int i = 0; same && i < rects.Count; i++) if (rects[i] != lot.holes[i]) same = false;
+                if (!same) lot.SetHoles(rects);
+            }
+        }
+
+        // ---- stairs and pool layouts are placed with one click and turned with R
+
+        static readonly (string name, int cost)[] PoolLayouts = { ("Draw your own", 0), ("Lap pool", 2200), ("Plunge pool", 1760), ("L-shaped pool", 3630) };
+
+        Rect[] PoolRects(Vector3 centre)
+        {
+            int rot = Mathf.RoundToInt(placeRot / 90f) & 3;
+            Rect Turn(float x0, float z0, float x1, float z1)
+            {
+                // the layout is written for rot 0 around the cursor: turn the two corners
+                Vector2 A(float x, float z) { switch (rot) { case 1: return new Vector2(z, -x); case 2: return new Vector2(-x, -z); case 3: return new Vector2(-z, x); default: return new Vector2(x, z); } }
+                var p0 = A(x0, z0) + new Vector2(centre.x, centre.z); var p1 = A(x1, z1) + new Vector2(centre.x, centre.z);
+                return new Rect(Mathf.Min(p0.x, p1.x), Mathf.Min(p0.y, p1.y), Mathf.Abs(p1.x - p0.x), Mathf.Abs(p1.y - p0.y));
+            }
+            switch (poolLayout)
+            {
+                case 1: return new[] { Turn(-5f, -1f, 5f, 1f) };
+                case 2: return new[] { Turn(-2f, -2f, 2f, 2f) };
+                default: return new[] { Turn(-4f, -1.5f, 4f, 1.5f), Turn(1f, 1.5f, 4f, 4.5f) };
+            }
+        }
+
+        void PlaceTool(bool overUi)
+        {
+            HideGhost();
+            if (!Allowed(tool)) { hint = LockedText; return; }
+            if (!GroundPoint(out var p)) return;
+            if (Input.GetKeyDown(KeyCode.R)) placeRot = (placeRot + 90f) % 360f;
+            cursor = p; cursorValid = !overUi;
+            bool click = Input.GetMouseButtonDown(0) && !overUi;
+            if (tool == Tool.Pool)
+            {
+                var rects = PoolRects(p);
+                bool ok = true; string why = null; int cost = 0;
+                foreach (var r in rects) { if (!PoolFits(r, out var w2)) { ok = false; why = w2; } cost += Mathf.RoundToInt(r.width * r.height * PoolPerSqm); }
+                foreach (var r in rects) ShowGhost(new Vector3(r.center.x, FloorY - 0.5f, r.center.y), Quaternion.identity, new Vector3(r.width, 1f, r.height), ok);
+                dragCost = ok ? $"RM {cost}" : why;
+                hint = ok ? "Click to dig the pool. R turns it." : why;
+                if (click) { if (ok) CommitPools(rects, PoolLayouts[poolLayout].name.ToLower()); else GameAudio.Play(GameAudio.Sfx.No); }
+                return;
+            }
+            // stairs: 1.2 m wide, 4.5 m long, the bottom step at the cursor, going up the way the ghost points
+            var dir = Quaternion.Euler(0f, placeRot, 0f) * Vector3.forward;
+            var end = p + dir * 4.5f;
+            var lb = LotManager.Bounds;
+            bool fits = end.x >= lb.xMin && end.x <= lb.xMax && end.z >= lb.yMin && end.z <= lb.yMax && FloorY < 0.1f;
+            var mid = (p + end) * 0.5f;
+            ShowGhost(new Vector3(mid.x, FloorY + 1.6f, mid.z), Quaternion.LookRotation(dir), new Vector3(1.2f, 3.3f, 4.5f), fits);
+            dragCost = fits ? $"RM {StairsCost}" : (FloorY > 0.1f ? "Stairs start on the ground level." : "That is outside your lot.");
+            hint = fits ? "Click to build the stairs up to the upper level. R turns them. Lay an upper floor next to the top step." : dragCost;
+            if (click) { if (fits) MakeStairs(p, end); else GameAudio.Play(GameAudio.Sfx.No); }
+        }
+
+        void MakeStairs(Vector3 a, Vector3 b)
+        {
+            var before = Capture();
+            if (!Household.Spend(StairsCost, "stairs")) { GameAudio.Play(GameAudio.Sfx.No); return; }
+            Spawn(new PieceData { kind = 3, a = a, b = b, y = a.y }, StairsCost);
+            Commit(before, StairsCost, "stairs");
+            GameAudio.Play(GameAudio.Sfx.Place);
+            Nav();
+        }
+
+        void RebuildStairs(Piece p)
+        {
+            foreach (Transform c in p.transform) Destroy(c.gameObject);
+            var mod = p.GetComponent<Unity.AI.Navigation.NavMeshModifier>();
+            if (!mod) mod = p.gameObject.AddComponent<Unity.AI.Navigation.NavMeshModifier>();
+            mod.overrideArea = true; mod.area = TiramisuNav.StairsArea;
+            var a = p.d.a; var b = p.d.b;
+            var dir = (b - a).normalized; var side = Vector3.Cross(Vector3.up, dir);
+            const int steps = 15; const float width = 1.2f;
+            float rise = Storey / steps, run = Vector3.Distance(a, b) / steps, baseY = a.y + 0.05f;
+            for (int i = 0; i < steps; i++)
+            {
+                float top = baseY + (i + 1) * rise;
+                var c = a + dir * (run * (i + 0.5f));
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "Step";
+                go.transform.SetParent(p.transform, false);
+                go.transform.SetPositionAndRotation(new Vector3(c.x, top - 0.07f, c.z), Quaternion.LookRotation(dir));
+                go.transform.localScale = new Vector3(width, 0.14f, run);
+                if (stepMaterial) go.GetComponent<Renderer>().sharedMaterial = stepMaterial;
+                // a slim support under each step, like the floating stairs at home
+                var sup = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                sup.name = "Step support";
+                sup.transform.SetParent(p.transform, false);
+                sup.transform.SetPositionAndRotation(new Vector3(c.x, (top - 0.14f + baseY) * 0.5f, c.z), Quaternion.LookRotation(dir));
+                sup.transform.localScale = new Vector3(0.16f, Mathf.Max(0.02f, top - 0.14f - baseY), run * 0.9f);
+                if (frameMat) sup.GetComponent<Renderer>().sharedMaterial = frameMat;
+            }
+            // handrails on both sides, following the slope
+            var low = new Vector3(a.x, baseY + 0.9f, a.z); var high = new Vector3(b.x, baseY + Storey + 0.9f - rise, b.z);
+            var slope = (high - low).normalized;
+            for (int s = -1; s <= 1; s += 2)
+            {
+                var off = side * (width * 0.5f - 0.03f) * s;
+                var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rail.name = "Handrail";
+                rail.transform.SetParent(p.transform, false);
+                rail.transform.SetPositionAndRotation((low + high) * 0.5f + off, Quaternion.LookRotation(slope));
+                rail.transform.localScale = new Vector3(0.05f, 0.05f, Vector3.Distance(low, high));
+                if (frameMat) rail.GetComponent<Renderer>().sharedMaterial = frameMat;
+                Destroy(rail.GetComponent<Collider>());
+            }
+        }
+
+        void MakeRoof(Vector3 a, Vector3 b)
+        {
+            float x0 = Mathf.Min(a.x, b.x), x1 = Mathf.Max(a.x, b.x), z0 = Mathf.Min(a.z, b.z), z1 = Mathf.Max(a.z, b.z);
+            if (x1 - x0 < 2f || z1 - z0 < 2f) { hint = "That roof is too small."; return; }
+            int cost = Mathf.RoundToInt((x1 - x0) * (z1 - z0) * RoofPerSqm);
+            var before = Capture();
+            if (!Household.Spend(cost, "a roof")) { GameAudio.Play(GameAudio.Sfx.No); return; }
+            Spawn(new PieceData { kind = 4, a = new Vector3(x0, a.y, z0), b = new Vector3(x1, a.y, z1), y = a.y, style = roofStyle }, cost);
+            Commit(before, cost, "a roof");
+            GameAudio.Play(GameAudio.Sfx.Place);
+            Nav();
+        }
+
+        void RebuildRoof(Piece p)
+        {
+            foreach (Transform c in p.transform) Destroy(c.gameObject);
+            var r = RectOf(p.d);
+            float y = p.d.y + Height, over = 0.4f;
+            float x0 = r.xMin - over, x1 = r.xMax + over, z0 = r.yMin - over, z1 = r.yMax + over;
+            if (p.d.style == 0)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "Flat roof";
+                go.transform.SetParent(p.transform, false);
+                go.transform.position = new Vector3((x0 + x1) * 0.5f, y + 0.12f, (z0 + z1) * 0.5f);
+                go.transform.localScale = new Vector3(x1 - x0, 0.24f, z1 - z0);
+                if (roofMaterial) go.GetComponent<Renderer>().sharedMaterial = roofMaterial;
+                return;
+            }
+            // gable: the ridge runs along the long side
+            bool alongX = (x1 - x0) >= (z1 - z0);
+            float span = alongX ? z1 - z0 : x1 - x0, rise = span * 0.5f * 0.45f;
+            var v = new List<Vector3>(); var t = new List<int>();
+            Vector3 E(float x, float z, float h) => new Vector3(x, y + h, z);
+            Vector3 e0a, e0b, e1a, e1b, r0, r1;
+            if (alongX) { e0a = E(x0, z0, 0f); e0b = E(x1, z0, 0f); e1a = E(x0, z1, 0f); e1b = E(x1, z1, 0f); r0 = E(x0, (z0 + z1) * 0.5f, rise); r1 = E(x1, (z0 + z1) * 0.5f, rise); }
+            else { e0a = E(x0, z0, 0f); e0b = E(x0, z1, 0f); e1a = E(x1, z0, 0f); e1b = E(x1, z1, 0f); r0 = E((x0 + x1) * 0.5f, z0, rise); r1 = E((x0 + x1) * 0.5f, z1, rise); }
+            void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d) { int i = v.Count; v.Add(a); v.Add(b); v.Add(c); v.Add(d); t.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3, i, i + 2, i + 1, i, i + 3, i + 2 }); }
+            void Tri(Vector3 a, Vector3 b, Vector3 c) { int i = v.Count; v.Add(a); v.Add(b); v.Add(c); t.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 1 }); }
+            Quad(e0a, e0b, r1, r0);          // one slope
+            Quad(e1b, e1a, r0, r1);          // the other
+            Tri(e0a, e1a, r0);               // the two gable ends
+            Tri(e0b, r1, e1b);
+            var mesh = new Mesh { name = "Gable roof" };
+            mesh.SetVertices(v); mesh.SetTriangles(t, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            var g = new GameObject("Gable roof");
+            g.transform.SetParent(p.transform, false);
+            g.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = g.AddComponent<MeshRenderer>();
+            if (roofMaterial) mr.sharedMaterial = roofMaterial;
+            g.AddComponent<MeshCollider>().sharedMesh = mesh;
+        }
+
+        // ------------------------------------------------------------ what you see: the storey you are on, and the walls cut down near the camera
+
+        public static int LevelOf(PieceData d) => Mathf.RoundToInt(d.y / Storey);
+
+        /// <summary>Shows the storeys up to the one you are on (all of them, with the roofs, in the whole house view).</summary>
+        public void ApplyLevel()
+        {
+            var hv = HouseView.Instance;
+            bool whole = hv && hv.view == HouseView.View.Whole;
+            int floor = hv ? hv.ActiveFloor : 0;
+            foreach (var p in pieces)
+            {
+                if (!p) continue;
+                bool roof = p.d.kind == 4;
+                bool show = LotManager.AtHome || whole || (roof ? (Active && tool == Tool.Roof && LevelOf(p.d) <= floor) : LevelOf(p.d) <= floor);
+                if (p.gameObject.activeSelf != show) p.gameObject.SetActive(show);
+            }
+        }
+
+        readonly List<(Piece p, bool was)> hidden = new List<(Piece, bool)>();
+        public void SetAllVisible(bool on)
+        {
+            foreach (var p in pieces) if (p && !p.gameObject.activeSelf) p.gameObject.SetActive(true);
+            foreach (var p in pieces) if (p && p.cut) { p.cut = false; Rebuild(p); }
+        }
+        public void RestoreVisibility() { ApplyLevel(); nextCut = 0f; }
+
+        float nextCut;
+        void UpdateCuts()
+        {
+            if (Time.unscaledTime < nextCut || !cam) return;
+            nextCut = Time.unscaledTime + 0.2f;
+            var hv = HouseView.Instance;
+            var mode = hv ? hv.wallMode : HouseView.WallMode.Auto;
+            bool whole = hv && hv.view == HouseView.View.Whole;
+            var pivot = OrbitCamera.Instance ? OrbitCamera.Instance.pivot : LotManager.Current.Centre;
+            var toCam = cam.transform.position - pivot; toCam.y = 0f; toCam.Normalize();
+            foreach (var p in pieces)
+            {
+                if (!p || p.d.kind != 0 || p.d.isFloor || !p.gameObject.activeSelf) continue;
+                bool want = false;
+                if (!whole && mode == HouseView.WallMode.Down) want = true;
+                else if (!whole && mode == HouseView.WallMode.Auto)
+                {
+                    var mid = (p.d.a + p.d.b) * 0.5f;
+                    float side = Vector3.Dot(new Vector3(mid.x - pivot.x, 0f, mid.z - pivot.z), toCam);
+                    want = side > (p.cut ? 1.0f : 2.0f);       // a little hysteresis, so a wall does not flicker
+                }
+                if (want != p.cut) { p.cut = want; Rebuild(p); }
+            }
         }
 
         // ------------------------------------------------------------ saving
@@ -731,11 +1057,11 @@ namespace Tiramisu
 
         // ------------------------------------------------------------ the panel
 
-        static readonly string[] ToolNames = { "Wall", "Room", "Floor", "Archway", "Window", "Paint", "Eyedropper", "Knock down" };
+        static readonly string[] ToolNames = { "Wall", "Room", "Floor", "Pool", "Stairs", "Roof", "Archway", "Window", "Paint", "Eyedropper", "Knock down" };
         static readonly string[] ToolNotes =
         {
-            "Drag a wall.\nShift: diagonal.", "Drag a box: walls\nand a floor.", "Drag to lay a floor.\nRM 12 a m².", "Click a wall to\ncut an archway.",
-            "Click a wall to\nput a window in.", "Click a wall or\nfloor to paint it.", "Click to pick up\na finish.", "Take away what\nyou built (70% back).",
+            "Drag a wall.\nShift: diagonal.", "Drag a box: walls\nand a floor.", "Drag to lay a floor.\nRM 12 a m².", "Dig a pool.\nRM 110 a m².", "Stairs up to the\nupper level. RM 900.", "Drag a roof over\nyour walls.",
+            "Click a wall to\ncut an archway.", "Click a wall to\nput a window in.", "Click a wall or\nfloor to paint it.", "Click to pick up\na finish.", "Take away what\nyou built (70% back).",
         };
 
         static Color FloorColour(string n)
@@ -773,11 +1099,28 @@ namespace Tiramisu
                 float yy = 0f;
                 HouseHud.Kicker(0f, yy, cw, "Tools"); yy += 20f;
                 float gap = 8f, tw = (cw - gap) / 2f, th = 66f;
+                if (Locked)
+                {
+                    var lockBox = new Rect(0f, yy, cw, 58f);
+                    Ui.Round(lockBox, Ui.Pale, 14f);
+                    Ui.Label(new Rect(10f, yy + 6f, cw - 20f, 48f), LockedText, 11f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+                    yy += 66f;
+                }
                 for (int i = 0; i < ToolNames.Length; i++)
                 {
                     var r = new Rect((i % 2) * (tw + gap), yy + (i / 2) * (th + gap), tw, th);
                     bool on = (int)tool == i;
-                    if (Ui.CardButton(r, on)) { tool = (Tool)i; CancelDrag(); HideGhost(); dragCost = ""; }
+                    bool allowed = Allowed((Tool)i);
+                    if (!allowed)
+                    {
+                        // greyed out: this house cannot be built on
+                        Ui.Round(r, Ui.Cream2, 16f); Ui.Ring(r, Ui.Line, 2f, 16f);
+                        Ui.Label(new Rect(r.x + 10f, r.y + 6f, tw - 20f, 20f), ToolNames[i], 14f, Ui.Soft.A(0.55f), TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+                        Ui.Label(new Rect(r.x + 10f, r.y + 26f, tw - 20f, 38f), ToolNotes[i], 11f, Ui.Soft.A(0.45f), TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+                        if (GUI.Button(Ui.S(r), GUIContent.none, GUIStyle.none)) { hint = LockedText; GameAudio.Play(GameAudio.Sfx.No); }
+                        continue;
+                    }
+                    if (Ui.CardButton(r, on)) { tool = (Tool)i; CancelDrag(); HideGhost(); dragCost = ""; ApplyLevel(); }
                     Ui.Label(new Rect(r.x + 10f, r.y + 6f, tw - 20f, 20f), ToolNames[i], 14f, on ? Ui.Accent : Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
                     Ui.Label(new Rect(r.x + 10f, r.y + 26f, tw - 20f, 38f), ToolNotes[i], 11f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
                 }
@@ -790,6 +1133,26 @@ namespace Tiramisu
                     float hw = (cw - 12f) / 3f;
                     for (int i = 0; i < Heights.Length; i++)
                         if (Ui.Chip(new Rect(i * (hw + 6f), yy, hw, 28f), Heights[i].name, heightIdx == i, 11f)) heightIdx = i;
+                    yy += 40f;
+                }
+                if (tool == Tool.Pool)
+                {
+                    HouseHud.Kicker(0f, yy, cw, "Pool layout"); yy += 20f;
+                    for (int i = 0; i < PoolLayouts.Length; i++)
+                    {
+                        if (Ui.CardButton(new Rect(0f, yy, cw, 36f), poolLayout == i)) { poolLayout = i; CancelDrag(); }
+                        Ui.Label(new Rect(12f, yy, cw - 100f, 36f), PoolLayouts[i].name, 13f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                        Ui.Label(new Rect(cw - 92f, yy, 80f, 36f), i == 0 ? "by area" : $"RM {PoolLayouts[i].cost}", 12f, Ui.GoldText, TextAnchor.MiddleRight, Ui.Weight.ExtraBold);
+                        yy += 42f;
+                    }
+                    yy += 4f;
+                }
+                if (tool == Tool.Roof)
+                {
+                    HouseHud.Kicker(0f, yy, cw, "Roof style"); yy += 20f;
+                    float hw = (cw - 6f) / 2f;
+                    if (Ui.Chip(new Rect(0f, yy, hw, 28f), "Flat", roofStyle == 0, 12f)) roofStyle = 0;
+                    if (Ui.Chip(new Rect(hw + 6f, yy, hw, 28f), "Gable", roofStyle == 1, 12f)) roofStyle = 1;
                     yy += 40f;
                 }
                 if (tool == Tool.Doorway)

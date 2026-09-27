@@ -72,10 +72,18 @@ namespace Tiramisu
             tDist = Mathf.Clamp(dist, minDistance, maxDistance);
         }
 
+        /// <summary>Goes straight there (a trip to another lot) instead of gliding.</summary>
+        public void JumpTo(Vector3 point, float dist)
+        {
+            tPivot = pivot = point;
+            tDist = distance = Mathf.Clamp(dist, minDistance, maxDistance);
+        }
+
         public void SetPivotHeight(float y) => tPivot.y = y;
 
         public void FitHouse(float floorY)
         {
+            if (!LotManager.AtHome) { FocusOn(new Vector3(LotManager.Current.Centre.x, floorY, LotManager.Current.Centre.z), 34f); return; }
             FocusOn(new Vector3(15f, floorY, 9f), 38f);
             tPitch = 38f;
         }

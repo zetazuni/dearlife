@@ -89,7 +89,7 @@ namespace Tiramisu
         {
             if (Active) { Drop(false); DropWindow(false); }
             Active = !Active;
-            Say(Active ? "Decorate mode: drag furniture around, scroll the wheel while holding to turn it, Esc puts it back." : "Decorate mode is off.");
+            Say(Active ? "Decorate mode: click a piece to pick it up, click again to put it down. R turns it, Delete sells it, Esc puts it back." : "Decorate mode is off.");
         }
 
         public void ResetLayout()
@@ -108,7 +108,7 @@ namespace Tiramisu
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.M)) Toggle();
+            if (Input.GetKeyDown(KeyCode.P) && !SettingsWindow.Open) Toggle();
             bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
             if (ctrl && (Active || BuyMode.Active) && !BuildMode.Active && held == null)
             {
@@ -126,7 +126,10 @@ namespace Tiramisu
             if (Input.GetKeyDown(KeyCode.Delete) || Input.GetKeyDown(KeyCode.Backspace))
             {
                 if (held != null) { SellPiece(held); return; }
-                if (Selected != null && !Selected.pinned) { SellPiece(Selected); return; }
+                // nothing in the hand: sell what the mouse is over
+                var under = PieceUnderMouse();
+                if (under != null && !under.pinned) { SellPiece(under); return; }
+                if (under != null) Say($"The {under.Label.ToLower()} is built in, it cannot be sold.");
             }
 
             if (held == null)
@@ -185,7 +188,12 @@ namespace Tiramisu
         {
             OrbitCamera.Blocked = true;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)) { CancelPlacing(); return; }
-            if (Input.GetKeyDown(KeyCode.Delete) || Input.GetKeyDown(KeyCode.Backspace)) { CancelPlacing(); return; }
+            if (Input.GetKeyDown(KeyCode.Delete) || Input.GetKeyDown(KeyCode.Backspace))
+            {
+                if (placingExisting) SellPiece(held); else CancelPlacing();
+                LeaveIfEntered();
+                return;
+            }
             if (Input.GetKeyDown(KeyCode.R))
             {
                 float step = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? -turnStep : turnStep;
@@ -239,7 +247,13 @@ namespace Tiramisu
         public void SellPiece(Furniture f)
         {
             if (f == null) return;
-            if (f == held) { bool wasNew = placing; placing = false; Drop(true); if (wasNew) { Destroy(f.gameObject); return; } }
+            if (f == held)
+            {
+                bool wasNew = placing && !placingExisting;
+                placing = false; placingExisting = false;
+                Drop(true);
+                if (wasNew) { Destroy(f.gameObject); return; }
+            }
             int price = Household.SellPrice(f.name);
             Household.Earn(price, $"Sold the {f.Label.ToLower()}");
             PurchaseSave.Forget(f);
@@ -252,6 +266,23 @@ namespace Tiramisu
         }
 
         // ---------- picking ----------
+
+        /// <summary>The piece under the mouse (small things first), or null.</summary>
+        Furniture PieceUnderMouse()
+        {
+            if (!cam) return null;
+            var hits = Physics.RaycastAll(cam.ScreenPointToRay(Input.mousePosition), 300f, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var h in hits)
+            {
+                if (IsArchitecture(h.collider)) continue;
+                var f = h.collider.GetComponentInParent<Furniture>();
+                if (!f) return null;
+                while (f.attachedTo) f = f.attachedTo;
+                return f;
+            }
+            return null;
+        }
 
         void TryGrab()
         {
@@ -415,8 +446,9 @@ namespace Tiramisu
             bool free = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
             float x = p.x + grabOffset.x, z = p.z + grabOffset.y;
             if (!free) { x = Mathf.Round(x / snap) * snap; z = Mathf.Round(z / snap) * snap; }
-            x = Mathf.Clamp(x, -2.7f, 33.9f);   // the whole plot inside the fence
-            z = Mathf.Clamp(z, -4.7f, 22.7f);
+            var lotB = LotManager.Bounds;       // the plot of the lot you are on
+            x = Mathf.Clamp(x, lotB.xMin, lotB.xMax);
+            z = Mathf.Clamp(z, lotB.yMin, lotB.yMax);
             // the piece's own origin sits on its base, so it rests exactly on the surface
             var target = new Vector3(x, p.y + 0.003f, z);
             held.transform.position = Vector3.Lerp(held.transform.position, target, 1f - Mathf.Exp(-30f * Time.unscaledDeltaTime));

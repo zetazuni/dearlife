@@ -10,7 +10,7 @@ namespace Tiramisu
     /// </summary>
     public class CharacterRig : MonoBehaviour
     {
-        public enum Pose { Stand, Walk, Sit, Lie, Wave, Crouch, Sleep, Groom, Happy, Eat, Cook, Read, Exercise, Work, Wash, Swim, Drink }
+        public enum Pose { Stand, Walk, Sit, Lie, Wave, Crouch, Sleep, Groom, Happy, Eat, Cook, Read, Exercise, Work, Wash, Swim, Drink, Guitar, Keys, Dance, Talk }
 
         public bool pet;
         [Tooltip("person, cat or dog: which joint table builds the skeleton")]
@@ -29,6 +29,8 @@ namespace Tiramisu
             public Vector3 restPos;
             public Vector3 rightLocal, upLocal, upInParent;
             public float ang, tgt, lift, liftTgt, yaw, yawTgt;
+            public Vector3 anchor;          // where a hand (forearms) or the chest (spine) is, in this joint's own space, measured at rest
+            public Quaternion frame;        // turns the figure's own axes into this joint's space, at rest
         }
 
         readonly Dictionary<string, Joint> j = new Dictionary<string, Joint>();
@@ -108,6 +110,14 @@ namespace Tiramisu
                     upInParent = t.parent ? Quaternion.Inverse(t.parent.rotation) * transform.up : Vector3.up,
                 };
             }
+            if (!pet)
+            {
+                // where the hands and the chest are, so things can be put in them whatever the pose
+                float sy = Mathf.Max(transform.lossyScale.y, 0.01f);
+                foreach (var hn in new[] { "forearm.L", "forearm.R" })
+                    if (j.TryGetValue(hn, out var fj)) { fj.anchor = fj.t.InverseTransformPoint(fj.t.position - transform.up * 0.27f * sy); fj.frame = Quaternion.Inverse(fj.t.rotation) * transform.rotation; }
+                if (j.TryGetValue("spine", out var sj)) { sj.anchor = sj.t.InverseTransformPoint(transform.position + transform.up * 1.12f * sy + transform.forward * 0.16f * sy); sj.frame = Quaternion.Inverse(sj.t.rotation) * transform.rotation; }
+            }
             if (!pet && j.TryGetValue("pelvis", out var pv))
                 RestHip = Mathf.Max(0.4f, (pv.t.position.y - transform.position.y) / Mathf.Max(transform.lossyScale.y, 0.01f));
             foreach (var r in GetComponentsInChildren<SkinnedMeshRenderer>())
@@ -123,6 +133,106 @@ namespace Tiramisu
                     copy.SetIndices(new int[0], MeshTopology.Triangles, m);
                 }
             }   // the bounds of a posed skin change
+        }
+
+
+        // ------------------------------------------------------------ things held in the hands
+
+        GameObject heldProp;
+        static readonly Dictionary<Color, Material> propMats = new Dictionary<Color, Material>();
+
+        static Material PropMat(Color c, float smooth = 0.45f, float metal = 0f)
+        {
+            if (propMats.TryGetValue(c, out var m) && m) return m;
+            m = new Material(Shader.Find("HDRP/Lit")) { name = "Held prop" };
+            m.SetColor("_BaseColor", c); m.SetFloat("_Smoothness", smooth); m.SetFloat("_Metallic", metal);
+            propMats[c] = m;
+            return m;
+        }
+
+        static GameObject Bit(Transform parent, PrimitiveType type, Vector3 pos, Vector3 scale, Color c, Quaternion? rot = null, float smooth = 0.45f, float metal = 0f)
+        {
+            var g = GameObject.CreatePrimitive(type);
+            Destroy(g.GetComponent<Collider>());
+            g.transform.SetParent(parent, false);
+            g.transform.localPosition = pos; g.transform.localScale = scale;
+            if (rot.HasValue) g.transform.localRotation = rot.Value;
+            g.GetComponent<Renderer>().sharedMaterial = PropMat(c, smooth, metal);
+            return g;
+        }
+
+        /// <summary>Puts something in the hands or against the chest: "book", "mug", "dumbbell" or "guitar" (pass a copy of the guitar of the piece).</summary>
+        public void Hold(string kind, GameObject copy = null)
+        {
+            Release();
+            if (pet) return;
+            var sp = j.ContainsKey("spine") ? j["spine"] : null;
+            var fr = j.ContainsKey("forearm.R") ? j["forearm.R"] : null;
+            var fl = j.ContainsKey("forearm.L") ? j["forearm.L"] : null;
+            var holder = new GameObject("Held " + kind);
+            switch (kind)
+            {
+                case "book":
+                    if (sp == null) { Destroy(holder); return; }
+                    holder.transform.SetParent(sp.t, false);
+                    holder.transform.localScale = Vector3.one * Inv(sp.t);
+                    holder.transform.localPosition = sp.anchor + sp.frame * (new Vector3(0f, 0.02f, 0.05f) * Inv(sp.t));
+                    holder.transform.localRotation = sp.frame * Quaternion.Euler(-62f, 0f, 0f);
+                    Bit(holder.transform, PrimitiveType.Cube, Vector3.zero, new Vector3(0.19f, 0.032f, 0.26f), new Color(0.62f, 0.12f, 0.14f));
+                    Bit(holder.transform, PrimitiveType.Cube, new Vector3(0f, 0.002f, 0.004f), new Vector3(0.17f, 0.03f, 0.245f), new Color(0.93f, 0.9f, 0.82f));
+                    break;
+                case "mug":
+                    if (fr == null) { Destroy(holder); return; }
+                    holder.transform.SetParent(fr.t, false);
+                    holder.transform.localScale = Vector3.one * Inv(fr.t);
+                    holder.transform.localPosition = fr.anchor;
+                    holder.transform.localRotation = fr.frame;
+                    Bit(holder.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.045f, 0f), new Vector3(0.075f, 0.045f, 0.075f), new Color(0.95f, 0.94f, 0.9f), null, 0.8f);
+                    Bit(holder.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.085f, 0f), new Vector3(0.062f, 0.004f, 0.062f), new Color(0.32f, 0.18f, 0.1f), null, 0.9f);
+                    break;
+                case "dumbbell":
+                    if (fr == null || fl == null) { Destroy(holder); return; }
+                    // the two weights ride on the two forearms
+                    Destroy(holder); holder = new GameObject("Held dumbbells");
+                    foreach (var f in new[] { fr, fl })
+                    {
+                        var h = new GameObject("Dumbbell").transform;
+                        h.SetParent(f.t, false); h.localScale = Vector3.one * Inv(f.t); h.localPosition = f.anchor; h.localRotation = f.frame;
+                        Bit(h, PrimitiveType.Cylinder, Vector3.zero, new Vector3(0.022f, 0.10f, 0.022f), new Color(0.6f, 0.6f, 0.63f), Quaternion.Euler(0f, 0f, 90f), 0.8f, 1f);
+                        foreach (float x in new[] { -0.11f, 0.11f }) Bit(h, PrimitiveType.Cylinder, new Vector3(x, 0f, 0f), new Vector3(0.12f, 0.02f, 0.12f), new Color(0.06f, 0.06f, 0.07f), Quaternion.Euler(0f, 0f, 90f), 0.5f, 0.6f);
+                        heldExtra.Add(h.gameObject);
+                    }
+                    holder.name = "Held dumbbells";
+                    break;
+                case "guitar":
+                    if (sp == null || copy == null) { Destroy(holder); return; }
+                    Destroy(holder); holder = copy;
+                    holder.SetActive(true);
+                    foreach (var mb in holder.GetComponentsInChildren<Collider>()) Destroy(mb);
+                    holder.transform.SetParent(sp.t, false);
+                    float inv = Inv(sp.t);
+                    holder.transform.localScale = Vector3.one * inv;
+                    var glr = sp.frame * Quaternion.Euler(-8f, -14f, 78f);
+                    // the body of the guitar (0.62 m up its own length, a little behind its plate) is what sits against the chest
+                    holder.transform.localRotation = glr;
+                    holder.transform.localPosition = sp.anchor + (sp.frame * new Vector3(-0.10f, -0.14f, 0.05f) - glr * new Vector3(0f, 0.62f, -0.10f)) * inv;
+                    break;
+                default: Destroy(holder); return;
+            }
+            heldProp = holder;
+        }
+
+        readonly List<GameObject> heldExtra = new List<GameObject>();
+
+        /// <summary>Some downloaded skeletons are in centimetres: what is hung on a bone must be scaled back to metres.</summary>
+        float Inv(Transform bone) => transform.lossyScale.y / Mathf.Max(bone.lossyScale.y, 1e-6f);
+
+        public void Release()
+        {
+            if (heldProp) Destroy(heldProp);
+            heldProp = null;
+            foreach (var g in heldExtra) if (g) Destroy(g);
+            heldExtra.Clear();
         }
 
         /// <summary>The top of the head, from the neck joint (works sitting and lying too).</summary>
@@ -253,6 +363,41 @@ namespace Tiramisu
                     float sc = Mathf.Sin(clock * 7f);
                     Set("arm.L", 100f); Set("arm.R", 100f); Set("forearm.L", 95f + 12f * sc); Set("forearm.R", 95f - 12f * sc);
                     Set("spine", 3f); Set("neck", -4f);
+                    break;
+                }
+                case Pose.Guitar:
+                {
+                    float st = Mathf.Sin(clock * 7.5f), sway = Mathf.Sin(clock * 1.5f);
+                    Set("arm.R", 40f + 9f * st); Set("forearm.R", 66f + 22f * st);
+                    Set("arm.L", 62f); Set("forearm.L", 30f + 4f * Mathf.Sin(clock * 0.9f));
+                    Set("spine", 4f, 0f, 3f * sway); Set("neck", -12f + 3f * sway);
+                    Set("pelvis", 0f, 0f, 2f * sway);
+                    break;
+                }
+                case Pose.Keys:
+                {
+                    float a = Mathf.Sin(clock * 5.2f), b = Mathf.Sin(clock * 4.3f + 2f), sway = Mathf.Sin(clock * 1.2f);
+                    Set("arm.L", 46f + 7f * a); Set("forearm.L", 60f + 10f * Mathf.Max(0f, a));
+                    Set("arm.R", 46f + 7f * b); Set("forearm.R", 60f + 10f * Mathf.Max(0f, b));
+                    Set("spine", 5f, 0f, 3f * sway); Set("neck", -11f + 4f * sway);
+                    break;
+                }
+                case Pose.Dance:
+                {
+                    float beat = Mathf.Sin(clock * 4.2f), half = Mathf.Sin(clock * 2.1f);
+                    Set("pelvis", 0f, -0.03f * Mathf.Abs(beat), 9f * half);
+                    Set("arm.L", 105f + 45f * beat); Set("arm.R", 105f - 45f * beat);
+                    Set("forearm.L", 35f + 25f * Mathf.Abs(beat)); Set("forearm.R", 35f + 25f * Mathf.Abs(beat));
+                    Set("leg.L", 10f * beat); Set("leg.R", -10f * beat); Set("shin.L", -8f * Mathf.Abs(beat)); Set("shin.R", -8f * Mathf.Abs(beat));
+                    Set("spine", 2f, 0f, -8f * half); Set("neck", 0f, 0f, 6f * half);
+                    break;
+                }
+                case Pose.Talk:
+                {
+                    float g1 = Mathf.Max(0f, Mathf.Sin(clock * 2.3f)), g2 = Mathf.Max(0f, Mathf.Sin(clock * 1.7f + 1.5f));
+                    Set("arm.R", 26f + 40f * g1); Set("forearm.R", 52f + 34f * g1 - 12f * g2);
+                    Set("arm.L", 14f + 28f * g2); Set("forearm.L", 40f + 30f * g2);
+                    Set("spine", breathe * 1.2f, 0f, 4f * Mathf.Sin(clock * 1.1f)); Set("neck", 2f * Mathf.Sin(clock * 1.9f), 0f, 5f * Mathf.Sin(clock * 1.3f));
                     break;
                 }
                 case Pose.Swim:

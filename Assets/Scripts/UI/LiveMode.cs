@@ -145,7 +145,11 @@ namespace Tiramisu
         static Interactable PoolAt(Vector3 p)
         {
             foreach (var it in Interactable.All)
-                if (it && it.hasCustomStand && Mathf.Abs(p.x - it.customFace.x) < 4.2f && Mathf.Abs(p.z - it.customFace.z) < 2.2f) return it;
+                {
+                if (!it || !it.hasCustomStand) continue;
+                var half = it.poolHalf.x > 0f ? it.poolHalf + new Vector2(0.25f, 0.25f) : new Vector2(4.2f, 2.2f);
+                if (Mathf.Abs(p.x - it.customFace.x) < half.x && Mathf.Abs(p.z - it.customFace.z) < half.y) return it;
+            }
             return null;
         }
 
@@ -215,6 +219,7 @@ namespace Tiramisu
                 }
                 if (!any) { enabled = false; if (d.needsTv) label = d.label + " (no TV)"; }
             }
+            if (d.job && !Careers.Allows(me.sim.job, d.id)) { enabled = false; label += " (not your career)"; }
             if (it.user != null && it.user != me) { enabled = false; label += " (busy)"; }
             var def = d;
             return new Option

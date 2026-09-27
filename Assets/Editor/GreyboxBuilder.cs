@@ -445,6 +445,7 @@ namespace Tiramisu.EditorTools
             roofRoot = roofGroup; upperRoot = upper;
             BuildGarden(Group("Garden", null));
             CityBuilder.Build(asphalt, stone, lineWhite, lawnDark);
+            BuildLots(Group("Lots", null));
             BuildDoors(house, upper);
             BuildBeams(house, upper);
             BuildWallLights(house, upper);
@@ -465,6 +466,42 @@ namespace Tiramisu.EditorTools
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("Tiramisu: greybox house built and saved to " + scenePath);
+        }
+
+        /// <summary>The home lot and the empty lots in the city where the player builds a house: each is a Lot component (see Lot.cs), the ground is made when the game starts.</summary>
+        static void BuildLots(Transform parent)
+        {
+            var home = Group("Home lot", parent);
+            var hl = home.gameObject.AddComponent<Tiramisu.Lot>();
+            hl.lotName = "Home"; hl.home = true; hl.order = 0;
+            hl.blurb = "The house that came ready built. You can furnish it and paint it, but not build on it.";
+            hl.min = new Vector2(-2.7f, -4.7f); hl.max = new Vector2(33.9f, 22.7f);
+            hl.spawn = new Vector3(3.2f, 0f, 6.2f);
+
+            string[] names = { "Maple Court", "Lantern Row", "Willow Lane" };
+            string[] blurbs =
+            {
+                "A sunny corner plot across the road from home. Flat, open and ready.",
+                "A quiet plot between two streets, a good place for a glass house like ours.",
+                "A wide plot west of home, with room for a big garden and a pool.",
+            };
+            for (int i = 0; i < CityBuilder.BuildLots.Length; i++)
+            {
+                var r = CityBuilder.BuildLots[i];
+                var g = Group("Lot " + names[i], parent);
+                var lot = g.gameObject.AddComponent<Tiramisu.Lot>();
+                lot.lotName = names[i]; lot.blurb = blurbs[i]; lot.home = false; lot.order = i + 1;
+                lot.min = new Vector2(r.xMin + 1f, r.yMin + 1f); lot.max = new Vector2(r.xMax - 1f, r.yMax - 1f);
+                lot.lawn = lawn; lot.body = slab; lot.poolFloor = poolMarble;
+                lot.spawn = new Vector3((lot.min.x + lot.max.x) * 0.5f, 0f, lot.min.y + 2.5f);
+                // a For sale sign at the front corner, two trees at the back
+                var sign = Group("For sale sign", g);
+                Box("Post", sign, new Vector3(lot.min.x + 1.6f, 0f, lot.min.y + 1.2f), new Vector3(lot.min.x + 1.72f, 1.5f, lot.min.y + 1.32f), steel);
+                Box("Board", sign, new Vector3(lot.min.x + 1.0f, 1.0f, lot.min.y + 1.16f), new Vector3(lot.min.x + 2.32f, 1.6f, lot.min.y + 1.22f), Pl("ForSale", new Color(0.86f, 0.28f, 0.34f), 0.3f));
+                Tree(g, new Vector3(lot.max.x - 3f, 0f, lot.max.y - 2.5f), 1.4f);
+                Tree(g, new Vector3(lot.min.x + 3f, 0f, lot.max.y - 2.5f), 1.2f);
+                if (i == 2) { Tree(g, new Vector3(lot.max.x - 6f, 0f, lot.max.y - 4f), 1.6f); Tree(g, new Vector3(lot.min.x + 8f, 0f, lot.max.y - 3f), 1.5f); }
+            }
         }
 
         static void BuildGround(Transform g)
@@ -1759,6 +1796,9 @@ namespace Tiramisu.EditorTools
         static void SimSystems(GameObject game)
         {
             game.AddComponent<Household>();
+            game.AddComponent<LotManager>();
+            game.AddComponent<PetShop>().dogPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/dog.fbx");
+            game.AddComponent<MapWindow>();
             game.AddComponent<GameAudio>();
             game.AddComponent<InteractionSetup>();
             game.AddComponent<SimUi>();
@@ -1787,12 +1827,14 @@ namespace Tiramisu.EditorTools
                 ("planter", "Planter", "Garden"), ("planterbox", "Planter box", "Garden"), ("flowerbed", "Flower bed", "Garden"), ("gnome", "Garden gnome", "Garden"), ("flamingo", "Flamingo", "Garden"),
                 ("mailbox", "Mailbox", "Garden"), ("wheelbarrow", "Wheelbarrow", "Garden"), ("wateringcan", "Watering can", "Garden"), ("hosereel", "Hose reel", "Garden"),
                 ("workbench", "Workbench", "Garage"), ("toolchest", "Tool chest", "Garage"), ("bicycle", "Bicycle", "Garage"), ("beachball", "Beach ball", "Garage"),
+                ("guitar", "Acoustic guitar", "Music"), ("synth", "Synth keyboard", "Music"), ("adopt_dog", "Adopt a dog", "Pets"),
                 ("avanza", "Toyota Avanza", "Cars"), ("mazda3", "Mazda 3", "Cars"), ("bmwm3", "BMW M3 Competition", "Cars"), ("porsche911", "Porsche 911 Turbo S", "Cars"),
             };
             foreach (var it in items)
             {
                 // our own models are fbx files, the photoscanned ones are glTF folders, the cars are glb files
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{it.id}.fbx");
+                string fileId = it.id.StartsWith("adopt_") ? it.id.Substring(6) : it.id;
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{fileId}.fbx");
                 if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/PolyHaven/{it.id}/{it.id}.gltf");
                 if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/Cars/{it.id}.glb");
                 if (!prefab) continue;
@@ -1807,6 +1849,9 @@ namespace Tiramisu.EditorTools
             bm.wallNames = new[] { "White", "Brown" };
             bm.previewMaterial = GhostMaterial();
             bm.glassMaterial = glass;
+            bm.waterMaterial = water;
+            bm.roofMaterial = roof;
+            bm.stepMaterial = oak;
         }
 
         /// <summary>The soft round sprite and the four materials for petals, leaves, snow and fireflies.</summary>

@@ -11,6 +11,8 @@ IDS = ("sofa beanbag marbletable geomrug tvunit uplight bookcase candles globe d
        "lounger hammock parasol bbq bbqcounter firepit lantern outdoorsectional cooler planter planterbox flowerbed gnome flamingo mailbox "
        "wheelbarrow wateringcan hosereel workbench toolchest bicycle beachball").split()
 
+if "ONLY" in globals():
+    IDS = list(ONLY)
 try:
     START, END
 except NameError:
@@ -79,20 +81,35 @@ scene.collection.objects.link(fill)
 log = []
 for i in range(START, min(END, len(IDS))):
     name = IDS[i]
-    path = os.path.join(SRC, name + ".fbx")
+    fname = name[6:] if name.startswith("adopt_") else name
+    path = os.path.join(SRC, fname + ".fbx")
+    if not os.path.exists(path):
+        path = os.path.join(SRC, "PolyHaven", fname, fname + ".gltf")
+    if not os.path.exists(path):
+        path = os.path.join(SRC, "Cars", fname + ".glb")
     if not os.path.exists(path):
         log.append("missing " + name)
         continue
     before = set(bpy.data.objects.keys())
     try:
-        if hasattr(bpy.ops.wm, "fbx_import"):
-            bpy.ops.wm.fbx_import(filepath=path)
-        else:
-            bpy.ops.import_scene.fbx(filepath=path)
+        import io as _io, contextlib as _cl
+        with _cl.redirect_stdout(_io.StringIO()), _cl.redirect_stderr(_io.StringIO()):
+            if path.endswith(".fbx"):
+                if hasattr(bpy.ops.wm, "fbx_import"):
+                    bpy.ops.wm.fbx_import(filepath=path)
+                else:
+                    bpy.ops.import_scene.fbx(filepath=path)
+            else:
+                bpy.ops.import_scene.gltf(filepath=path)
     except Exception as ex:
         log.append("import fail %s %s" % (name, ex))
         continue
     new = [bpy.data.objects[k] for k in bpy.data.objects.keys() if k not in before]
+    if name == "sofa":
+        for nm in [o.name for o in new]:
+            if nm.startswith("seat cushion") and nm in bpy.data.objects:
+                bpy.data.objects.remove(bpy.data.objects[nm], do_unlink=True)
+        new = [bpy.data.objects[nm] for nm in [k for k in bpy.data.objects.keys() if k not in before]]
     meshes = [o for o in new if o.type == "MESH"]
     if not meshes:
         log.append("no mesh " + name)
@@ -120,7 +137,5 @@ for i in range(START, min(END, len(IDS))):
     made.append(name)
     clear({o.name for o in new})
 
-for o in (cam, sun, fill):
-    pass
 RESULT = "made %d: %s | %s" % (len(made), ",".join(made), "; ".join(log))
 print(RESULT)

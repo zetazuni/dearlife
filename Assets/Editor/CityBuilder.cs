@@ -24,6 +24,8 @@ namespace Tiramisu.EditorTools
         // the plot and everything that must stay clear (fence to road kerb)
         static readonly Rect Plot = new Rect(-6f, -8f, 53f, 34f);
         static readonly Vector2 Centre = new Vector2(17f, 9f);
+        /// <summary>The empty lots you can build on (x, z, width, depth): no buildings are put there, see GreyboxBuilder.BuildLotPads.</summary>
+        public static readonly Rect[] BuildLots = { new Rect(50f, 62f, 40f, 32f), new Rect(-10f, 62f, 40f, 32f), new Rect(-72f, 0f, 40f, 32f) };
 
         class Batch
         {
@@ -266,8 +268,7 @@ namespace Tiramisu.EditorTools
                     foreach (var lot in lots)
                     {
                         // the buildings keep clear of the plot: a lot that runs into it is cut down to the free strips round it
-                        if (!Overlaps(lot, Plot, 0.5f)) { Place(rnd, lot, B, roofs, slabs, facades); continue; }
-                        foreach (var strip in Strips(lot)) Place(rnd, strip, B, roofs, slabs, facades);
+                        foreach (var piece in Carve(lot)) Place(rnd, piece, B, roofs, slabs, facades);
                     }
                     // street trees along the kerbs of this block
                     for (float x = xa + 3f; x < xb - 1f; x += 9f + (float)rnd.NextDouble() * 4f)
@@ -356,9 +357,28 @@ namespace Tiramisu.EditorTools
 
         // ---- lots
 
-        static IEnumerable<Lot> Strips(Lot l)
+        /// <summary>A city lot with the plot and the empty building lots cut out of it: what is left is built on.</summary>
+        static IEnumerable<Lot> Carve(Lot lot)
         {
-            float px0 = Plot.xMin - 0.5f, px1 = Plot.xMax + 0.5f, pz0 = Plot.yMin - 0.5f, pz1 = Plot.yMax + 0.5f;
+            var cur = new List<Lot> { lot };
+            var reserved = new List<Rect> { Plot };
+            foreach (var r in BuildLots) reserved.Add(new Rect(r.x - 3.5f, r.y - 3.5f, r.width + 7f, r.height + 7f));
+            foreach (var r in reserved)
+            {
+                var next = new List<Lot>();
+                foreach (var c in cur)
+                {
+                    if (!Overlaps(c, r, 0.5f)) next.Add(c);
+                    else next.AddRange(Strips(c, r));
+                }
+                cur = next;
+            }
+            return cur;
+        }
+
+        static IEnumerable<Lot> Strips(Lot l, Rect plot)
+        {
+            float px0 = plot.xMin - 0.5f, px1 = plot.xMax + 0.5f, pz0 = plot.yMin - 0.5f, pz1 = plot.yMax + 0.5f;
             var cand = new[]
             {
                 new Lot { x0 = l.x0, z0 = l.z0, x1 = px0, z1 = l.z1 },        // west of the plot

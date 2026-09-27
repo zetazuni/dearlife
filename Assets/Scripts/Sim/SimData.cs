@@ -39,8 +39,16 @@ namespace Tiramisu
         public readonly List<Moodlet> moodlets = new List<Moodlet>();
         public readonly List<Wish> wishes = new List<Wish>();
         public readonly Dictionary<string, float> friendship = new Dictionary<string, float>();
-        public string job = "";          // "Engineer", "Teacher" or empty
-        public float jobXp;
+        public string job = "";          // the career (see Careers), or empty
+        public readonly Dictionary<string, float> careerXp = new Dictionary<string, float>();
+        /// <summary>Seconds worked in the current career.</summary>
+        public float jobXp
+        {
+            get { return job != "" && careerXp.TryGetValue(job, out var x) ? x : 0f; }
+            set { if (job != "") careerXp[job] = value; }
+        }
+        public int JobLevel => Careers.Level(jobXp);
+        public string JobTitle => Careers.Title(job, jobXp);
         public int wishesDone;
 
         // how fast each need falls, per second at normal speed (so a bar lasts a few minutes)
@@ -69,7 +77,7 @@ namespace Tiramisu
                 case "Athirah": traits.AddRange(new[] { "Creative", "Cheerful", "Neat" }); job = "Teacher"; break;
                 default: traits.AddRange(new[] { "Cuddly", "Curious" }); break;
             }
-            if (!pet) { NewWish(); NewWish(); NewWish(); }
+            if (!pet) { NewWish(); NewWish(); NewWish(); LoadCareer(); }
             friendship["Amir"] = friendship["Athirah"] = friendship["Bedah"] = 0f;
             friendship[who] = 100f;
             if (who == "Amir") { friendship["Athirah"] = 70f; friendship["Bedah"] = 40f; }
@@ -78,6 +86,57 @@ namespace Tiramisu
         }
 
         public bool Has(string trait) => traits.Contains(trait);
+
+        // ------------------------------------------------------------ careers
+
+        public void SetCareer(string name)
+        {
+            if (job == name) return;
+            job = name;
+            SaveCareer();
+            Household.Toast($"{displayName} is now working as a {JobTitle.ToLower()} ({name.ToLower()}).");
+            GameAudio.Play(GameAudio.Sfx.Chime);
+        }
+
+        /// <summary>A second of work: it can earn a promotion.</summary>
+        public void WorkXp(float dt)
+        {
+            int before = JobLevel;
+            jobXp += dt;
+            if (JobLevel > before)
+            {
+                int level = JobLevel, bonus = Careers.Bonus(level);
+                Household.Earn(bonus, $"{displayName}'s promotion bonus");
+                Household.Toast($"{displayName} was promoted to {JobTitle.ToLower()}! New pay: {Household.Currency} {Careers.Pay(level)} a second, and a bonus of {Household.Currency} {bonus}.");
+                GameAudio.Play(GameAudio.Sfx.Level);
+                AddMoodlet("Proud of the promotion", 16f, 300f);
+                Report("promotion");
+                SaveCareer();
+            }
+        }
+
+        string CareerKey => "tiramisu.career." + displayName;
+
+        public void SaveCareer()
+        {
+            if (isPet || displayName == "") return;
+            var sb = new System.Text.StringBuilder(job);
+            foreach (var kv in careerXp) sb.Append('|').Append(kv.Key).Append(':').Append(kv.Value.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
+            PlayerPrefs.SetString(CareerKey, sb.ToString());
+        }
+
+        void LoadCareer()
+        {
+            if (!PlayerPrefs.HasKey(CareerKey)) return;
+            var parts = PlayerPrefs.GetString(CareerKey).Split('|');
+            if (parts.Length > 0 && Careers.Get(parts[0]) != null) job = parts[0];
+            for (int i = 1; i < parts.Length; i++)
+            {
+                var kv = parts[i].Split(':');
+                if (kv.Length == 2 && float.TryParse(kv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) careerXp[kv[0]] = v;
+            }
+        }
+
 
         // ------------------------------------------------------------ the clock
 

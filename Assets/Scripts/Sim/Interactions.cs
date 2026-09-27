@@ -67,6 +67,8 @@ namespace Tiramisu
             Def("read", "Read a book", 18f, CharacterRig.Pose.Read, "bookcase").Fill(Need.Fun, 34f).Skilled(Skill.Logic, 10f).Moodlet("Lost in a story", 10f);
             Def("workout", "Work out", 20f, CharacterRig.Pose.Exercise, "treadmill", "weightbench", "spinbike", "punchbag", "yogamat", "dumbbells").Fill(Need.Fun, 14f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -18f).Skilled(Skill.Fitness, 16f).Moodlet("Endorphins", 12f);
             Def("stargaze", "Look at the stars", 16f, CharacterRig.Pose.Read, "telescope").Fill(Need.Fun, 30f).Skilled(Skill.Creativity, 8f).Moodlet("Starstruck", 10f);
+            Def("guitar", "Play the guitar", 32f, CharacterRig.Pose.Guitar, "guitar").Fill(Need.Fun, 52f).Fill(Need.Social, 6f).Skilled(Skill.Creativity, 16f).Moodlet("Made some music", 12f);
+            Def("synth", "Play the synth", 32f, CharacterRig.Pose.Keys, "synth").Fill(Need.Fun, 52f).Fill(Need.Social, 6f).Skilled(Skill.Creativity, 16f).Skilled(Skill.Logic, 4f).Moodlet("Made some music", 12f);
             Def("tinker", "Tinker with a project", 20f, CharacterRig.Pose.Work, "printer3d", "robotarm", "workbench").Fill(Need.Fun, 24f).Skilled(Skill.Logic, 12f).Skilled(Skill.Creativity, 6f);
             Def("draw", "Draw a plan", 16f, CharacterRig.Pose.Work, "whiteboard", "chalkboard").Fill(Need.Fun, 22f).Skilled(Skill.Creativity, 14f);
             Def("fire", "Sit by the fire", 18f, CharacterRig.Pose.Sit, "firepit").Fill(Need.Fun, 22f).Fill(Need.Social, 6f).Moodlet("Cosy fire", 8f).wish = "sunbathe";
@@ -77,6 +79,9 @@ namespace Tiramisu
             Def("work", "Work", 36f, CharacterRig.Pose.Work, "officedesk", "teacherdesk").AsJob().Fill(Need.Fun, -10f).Skilled(Skill.Logic, 8f).Fill(Need.Energy, -12f);
             Def("freelance", "Freelance on the computer", 24f, CharacterRig.Pose.Work, "officedesk").AsJob(0.6f).Skilled(Skill.Logic, 12f).Fill(Need.Energy, -8f);
             Def("lesson", "Plan a lesson", 24f, CharacterRig.Pose.Work, "teacherdesk").AsJob(0.6f).Skilled(Skill.Charisma, 10f).Fill(Need.Energy, -8f);
+            Def("cookjob", "Cook for customers", 26f, CharacterRig.Pose.Cook, "kitchenrun", "kitchenisland", "bbqcounter").AsJob(0.9f).Skilled(Skill.Cooking, 12f).Fill(Need.Energy, -10f).Fill(Need.Fun, -6f);
+            Def("sketchjob", "Sketch a commission", 26f, CharacterRig.Pose.Work, "officedesk", "teacherdesk").AsJob(0.8f).Skilled(Skill.Creativity, 12f).Fill(Need.Energy, -8f);
+            Def("trainjob", "Train for pay", 22f, CharacterRig.Pose.Exercise, "treadmill", "weightbench", "spinbike").AsJob(0.9f).Skilled(Skill.Fitness, 12f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -8f);
             Def("files", "Sort the files", 12f, CharacterRig.Pose.Work, "filecabinet").Skilled(Skill.Logic, 6f).Fill(Need.Fun, -4f);
             Def("laundry", "Do the laundry", 10f, CharacterRig.Pose.Work, "washer", "dryer").Fill(Need.Fun, -4f).Moodlet("Fresh laundry", 5f);
         }
@@ -112,6 +117,7 @@ namespace Tiramisu
         public Vector3 customStand;                // for things without a shape (the pool)
         public bool hasCustomStand;
         public Vector3 customFace;
+        public Vector2 poolHalf;                   // half the size of the pool (x, z), so people swim inside it
         public Character user;                     // somebody is using it now
 
         void OnEnable() { if (!All.Contains(this)) All.Add(this); }
@@ -170,6 +176,21 @@ namespace Tiramisu
     {
         void Start() { Refresh(); }
 
+        /// <summary>A pool the player dug: people can swim in it.</summary>
+        public static void AddPool(PoolRipples pr, Transform parent, float groundY)
+        {
+            var go = new GameObject("Pool interaction (built)");
+            go.transform.SetParent(parent, true);
+            var c = new Vector3((pr.min.x + pr.max.x) * 0.5f, pr.surfaceY, (pr.min.y + pr.max.y) * 0.5f);
+            go.transform.position = c;
+            var it = Interactable.Attach(go, "pool");
+            if (it == null) return;
+            it.hasCustomStand = true;
+            it.poolHalf = new Vector2((pr.max.x - pr.min.x) * 0.5f, (pr.max.y - pr.min.y) * 0.5f);
+            it.customStand = new Vector3(c.x, groundY, pr.min.y - 0.9f);
+            it.customFace = c;
+        }
+
         public static void Refresh()
         {
             foreach (var f in Object.FindObjectsByType<Furniture>(FindObjectsInactive.Include))
@@ -195,6 +216,7 @@ namespace Tiramisu
                         it.hasCustomStand = true;
                         it.customStand = new Vector3(c.x - 2.5f, -0.3f, big.min.y - 0.9f);
                         it.customFace = c;
+                        it.poolHalf = new Vector2((big.max.x - big.min.x) * 0.5f, (big.max.y - big.min.y) * 0.5f);
                     }
                 }
             }

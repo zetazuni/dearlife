@@ -159,7 +159,7 @@ namespace Tiramisu
         {
             var sim = who.sim;
             float cx = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
-            statusPanel = new Rect(cx - 350f, Mathf.Max(64f, h * 0.5f - 270f), 700f, 540f);
+            statusPanel = new Rect(cx - 350f, Mathf.Max(64f, h * 0.5f - 315f), 700f, 630f);
             Ui.Box(statusPanel, Ui.Card, Ui.Pink, 22f, 3f, true);
             float x0 = statusPanel.x + 22f, y = statusPanel.y + 16f;
             Ui.Round(new Rect(x0, y + 6f, 18f, 18f), sim.MoodColour, 9f);
@@ -199,10 +199,29 @@ namespace Tiramisu
                 Ui.Label(new Rect(x0, yy, colW, 16f), $"{(f.value >= 0 ? "+" : "")}{Mathf.RoundToInt(f.value)}   {f.text}", 12f, f.value >= 0 ? Ui.Ink : Ui.Hex("c0504d"), TextAnchor.UpperLeft, Ui.Weight.Bold);
                 yy += 17f; if (++shown >= 5) break;
             }
-            HouseHud.Kicker(x0, statusPanel.yMax - 92f, colW, "Traits");
-            Ui.Label(new Rect(x0, statusPanel.yMax - 74f, colW, 34f), string.Join("  ·  ", sim.traits), 13f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold, true);
+            HouseHud.Kicker(x0, statusPanel.yMax - 190f, colW, "Traits");
+            Ui.Label(new Rect(x0, statusPanel.yMax - 172f, colW, 34f), string.Join("  ·  ", sim.traits), 13f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold, true);
+
+            // the career: choose one, see the rank, the pay and the way to the next promotion
+            float cy = statusPanel.yMax - 124f;
+            Ui.Rect2(new Rect(x0, cy - 10f, statusPanel.width - 44f, 2f), Ui.Line);
+            HouseHud.Kicker(x0, cy, 200f, "Career");
+            float chx = x0 + 70f;
+            foreach (var tr in Careers.All)
+            {
+                float cw2 = Ui.TextWidth(tr.name, 12f, Ui.Weight.ExtraBold) + 26f;
+                if (Ui.Chip(new Rect(chx, cy - 4f, cw2, 24f), tr.name, sim.job == tr.name, 12f)) sim.SetCareer(tr.name);
+                chx += cw2 + 6f;
+            }
             if (sim.job != "")
-                Ui.Label(new Rect(x0, statusPanel.yMax - 44f, colW + 20f, 32f), $"Job: {sim.job}, level {1 + Mathf.FloorToInt(sim.jobXp / 300f)}. Pays {Household.Currency} {Household.PayPerSecond(sim)} a second.", 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold, true);
+            {
+                int lvl = sim.JobLevel;
+                Ui.Label(new Rect(x0, cy + 26f, 330f, 22f), $"{sim.JobTitle}  ·  rank {lvl} of {Careers.XpAt.Length}", 15f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+                Ui.Label(new Rect(x0, cy + 50f, statusPanel.width - 44f, 18f), $"Pays {Household.Currency} {Household.PayPerSecond(sim)} a second. {Careers.Get(sim.job).blurb} Work at the right desk or machine to move up.", 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold);
+                var pb = new Rect(x0 + 350f, cy + 30f, statusPanel.width - 44f - 350f - 84f, 12f);
+                Ui.Bar(pb, Careers.Progress(sim.jobXp), Ui.Hex("6cc287"));
+                Ui.Label(new Rect(pb.xMax + 8f, cy + 24f, 80f, 22f), lvl >= Careers.XpAt.Length ? "Top rank" : $"{Mathf.RoundToInt(Careers.XpAt[lvl] - sim.jobXp)} s to go", 11f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+            }
 
             float rx = x0 + colW + 30f, ry = y;
             HouseHud.Kicker(rx, ry, 300f, "Skills"); ry += 20f;

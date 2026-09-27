@@ -280,6 +280,7 @@ namespace Tiramisu
 
         void Buy(CatalogEntry e)
         {
+            if (e.id == "adopt_dog") { if (PetShop.Instance != null) PetShop.Instance.Adopt(); return; }
             var cam = Camera.main;
             Vector3 at = OrbitCamera.Instance ? OrbitCamera.Instance.pivot : new Vector3(10f, 0f, 8f);
             if (cam && Physics.Raycast(cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.55f, 0f)), out var hit, 300f, ~0, QueryTriggerInteraction.Ignore)) at = hit.point;

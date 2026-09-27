@@ -35,6 +35,7 @@ namespace Tiramisu
         public void SetView(View v, bool moveCamera = true)
         {
             view = v;
+            if (!LotManager.AtHome) LotManager.SetLevel(v == View.Ground ? 0 : 1);
             if (upperFloor) upperFloor.SetActive(v != View.Ground);
             if (roof) roof.SetActive(v == View.Whole);
             var cam = OrbitCamera.Instance;
@@ -53,7 +54,7 @@ namespace Tiramisu
             if (Input.GetKeyDown(KeyCode.PageUp)) SetView(View.Upper);
             if (Input.GetKeyDown(KeyCode.Home)) SetView(View.Whole);
             if (Input.GetKeyDown(KeyCode.Tab)) CycleWallMode();
-            if (Input.GetKeyDown(KeyCode.F) && OrbitCamera.Instance) OrbitCamera.Instance.FitHouse(ActiveFloorY);
+            if (Input.GetKeyDown(KeyCode.F) && OrbitCamera.Instance && !MapWindow.Open) OrbitCamera.Instance.FitHouse(ActiveFloorY);
 
             var cam = OrbitCamera.Instance;
             if (!cam) return;

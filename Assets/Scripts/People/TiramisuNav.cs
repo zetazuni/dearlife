@@ -24,6 +24,7 @@ namespace Tiramisu
         void Awake()
         {
             Instance = this;
+            Ready = false;       // (with domain reload switched off in the editor, this would still be true from the last time)
             var s = NavMesh.CreateSettings();
             s.agentRadius = 0.24f;
             s.agentHeight = 1.7f;
@@ -34,7 +35,10 @@ namespace Tiramisu
             AgentType = s.agentTypeID;
             surface = gameObject.AddComponent<NavMeshSurface>();
             surface.agentTypeID = AgentType;
-            surface.collectObjects = CollectObjects.All;
+            // only the home plot: the empty lots in the city each have their own surface (see Lot)
+            surface.collectObjects = CollectObjects.Volume;
+            surface.center = new Vector3(18f, 3f, 9f);
+            surface.size = new Vector3(64f, 22f, 48f);
             surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
             surface.layerMask = ~0;
         }
@@ -54,6 +58,8 @@ namespace Tiramisu
             {
                 rebuildAt = 0f;
                 Build();
+                var lot = LotManager.Current;
+                if (lot != null && !lot.home) lot.RebuildNav();
             }
         }
 
