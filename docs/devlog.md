@@ -338,3 +338,8 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - Try changing window mode/resolution live in the exe and confirm it takes effect without a restart.
 - Pet actions beyond Pet, Play and Feed are still a known gap.
 - Untested-with-a-real-mouse items carried over from Session 34 (map clicks, dragging pools/roofs, pool layouts and stairs with R, career chips, grid/measurement labels, previews, the eyedropper, click-to-place) are still open.
+
+## Session 36: the exe's own icon (2026-09-27) · v0.31.0
+
+- The built exe was still showing Unity's default star/shield icon in File Explorer and the taskbar, despite `BuildPrep.Prepare()` already calling `PlayerSettings.SetIcons`. Two bugs: it only passed one texture when Unity expects one per required size (1024 down to 16, silently ignoring the whole call if the count doesn't match), and even fixed up to the full set, in-memory-only `Texture2D`s didn't stick - `SetIcons` needs real imported assets.
+- Fixed: `Prepare()` now resizes `Assets/Art/Icon/icon.png` (a GPU blit + readback, so the source doesn't need Read/Write enabled) into `Assets/Art/Icon/Generated/icon_<size>.png` for every required size, imports them, and sets the icon from those. Confirmed by extracting the built exe's actual icon resource: it's the cat-in-a-room artwork now, not the default.

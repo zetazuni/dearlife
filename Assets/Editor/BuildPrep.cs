@@ -44,9 +44,35 @@ namespace Tiramisu.EditorTools
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { GraphicsDeviceType.Direct3D12 });
 
-            // the icon of the 2D game
+            // the icon of the 2D game: SetIcons needs one texture per required size (1024 down to 16),
+            // in order, or it silently keeps Unity's default icon - and each one has to be a real
+            // imported asset (a Texture2D made only in memory doesn't stick), so they're written to disk
             var icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Icon/icon.png");
-            if (icon) PlayerSettings.SetIcons(NamedBuildTarget.Standalone, new[] { icon }, IconKind.Application);
+            if (icon)
+            {
+                var mi = AssetImporter.GetAtPath("Assets/Art/Icon/icon.png") as TextureImporter;
+                if (mi != null && !mi.isReadable) { mi.isReadable = true; mi.SaveAndReimport(); }
+
+                const string genDir = "Assets/Art/Icon/Generated";
+                Directory.CreateDirectory(genDir);
+                var target = NamedBuildTarget.Standalone;
+                foreach (var kind in new[] { IconKind.Application, IconKind.Any })
+                {
+                    var sizes = PlayerSettings.GetIconSizes(target, kind);
+                    var set = new Texture2D[sizes.Length];
+                    for (int i = 0; i < sizes.Length; i++)
+                    {
+                        var path = $"{genDir}/icon_{sizes[i]}.png";
+                        if (!File.Exists(path))
+                        {
+                            File.WriteAllBytes(path, ResizeIcon(icon, sizes[i]).EncodeToPNG());
+                            AssetDatabase.ImportAsset(path);
+                        }
+                        set[i] = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                    }
+                    PlayerSettings.SetIcons(target, set, kind);
+                }
+            }
 
             // shaders that are found by name while the game runs must not be stripped
             var gs = AssetDatabase.LoadAssetAtPath<Object>("ProjectSettings/GraphicsSettings.asset");
@@ -67,10 +93,28 @@ namespace Tiramisu.EditorTools
             Debug.Log("Tiramisu: build settings prepared.");
         }
 
+        /// <summary>A resized copy of an icon texture, read back off the GPU so the source doesn't need Read/Write enabled.</summary>
+        static Texture2D ResizeIcon(Texture2D src, int size)
+        {
+            var rt = RenderTexture.GetTemporary(size, size, 0, RenderTextureFormat.ARGB32);
+            var prev = RenderTexture.active;
+            Graphics.Blit(src, rt);
+            RenderTexture.active = rt;
+            var t = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            t.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+            t.Apply();
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+            return t;
+        }
+
         [MenuItem("Tiramisu/Build Windows game")]
         public static void Build()
         {
             Prepare();
+            // Unity's incremental player-build cache can report Succeeded without rewriting the exe
+            // (seen after the Editor's own install path changed) - starting from nothing avoids that
+            if (Directory.Exists(OutDir)) Directory.Delete(OutDir, true);
             Directory.CreateDirectory(OutDir);
             var opts = new BuildPlayerOptions
             {
