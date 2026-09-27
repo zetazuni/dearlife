@@ -4,9 +4,10 @@ using UnityEngine;
 namespace Tiramisu
 {
     /// <summary>
-    /// Decorate mode (key M or the HUD button). Press on a piece of furniture and drag it: it follows the
-    /// surface under the mouse, so a mug can be carried from the island to the floor and a lamp can be put on
-    /// a table. R turns it (Shift for the other way), Esc or right click puts it back, letting go drops it.
+    /// Decorate mode (key M or the top bar), the way the Sims 4 does it: click a piece once to pick it up, it follows the
+    /// surface under the mouse (a mug can be carried from the island to the floor, a lamp put on a table), click again to
+    /// put it down. R turns it (Shift for the other way), Esc or right click puts it back. (Holding the button, dragging
+    /// and letting go works too.) Everything you do can be undone and redone (Ctrl+Z, Ctrl+Y, or the buttons in the top bar).
     /// A piece cannot be dropped inside a wall or another piece; it goes back to the last free spot instead.
     /// Layouts are saved automatically and come back next time.
     /// </summary>
@@ -21,6 +22,24 @@ namespace Tiramisu
         [Tooltip("see-through material the people and pets get while decorating")] public Material ghostMaterial;
         bool ghosted;
         bool placing, placingExisting, enteredByPlace;
+        float grabbedAt;
+
+        // ---- undo and redo
+        class Op
+        {
+            public string what; public Furniture f;
+            public bool a0 = true, a1 = true;                // active before and after (a sale hides the piece, a purchase shows it)
+            public Vector3 p0, p1; public Quaternion r0, r1;
+            public bool moves = true, tints;
+            public string ta0 = "", tb0 = "", ta1 = "", tb1 = "";
+            public int money;                                // paid going forward (negative: earned)
+            public readonly List<(Furniture f, Vector3 p0, Quaternion r0, Vector3 p1, Quaternion r1)> riders = new List<(Furniture, Vector3, Quaternion, Vector3, Quaternion)>();
+        }
+        readonly List<Op> undoStack = new List<Op>(), redoStack = new List<Op>();
+        Op lastMove;
+        public bool CanUndo => undoStack.Count > 0;
+        public bool CanRedo => redoStack.Count > 0;
+        public string NextUndo => undoStack.Count > 0 ? undoStack[undoStack.Count - 1].what : "";
 
         Camera cam;
         Furniture held;
@@ -90,6 +109,13 @@ namespace Tiramisu
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.M)) Toggle();
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
+            if (ctrl && (Active || BuyMode.Active) && !BuildMode.Active && held == null)
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (Input.GetKeyDown(KeyCode.Z)) { if (shift) Redo(); else Undo(); }
+                else if (Input.GetKeyDown(KeyCode.Y)) Redo();
+            }
             if (Active != ghosted) { ghosted = Active; Character.SetAllFrozen(Active, ghostMaterial); }
             if (!Active) { OrbitCamera.Blocked = false; return; }
             if (!cam) cam = Camera.main;
@@ -151,7 +177,7 @@ namespace Tiramisu
             cam = Camera.main;
             while (f.attachedTo) f = f.attachedTo;
             Grab(f, f.transform.position);
-            placing = true; placingExisting = true;
+            placing = true; placingExisting = true; grabbedAt = Time.unscaledTime;
             Say("Move it where you want it and click. R turns it, Esc puts it back.");
         }
 
@@ -169,7 +195,8 @@ namespace Tiramisu
             if (Mathf.Abs(wheel) > 0.01f) held.transform.Rotate(0f, Mathf.Sign(wheel) * 5f, 0f, Space.World);
             Drag();
             bool overUi = OrbitCamera.IsOverUi != null && OrbitCamera.IsOverUi(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
-            if (Input.GetMouseButtonDown(0) && !overUi)
+            bool dragDrop = placingExisting && Input.GetMouseButtonUp(0) && Time.unscaledTime - grabbedAt > 0.35f;
+            if ((Input.GetMouseButtonDown(0) && !overUi) || dragDrop)
             {
                 if (!valid) { Say("There is no room for that here."); GameAudio.Play(GameAudio.Sfx.No); return; }
                 var f = held;
@@ -179,7 +206,14 @@ namespace Tiramisu
                 f.pendingPrice = 0;
                 placing = false;
                 Drop(false);
-                if (existing) { if (f.bought) PurchaseSave.Record(f); GameAudio.Play(GameAudio.Sfx.Place); LeaveIfEntered(); return; }
+                if (existing)
+                {
+                    if (f.bought) PurchaseSave.Record(f);
+                    if (lastMove != null && (Vector3.Distance(lastMove.p0, lastMove.p1) > 0.004f || Quaternion.Angle(lastMove.r0, lastMove.r1) > 0.5f)) Push(lastMove);
+                    GameAudio.Play(GameAudio.Sfx.Place); LeaveIfEntered(); return;
+                }
+                var bought = new Op { what = "Bought the " + f.Label.ToLower(), f = f, a0 = false, a1 = true, p0 = f.transform.position, r0 = f.transform.rotation, p1 = f.transform.position, r1 = f.transform.rotation, money = price, ta1 = f.tintA, tb1 = f.tintB };
+                Push(bought);
                 PurchaseSave.Record(f);
                 GameAudio.Play(GameAudio.Sfx.Buy);
                 Say($"Bought the {f.Label.ToLower()} for {Household.Currency} {price:N0}.");
@@ -210,7 +244,8 @@ namespace Tiramisu
             Household.Earn(price, $"Sold the {f.Label.ToLower()}");
             PurchaseSave.Forget(f);
             Selected = null;
-            Destroy(f.gameObject);
+            Push(new Op { what = "Sold the " + f.Label.ToLower(), f = f, a0 = true, a1 = false, p0 = f.transform.position, r0 = f.transform.rotation, p1 = f.transform.position, r1 = f.transform.rotation, money = -price, ta0 = f.tintA, tb0 = f.tintB, ta1 = f.tintA, tb1 = f.tintB });
+            f.gameObject.SetActive(false);
             GameAudio.Play(GameAudio.Sfx.Sell);
             Say($"Sold the {f.Label.ToLower()} for {Household.Currency} {price:N0}.");
             if (TiramisuNav.Instance) TiramisuNav.Instance.RequestRebuild();
@@ -233,6 +268,7 @@ namespace Tiramisu
                 while (f.attachedTo) f = f.attachedTo;   // small things are part of what they sit on                              // something solid that is not furniture is in front
                 if (f.pinned) { Say($"The {f.Label.ToLower()} is built in, it cannot be moved."); return; }
                 Grab(f, h.point);
+                placing = true; placingExisting = true; grabbedAt = Time.unscaledTime;
                 return;
             }
         }
@@ -252,6 +288,7 @@ namespace Tiramisu
             lastValidRot = held.transform.rotation;
             if (!valid) Say("There is no room to turn it here.");
             Drop(!valid);
+            if (valid && lastMove != null) Push(lastMove);
         }
 
         void Grab(Furniture f, Vector3 point)
@@ -432,9 +469,83 @@ namespace Tiramisu
                 else r.f.Place(f.transform.TransformPoint(r.localPos), f.transform.rotation * r.localRot);
             }
             held = null;
+            lastMove = null;
+            if (!cancel)
+            {
+                lastMove = new Op { what = "Moved the " + f.Label.ToLower(), f = f, p0 = startPos, r0 = startRot, p1 = f.transform.position, r1 = f.transform.rotation, ta0 = f.tintA, tb0 = f.tintB, ta1 = f.tintA, tb1 = f.tintB };
+                foreach (var r in riders) lastMove.riders.Add((r.f, r.startPos, r.startRot, r.f.transform.position, r.f.transform.rotation));
+            }
             riders.Clear();
             foreach (var (rb, kin) in frozen) if (rb) rb.isKinematic = kin;
             frozen.Clear();
+            Physics.SyncTransforms();
+            Furniture.SaveAll();
+            if (TiramisuNav.Instance) TiramisuNav.Instance.RequestRebuild();
+        }
+
+        // ---------- undo and redo ----------
+
+        void Push(Op o)
+        {
+            undoStack.Add(o);
+            if (undoStack.Count > 120) undoStack.RemoveAt(0);
+            redoStack.Clear();
+        }
+
+        /// <summary>Colour changes go on the same history as moves and purchases.</summary>
+        public void SetTint(Furniture f, int channel, string hex)
+        {
+            if (f == null) return;
+            var o = new Op { what = "Recoloured the " + f.Label.ToLower(), f = f, moves = false, tints = true, ta0 = f.tintA, tb0 = f.tintB, a0 = true, a1 = true };
+            f.SetTint(channel, hex);
+            o.ta1 = f.tintA; o.tb1 = f.tintB;
+            if (o.ta0 == o.ta1 && o.tb0 == o.tb1) return;
+            Push(o);
+            if (f.bought) PurchaseSave.Record(f);
+            Furniture.SaveAll();
+        }
+
+        public void Undo()
+        {
+            if (undoStack.Count == 0) { Say("Nothing to undo."); return; }
+            var o = undoStack[undoStack.Count - 1];
+            if (o.money < 0 && !Household.Spend(-o.money, "Undid: " + o.what.ToLower())) { Say("You cannot afford to undo that right now."); GameAudio.Play(GameAudio.Sfx.No); return; }
+            if (o.money > 0) Household.Earn(o.money, "Undid: " + o.what.ToLower());
+            undoStack.RemoveAt(undoStack.Count - 1);
+            Apply(o, false);
+            redoStack.Add(o);
+            Say("Undid: " + o.what.ToLower() + ".");
+            GameAudio.Play(GameAudio.Sfx.Place);
+        }
+
+        public void Redo()
+        {
+            if (redoStack.Count == 0) { Say("Nothing to redo."); return; }
+            var o = redoStack[redoStack.Count - 1];
+            if (o.money > 0 && !Household.Spend(o.money, o.what)) { Say("You cannot afford that right now."); GameAudio.Play(GameAudio.Sfx.No); return; }
+            if (o.money < 0) Household.Earn(-o.money, o.what);
+            redoStack.RemoveAt(redoStack.Count - 1);
+            Apply(o, true);
+            undoStack.Add(o);
+            Say("Did it again: " + o.what.ToLower() + ".");
+            GameAudio.Play(GameAudio.Sfx.Place);
+        }
+
+        void Apply(Op o, bool forward)
+        {
+            var f = o.f;
+            if (f == null) return;
+            bool active = forward ? o.a1 : o.a0;
+            if (f.gameObject.activeSelf != active) f.gameObject.SetActive(active);
+            if (active && o.moves)
+            {
+                f.Place(forward ? o.p1 : o.p0, forward ? o.r1 : o.r0);
+                foreach (var r in o.riders) if (r.f) r.f.Place(forward ? r.p1 : r.p0, forward ? r.r1 : r.r0);
+            }
+            if (o.tints) { f.SetTint(0, forward ? o.ta1 : o.ta0); f.SetTint(1, forward ? o.tb1 : o.tb0); }
+            if (f.bought) { if (active) PurchaseSave.Record(f); else PurchaseSave.Forget(f); }
+            else if (o.a0 != o.a1) { if (active) PurchaseSave.Unforget(f); else PurchaseSave.Forget(f); }
+            else if (f.bought == false) { }
             Physics.SyncTransforms();
             Furniture.SaveAll();
             if (TiramisuNav.Instance) TiramisuNav.Instance.RequestRebuild();

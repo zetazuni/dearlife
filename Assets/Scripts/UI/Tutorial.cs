@@ -55,7 +55,7 @@ namespace Tiramisu
             for (int i = 0; i < Steps.Length; i++)
             {
                 float dw = i == step ? 20f : 7f;
-                Ui.Round(new Rect(dx, dyy + 9f, dw, 7f), i == step ? Ui.Accent : Hex("ecd9c6"), 4f);
+                Ui.Round(new Rect(dx, dyy + 9f, dw, 7f), i == step ? Ui.Accent : Ui.Line, 4f);
                 dx += dw + 5f;
             }
             if (Ui.Pill(new Rect(box.xMax - 178f, box.yMax - 42f, 76f, 30f), "Skip", false, 13f)) { open = false; PlayerPrefs.SetInt(Key, 1); }

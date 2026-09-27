@@ -9,12 +9,35 @@ namespace Tiramisu
     /// </summary>
     public static class Ui
     {
-        // the palette of the 2D game (its :root variables)
-        public static readonly Color Ink = Hex("5b4636"), Soft = Hex("8c7462"), Card = Hex("fff8ef"), Line = Hex("f0dcc6");
-        public static readonly Color Pink = Hex("f4a6b7"), Accent = Hex("e98aa0"), Gold = Hex("f2b84b"), GoldText = Hex("c98a17");
-        public static readonly Color Rose = Hex("b5566e"), Cream2 = Hex("fdeedd"), Pale = Hex("ffeef2"), Paper = Hex("fffaf4");
+        // the palette of the 2D game (its :root variables), and its dark mode: a neon pink and ice blue night version
+        public static bool Dark { get; private set; }
+        public static void SetDark(bool on) { Dark = on; PlayerPrefs.SetInt("tiramisu.dark", on ? 1 : 0); }
+        static readonly Color inkL = Hex("5b4636"), inkD = Hex("eaf3ff"), softL = Hex("8c7462"), softD = Hex("a9b3e8"), cardL = Hex("fff8ef"), cardD = Hex("161129");
+        static readonly Color lineL = Hex("f0dcc6"), lineD = Hex("3a2f66"), pinkL = Hex("f4a6b7"), pinkD = Hex("ff4fa8"), accL = Hex("e98aa0"), accD = Hex("57e6ff");
+        static readonly Color goldL = Hex("f2b84b"), goldD = Hex("ffd3ec"), goldTL = Hex("c98a17"), goldTD = Hex("ffd3ec"), roseL = Hex("b5566e"), roseD = Hex("ff8fc9");
+        static readonly Color cream2L = Hex("fdeedd"), cream2D = Hex("140f28"), paleL = Hex("ffeef2"), paleD = Hex("211a44"), paperL = Hex("fffaf4"), paperD = Hex("160f2e");
+        static readonly Color surfL = Color.white, surfD = Hex("171130"), onL = Color.white, onD = Hex("0a0716"), panelL = Color.white, panelD = Hex("100c22");
+        public static Color Ink => Dark ? inkD : inkL;
+        public static Color Soft => Dark ? softD : softL;
+        public static Color Card => Dark ? cardD : cardL;
+        public static Color Line => Dark ? lineD : lineL;
+        public static Color Pink => Dark ? pinkD : pinkL;
+        /// <summary>The colour of small highlights: rose in the day, ice blue at night.</summary>
+        public static Color Accent => Dark ? accD : accL;
+        public static Color Gold => Dark ? goldD : goldL;
+        public static Color GoldText => Dark ? goldTD : goldTL;
+        public static Color Rose => Dark ? roseD : roseL;
+        public static Color Cream2 => Dark ? cream2D : cream2L;
+        public static Color Pale => Dark ? paleD : paleL;
+        public static Color Paper => Dark ? paperD : paperL;
+        /// <summary>What buttons and pills are filled with (white by day).</summary>
+        public static Color Surface => Dark ? surfD : surfL;
+        /// <summary>Text on a switched-on button.</summary>
+        public static Color OnAccent => Dark ? onD : onL;
+        /// <summary>The white of the big panel cards.</summary>
+        public static Color Panel => Dark ? panelD : panelL;
+        public static Color White => Color.white;
         public static readonly Color Green = Hex("bfe3c4"), GreenPale = Hex("f4fbf3"), Night = Hex("171130");
-        public static readonly Color White = Color.white;
 
         public static Color Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
         public static Color A(this Color c, float a) { c.a = a; return c; }
@@ -24,6 +47,7 @@ namespace Tiramisu
         public static float H { get; private set; }
 
         static Font body, bold, xbold, script;
+        static Texture2D gradient;
         static GUIStyle text;
         static Texture2D white;
 
@@ -37,6 +61,10 @@ namespace Tiramisu
                 xbold = Resources.Load<Font>("Fonts/Nunito-ExtraBold");
                 script = Resources.Load<Font>("Fonts/GreatVibes-Regular");
                 white = Texture2D.whiteTexture;
+                Dark = PlayerPrefs.GetInt("tiramisu.dark", 0) == 1;
+                gradient = new Texture2D(64, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int i = 0; i < 64; i++) gradient.SetPixel(i, 0, Color.Lerp(Hex("ff4fa8"), Hex("57e6ff"), i / 63f));
+                gradient.Apply();
                 text = new GUIStyle(GUI.skin.label) { richText = false, clipping = TextClipping.Overflow, padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(0, 0, 0, 0) };
             }
             Scale = Mathf.Max(0.85f, Screen.height / 900f);
@@ -64,17 +92,37 @@ namespace Tiramisu
             GUI.DrawTexture(S(r), white, ScaleMode.StretchToFill, true, 0f, c, new Vector4(bw, bw, bw, bw), new Vector4(rad, rad, rad, rad));
         }
 
+        /// <summary>The fill of anything switched on: rose by day, the pink to ice blue gradient at night.</summary>
+        public static void OnFill(Rect r, float radius)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            if (!Dark) { Round(r, Accent, radius); return; }
+            float rad = Mathf.Min(radius, Mathf.Min(r.width, r.height) * 0.5f) * Scale;
+            GUI.DrawTexture(S(r), gradient, ScaleMode.StretchToFill, true, 0f, Color.white, Vector4.zero, new Vector4(rad, rad, rad, rad));
+        }
+
+        static void GradientRing(Rect r, float width, float radius)
+        {
+            float rad = Mathf.Min(radius, Mathf.Min(r.width, r.height) * 0.5f) * Scale, bw = width * Scale;
+            GUI.DrawTexture(S(r), gradient, ScaleMode.StretchToFill, true, 0f, Color.white, new Vector4(bw, bw, bw, bw), new Vector4(rad, rad, rad, rad));
+        }
+
         /// <summary>A card: a fill, a border, and optionally a soft shadow under it.</summary>
         public static void Box(Rect r, Color fill, Color border, float radius = 14f, float borderWidth = 2f, bool shadow = false)
         {
             if (Event.current.type != EventType.Repaint) return;
             if (shadow)
             {
-                Round(new Rect(r.x - 1f, r.y + 5f, r.width + 2f, r.height), new Color(0.47f, 0.23f, 0.16f, 0.07f), radius + 2f);
-                Round(new Rect(r.x, r.y + 3f, r.width, r.height), new Color(0.47f, 0.23f, 0.16f, 0.09f), radius);
+                Round(new Rect(r.x - 1f, r.y + 5f, r.width + 2f, r.height), Dark ? new Color(0f, 0f, 0f, 0.2f) : new Color(0.47f, 0.23f, 0.16f, 0.07f), radius + 2f);
+                Round(new Rect(r.x, r.y + 3f, r.width, r.height), Dark ? new Color(0f, 0f, 0f, 0.3f) : new Color(0.47f, 0.23f, 0.16f, 0.09f), radius);
+            }
+            if (Dark && borderWidth >= 3f)
+            {
+                Round(new Rect(r.x - 6f, r.y - 6f, r.width + 12f, r.height + 12f), new Color(1f, 0.31f, 0.66f, 0.09f), radius + 6f);
+                Round(new Rect(r.x - 3f, r.y - 3f, r.width + 6f, r.height + 6f), new Color(0.34f, 0.9f, 1f, 0.09f), radius + 3f);
             }
             Round(r, fill, radius);
-            if (borderWidth > 0f) Ring(r, border, borderWidth, radius);
+            if (borderWidth > 0f) { if (Dark && borderWidth >= 3f) GradientRing(r, borderWidth, radius); else Ring(r, border, borderWidth, radius); }
         }
 
         public static void Rect2(Rect r, Color c) { if (Event.current.type == EventType.Repaint) GUI.DrawTexture(S(r), white, ScaleMode.StretchToFill, true, 0f, c, 0f, 0f); }
@@ -117,8 +165,8 @@ namespace Tiramisu
             var c = screenPx / Scale;
             float tw = TextWidth(label, size, Weight.ExtraBold) + 18f;
             var r = new Rect(c.x - tw * 0.5f, c.y - 11f, tw, 22f);
-            Box(r, accent ? Accent : Card.A(0.94f), accent ? Accent : Line, 11f, accent ? 0f : 2f, false);
-            Label(r, label, size, accent ? White : Ink, TextAnchor.MiddleCenter, Weight.ExtraBold);
+            if (accent) OnFill(r, 11f); else Box(r, Card.A(0.94f), Line, 11f, 2f, false);
+            Label(r, label, size, accent ? OnAccent : Ink, TextAnchor.MiddleCenter, Weight.ExtraBold);
         }
 
         /// <summary>A speech bubble like a chat message in the 2D game.</summary>
@@ -145,12 +193,12 @@ namespace Tiramisu
         public static bool Pill(Rect r, string label, bool on = false, float size = 14f, bool enabled = true)
         {
             bool hover = enabled && Hover(r);
-            Color fill = on ? Accent : hover ? Pale : White;
-            Color border = on ? Accent : hover ? Pink : Line;
+            Color fill = hover ? Pale : Surface;
+            Color border = hover ? Pink : Line;
             if (!enabled) { fill = Cream2; border = Line; }
-            Round(new Rect(r.x, r.y, r.width, r.height), fill, r.height);
+            if (on) OnFill(r, r.height); else Round(r, fill, r.height);
             Ring(r, on ? new Color(1f, 1f, 1f, 0.4f) : border, 2f, r.height);
-            Label(r, label, size, on ? White : enabled ? Ink : Soft, TextAnchor.MiddleCenter, Weight.ExtraBold);
+            Label(r, label, size, on ? OnAccent : enabled ? Ink : Soft, TextAnchor.MiddleCenter, Weight.ExtraBold);
             return enabled && Clicked(r);
         }
 
@@ -158,9 +206,9 @@ namespace Tiramisu
         public static bool Chip(Rect r, string label, bool on = false, float size = 12f)
         {
             bool hover = Hover(r);
-            Round(r, on ? Accent : hover ? Pale : White, 12f);
-            Ring(r, on ? Accent : hover ? Pink : Line, 2f, 12f);
-            Label(r, label, size, on ? White : Ink, TextAnchor.MiddleCenter, Weight.ExtraBold);
+            if (on) OnFill(r, 12f); else Round(r, hover ? Pale : Surface, 12f);
+            Ring(r, on ? new Color(1f, 1f, 1f, 0.4f) : hover ? Pink : Line, 2f, 12f);
+            Label(r, label, size, on ? OnAccent : Ink, TextAnchor.MiddleCenter, Weight.ExtraBold);
             return Clicked(r);
         }
 
@@ -168,9 +216,9 @@ namespace Tiramisu
         public static bool Square(Rect r, string label, bool on = false, float size = 13f)
         {
             bool hover = Hover(r);
-            Round(r, on ? Pink : hover ? Pale : Card.A(0.95f), 12f);
-            Ring(r, on ? Pink : hover ? Pink : Line, 2f, 12f);
-            Label(r, label, size, on ? White : Ink, TextAnchor.MiddleCenter, Weight.ExtraBold);
+            if (on) OnFill(r, 12f); else Round(r, hover ? Pale : Card.A(0.95f), 12f);
+            Ring(r, on || hover ? Pink : Line, 2f, 12f);
+            Label(r, label, size, on ? OnAccent : Ink, TextAnchor.MiddleCenter, Weight.ExtraBold);
             return Clicked(r);
         }
 
@@ -220,8 +268,8 @@ namespace Tiramisu
             Round(new Rect(track.x, track.y, track.width * t, track.height), Pink, 3f);
             var knob = new Rect(track.x + track.width * t - 9f, r.center.y - 9f, 18f, 18f);
             Round(new Rect(knob.x, knob.y + 2f, 18f, 18f), new Color(0.4f, 0.2f, 0.1f, 0.12f), 9f);
-            Round(knob, White, 9f);
-            Ring(knob, Accent, 3f, 9f);
+            Round(knob, Surface, 9f);
+            Ring(knob, Dark ? Pink : Accent, 3f, 9f);
             return value;
         }
 

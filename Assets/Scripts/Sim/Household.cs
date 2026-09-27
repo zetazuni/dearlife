@@ -83,6 +83,9 @@ namespace Tiramisu
             { "robotarm", 4200 }, { "waterdispenser", 520 }, { "basket", 70 }, { "wheelbarrow", 210 }, { "wateringcan", 40 }, { "hosereel", 130 }, { "toolchest", 620 },
             { "workbench", 980 }, { "bicycle", 800 }, { "beachball", 30 }, { "espresso", 690 }, { "globe", 120 }, { "candles", 45 }, { "mug", 15 }, { "fruitbowl", 60 },
             { "modern_arm_chair_01", 1500 }, { "side_table_01", 380 }, { "potted_plant_01", 260 },
+            { "potted_plant_04", 220 }, { "calathea_orbifolia_01", 180 }, { "ceramic_vase_03", 130 }, { "book_encyclopedia_set_01", 85 }, { "desk_lamp_arm_01", 190 },
+            { "cuttingboard", 35 }, { "utensils", 40 }, { "herbs", 45 }, { "towelstack", 55 }, { "cardboardboxes", 60 }, { "paintcans", 50 }, { "sparetyres", 220 },
+            { "avanza", 28000 }, { "mazda3", 42000 }, { "bmwm3", 95000 }, { "porsche911", 240000 },
         };
 
         public static int PriceOf(string id)

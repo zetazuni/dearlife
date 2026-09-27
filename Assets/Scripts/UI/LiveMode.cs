@@ -297,6 +297,11 @@ namespace Tiramisu
                 }
             }
             options.Add(new Option { label = "Go here", enabled = true, act = () => Walk(hit) });
+            if (piece.HasChannel(0) || piece.HasChannel(1))
+            {
+                var cp = piece; var at = new Vector2(mouse.x, Screen.height - mouse.y);
+                options.Add(new Option { label = "Change colour", enabled = true, act = () => ColourPicker.Open(cp, at) });
+            }
             if (!piece.pinned)
             {
                 var pc = piece;
@@ -434,7 +439,7 @@ namespace Tiramisu
                 Ui.Round(r, me ? Ui.Pale : Ui.Card.A(0.97f), 16f);
                 Ui.Ring(r, me || hover ? Ui.Pink : Ui.Line, 2f, 16f);
                 Ui.Round(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.sim ? c.sim.MoodColour : Ui.Line, 17f);
-                Ui.Label(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.displayName.Substring(0, 1), 18f, Ui.White, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+                Ui.Label(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.displayName.Substring(0, 1), 18f, Color.white, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
                 Ui.Label(new Rect(r.x + 52f, r.y + 7f, cardW - 60f, 20f), c.displayName, 15f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
                 Ui.Label(new Rect(r.x + 52f, r.y + 27f, cardW - 60f, 18f), c.Activity + (c.Queued > 0 ? $" (+{c.Queued})" : ""), 11f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.Bold);
                 if (GUI.Button(Ui.S(r), GUIContent.none, GUIStyle.none))
@@ -478,8 +483,8 @@ namespace Tiramisu
             // the name of what you clicked, in a little pill above the ring
             float tw = Ui.TextWidth(pieTitle, 13f, Ui.Weight.ExtraBold) + 28f;
             var tr = new Rect(pieCenter.x - tw * 0.5f, pieCenter.y - PieRadius - PieDisc * 0.5f - 34f, tw, 26f);
-            Ui.Box(tr, Ui.Accent, Ui.Accent, 13f, 0f, true);
-            Ui.Label(tr, pieTitle, 13f, Ui.White, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
+            Ui.OnFill(tr, 13f);
+            Ui.Label(tr, pieTitle, 13f, Ui.OnAccent, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
             if (GUI.Button(Ui.S(centerRect), GUIContent.none, GUIStyle.none)) { pieOpen = false; return; }
 
             int n = options.Count;

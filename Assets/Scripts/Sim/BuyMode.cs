@@ -8,6 +8,7 @@ namespace Tiramisu
     {
         public string id, name, category;
         public GameObject prefab;
+        public float scale = 1f;
         public int Price => Household.PriceOf(id);
     }
 
@@ -49,12 +50,18 @@ namespace Tiramisu
     public static class FurnitureFactory
     {
         static int counter;
-        static readonly HashSet<string> Small = new HashSet<string> { "fruitbowl", "candles", "mug", "globe", "bedlamp", "basket" };
+        static readonly HashSet<string> Small = new HashSet<string>
+        {
+            "fruitbowl", "candles", "mug", "globe", "bedlamp", "basket", "cuttingboard", "utensils", "herbs", "towelstack", "cardboardboxes", "paintcans",
+            "book_encyclopedia_set_01", "ceramic_vase_03", "desk_lamp_arm_01", "potted_plant_04", "calathea_orbifolia_01", "espresso",
+        };
 
-        public static Furniture Create(GameObject prefab, string id, Vector3 pos, float yaw, string key = null)
+        public static Furniture Create(GameObject prefab, string id, Vector3 pos, float yaw, string key = null, float scale = 1f)
         {
             var go = Object.Instantiate(prefab);
             go.name = id;
+            if (!Mathf.Approximately(scale, 1f)) go.transform.localScale = Vector3.one * scale;
+            if (id == "sofa") foreach (var t in go.GetComponentsInChildren<Transform>(true)) if (t && t != go.transform && t.name.StartsWith("seat cushion")) Object.Destroy(t.gameObject);
             go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
             Bounds all = new Bounds(pos, Vector3.zero); bool first = true;
             foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
@@ -77,6 +84,12 @@ namespace Tiramisu
             var f = go.AddComponent<Furniture>();
             f.key = key ?? $"{id}#b{++counter}_{Random.Range(1000, 9999)}";
             f.small = Small.Contains(id);
+            if (f.small)
+            {
+                rb.mass = Mathf.Min(rb.mass, 2.5f);
+                rb.isKinematic = true;                      // small things stay exactly where they are put, until you pick them up
+                go.AddComponent<StickyProp>();
+            }
             f.bought = true;
             SeatSpots.Add(go, id);
             Interactable.Attach(go, id);
@@ -99,7 +112,7 @@ namespace Tiramisu
     public static class PurchaseSave
     {
         const string Key = "tiramisu.bought", SoldKey = "tiramisu.sold";
-        [System.Serializable] class Item { public string key, id; public Vector3 pos; public float yaw; }
+        [System.Serializable] class Item { public string key, id; public Vector3 pos; public float yaw; public string ta, tb; }
         [System.Serializable] class Data { public List<Item> items = new List<Item>(); public List<string> sold = new List<string>(); }
         static Data data;
 
@@ -117,7 +130,15 @@ namespace Tiramisu
         {
             var d = Load();
             d.items.RemoveAll(i => i.key == f.key);
-            d.items.Add(new Item { key = f.key, id = InteractionTable.BaseId(f.name), pos = f.transform.position, yaw = f.transform.eulerAngles.y });
+            d.items.Add(new Item { key = f.key, id = InteractionTable.BaseId(f.name), pos = f.transform.position, yaw = f.transform.eulerAngles.y, ta = f.tintA, tb = f.tintB });
+            Save();
+        }
+
+        /// <summary>Undo of a sale: the piece is back, so it is no longer on the sold list.</summary>
+        public static void Unforget(Furniture f)
+        {
+            var d = Load();
+            d.sold.Remove(f.key);
             Save();
         }
 
@@ -135,7 +156,10 @@ namespace Tiramisu
             foreach (var i in d.items)
             {
                 var e = cat.Find(i.id);
-                if (e != null) FurnitureFactory.Create(e.prefab, i.id, i.pos, i.yaw, i.key);
+                if (e == null) continue;
+                var made = FurnitureFactory.Create(e.prefab, i.id, i.pos, i.yaw, i.key, e.scale);
+                if (!string.IsNullOrEmpty(i.ta)) made.SetTint(0, i.ta);
+                if (!string.IsNullOrEmpty(i.tb)) made.SetTint(1, i.tb);
             }
             foreach (var f in Furniture.All.ToArray())
                 if (!f.bought && d.sold.Contains(f.key)) Object.Destroy(f.gameObject);
@@ -171,6 +195,7 @@ namespace Tiramisu
 
         string category;
         float scroll;
+        public static string shopTintA = "", shopTintB = "";
         readonly Dictionary<string, Texture2D> thumbs = new Dictionary<string, Texture2D>();
 
         void Awake() { Instance = this; }
@@ -213,6 +238,17 @@ namespace Tiramisu
             }
             cy += 34f;
 
+            // the colour the next thing you buy will come in (like choosing a swatch before placing)
+            HouseHud.Kicker(area.x, cy, w, "Colour to buy it in");
+            if (Ui.Chip(new Rect(area.xMax - 84f, cy - 4f, 84f, 20f), "As it came", string.IsNullOrEmpty(shopTintA) && string.IsNullOrEmpty(shopTintB), 10f)) { shopTintA = ""; shopTintB = ""; }
+            cy += 20f;
+            var pa = ColourPicker.Row(area.x, cy, w, Furniture.Fabrics, shopTintA, 19f);
+            if (pa != null) shopTintA = pa;
+            cy += ColourPicker.RowHeight(Furniture.Fabrics.Length, w, 19f) + 2f;
+            var pb = ColourPicker.Row(area.x, cy, w, Furniture.Woods, shopTintB, 19f);
+            if (pb != null) shopTintB = pb == "ffffff" ? "" : pb;
+            cy += ColourPicker.RowHeight(Furniture.Woods.Length, w, 19f) + 6f;
+
             var entries = new List<CatalogEntry>();
             foreach (var e in Catalog.Instance.entries) if (e.category == category) entries.Add(e);
             const float cardH = 156f, gap = 10f;
@@ -235,6 +271,7 @@ namespace Tiramisu
                     var pic = new Rect(r.x + (cardW - 96f) * 0.5f, r.y + 8f, 96f, 96f);
                     if (img != null && Event.current.type == EventType.Repaint) { var o = GUI.color; GUI.color = afford ? Color.white : new Color(1f, 1f, 1f, 0.5f); GUI.DrawTexture(Ui.S(pic), img, ScaleMode.ScaleToFit, true); GUI.color = o; }
                     else { Ui.Round(pic, Ui.Cream2, 16f); Ui.Label(pic, e.name.Substring(0, 1), 34f, Ui.Pink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold); }
+                    if (img != null && !string.IsNullOrEmpty(shopTintA) && Event.current.type == EventType.Repaint) { var tc = Ui.Hex(shopTintA); Ui.Round(new Rect(pic.xMax - 22f, pic.y + 2f, 18f, 18f), tc, 9f); Ui.Ring(new Rect(pic.xMax - 22f, pic.y + 2f, 18f, 18f), new Color(0f, 0f, 0f, 0.25f), 1.5f, 9f); }
                     Ui.Label(new Rect(r.x + 4f, r.y + 106f, cardW - 8f, 20f), e.name, 13f, Ui.Ink, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
                     Ui.Label(new Rect(r.x + 4f, r.y + 128f, cardW - 8f, 20f), $"{Household.Currency} {e.Price:N0}", 13f, afford ? Ui.GoldText : Ui.Soft, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
                 }
@@ -247,8 +284,10 @@ namespace Tiramisu
             Vector3 at = OrbitCamera.Instance ? OrbitCamera.Instance.pivot : new Vector3(10f, 0f, 8f);
             if (cam && Physics.Raycast(cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.55f, 0f)), out var hit, 300f, ~0, QueryTriggerInteraction.Ignore)) at = hit.point;
             at.y = Mathf.Max(at.y, -0.3f);
-            var f = FurnitureFactory.Create(e.prefab, e.id, at + Vector3.up * 0.05f, 0f);
+            var f = FurnitureFactory.Create(e.prefab, e.id, at + Vector3.up * 0.05f, 0f, null, e.scale);
             f.pendingPrice = e.Price;
+            if (!string.IsNullOrEmpty(shopTintA)) f.SetTint(0, shopTintA);
+            if (!string.IsNullOrEmpty(shopTintB)) f.SetTint(1, shopTintB);
             GameAudio.Play(GameAudio.Sfx.Click);
             DecorateMode.Instance.BeginPlace(f);
         }

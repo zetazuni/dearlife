@@ -27,6 +27,73 @@ namespace Tiramisu
         Bounds local;
         bool haveLocal;
 
+        // ---------- colours (like the swatches of the Sims 4): channel 0 is what is soft or painted, channel 1 is wood and stone ----------
+
+        /// <summary>The colours to pick from (hex, no #). The first one of each row is "as it came".</summary>
+        public static readonly string[] Fabrics =
+        {
+            "f3ead8", "ffffff", "f4a6b7", "d9607f", "f28b6b", "e6b23a", "a9c8a0", "4f7a58", "4aa8a0", "8fbfe8", "2f4a7a", "b9a4e0", "7a4a86", "c46a4a", "45464c", "1e1e22",
+        };
+        public static readonly string[] Woods =
+        {
+            "ffffff", "d9b48a", "b07850", "8a5a3a", "5e3d2a", "3a2a22", "cfcfd6", "7d7f86", "1f1f24",
+        };
+
+        [NonSerialized] public string tintA = "", tintB = "";
+        struct Slot { public Material m; public string prop; public Color original; public int channel; }
+        List<Slot> slots;
+
+        static int ChannelOf(string material)
+        {
+            string n = material.Replace(" (Instance)", "");
+            if (n.Contains("Walnut") || n.Contains("Teak") || n.Contains("Rattan") || n.Contains("Marble_main") || n.Contains("StoneGrey") || n.Contains("Ceramic")) return 1;
+            if (n.Contains("Fabric") || n.Contains("Cushion") || n.Contains("Bedding") || n.Contains("Leather") || n == "Rug_main" || n.Contains("Mat_main") || n.Contains("Beanbag")
+                || n.Contains("Umbrella") || n.Contains("Cabinet_main") || n.Contains("Planter_main") || n == "PaintRed" || n == "Orange" || n.Contains("Car_main") || n.Contains("Flamingo")) return 0;
+            return -1;
+        }
+
+        void BuildSlots()
+        {
+            if (slots != null) return;
+            slots = new List<Slot>();
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer) continue;
+                var mats = r.materials;                    // our own copies, so the shared ones are never changed
+                foreach (var m in mats)
+                {
+                    int ch = m ? ChannelOf(m.name) : -1;
+                    if (ch < 0) continue;
+                    string prop = m.HasProperty("_BaseColor") ? "_BaseColor" : m.HasProperty("baseColorFactor") ? "baseColorFactor" : null;   // HDRP Lit, or the glTF shader of imported models
+                    if (prop == null) continue;
+                    slots.Add(new Slot { m = m, prop = prop, original = m.GetColor(prop), channel = ch });
+                }
+            }
+        }
+
+        /// <summary>Whether this piece has anything that can be recoloured on that channel.</summary>
+        public bool HasChannel(int ch)
+        {
+            BuildSlots();
+            foreach (var s in slots) if (s.channel == ch) return true;
+            return false;
+        }
+
+        public string TintOf(int ch) => ch == 0 ? tintA : tintB;
+
+        /// <summary>Sets one channel to a colour ("" puts it back as it came).</summary>
+        public void SetTint(int ch, string hex)
+        {
+            BuildSlots();
+            if (ch == 0) tintA = hex ?? ""; else tintB = hex ?? "";
+            Color c = default; bool have = !string.IsNullOrEmpty(hex) && ColorUtility.TryParseHtmlString("#" + hex, out c);
+            foreach (var s in slots)
+            {
+                if (s.channel != ch) continue;
+                s.m.SetColor(s.prop, have ? new Color(c.r, c.g, c.b, s.original.a) : s.original);
+            }
+        }
+
         void OnEnable() { if (!All.Contains(this)) All.Add(this); }
         void OnDisable() => All.Remove(this);
 
@@ -77,7 +144,7 @@ namespace Tiramisu
 
         const string PrefKey = "tiramisu.layout";
 
-        [Serializable] class Entry { public string key; public Vector3 pos; public float yaw; public string host; }
+        [Serializable] class Entry { public string key; public Vector3 pos; public float yaw; public string host; public string ta, tb; }
         [Serializable] class Layout { public int version = 1; public List<Entry> items = new List<Entry>(); }
 
         /// <summary>The piece a small thing rests on (a cushion on a sofa), or null.</summary>
@@ -103,8 +170,9 @@ namespace Tiramisu
             foreach (var f in All)
             {
                 if (f.pinned || f.attachedTo || f.bought) continue;
-                if ((f.transform.position - f.homePos).sqrMagnitude < 1e-4f && Quaternion.Angle(f.transform.rotation, f.homeRot) < 0.1f) continue;
-                var e = new Entry { key = f.key, pos = f.transform.position, yaw = f.transform.eulerAngles.y };
+                bool tinted = !string.IsNullOrEmpty(f.tintA) || !string.IsNullOrEmpty(f.tintB);
+                if (!tinted && (f.transform.position - f.homePos).sqrMagnitude < 1e-4f && Quaternion.Angle(f.transform.rotation, f.homeRot) < 0.1f) continue;
+                var e = new Entry { key = f.key, pos = f.transform.position, yaw = f.transform.eulerAngles.y, ta = f.tintA, tb = f.tintB };
                 if (f.GetComponent<StickyProp>())
                 {
                     var host = HostOf(f);
@@ -141,6 +209,8 @@ namespace Tiramisu
                             bool sticky = !string.IsNullOrEmpty(e.host);
                             if (sticky != (pass == 1)) continue;
                             if (!byKey.TryGetValue(e.key, out var f) || f.pinned) continue;
+                            if (!string.IsNullOrEmpty(e.ta)) f.SetTint(0, e.ta);
+                            if (!string.IsNullOrEmpty(e.tb)) f.SetTint(1, e.tb);
                             if (sticky)
                             {
                                 if (!byKey.TryGetValue(e.host, out var h)) continue;
@@ -171,8 +241,7 @@ namespace Tiramisu
             foreach (var f in new System.Collections.Generic.List<Furniture>(All))
             {
                 if (f.attachedTo) continue;
-                bool small = f.small || f.GetComponentInChildren<StickyProp>() != null;
-                if (!small) continue;
+                if (!f.key.ToLower().Contains("cushion")) continue;   // only cushions are part of the sofa, everything else can be picked up on its own
                 var host = HostOf(f, true);
                 if (!host) continue;
                 foreach (var st in f.GetComponentsInChildren<StickyProp>()) Destroy(st);
@@ -185,7 +254,7 @@ namespace Tiramisu
         public static void ResetAll()
         {
             PlayerPrefs.DeleteKey(PrefKey);
-            foreach (var f in All) if (!f.pinned && !f.attachedTo) f.Place(f.homePos, f.homeRot);
+            foreach (var f in All) if (!f.pinned && !f.attachedTo) { f.Place(f.homePos, f.homeRot); f.SetTint(0, ""); f.SetTint(1, ""); }
             Physics.SyncTransforms();
         }
 

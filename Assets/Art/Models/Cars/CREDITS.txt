@@ -1,0 +1,10 @@
+Cars in the shop, downloaded from Sketchfab (cleaned, turned to face the right way and exported as glb in Blender).
+
+porsche911.glb   "Porsche 911 Turbo S | TAKEOVER" by takeoverteam, CC Attribution 4.0
+                 https://sketchfab.com/3d-models/porsche-911-turbo-s-takeover-fe573c66c5c64a1c82cfbd0162ccc7d5
+bmwm3.glb        "2021 BMW M3 Competition (G80)" by supercarmodels, CC Attribution 4.0
+                 https://sketchfab.com/3d-models/2021-bmw-m3-competition-g80-a9027a26b7ee4da4b564d939b6c27559
+mazda3.glb       "2020 Mazda 3 Hatchback" by ddiaz-design, CC Attribution-NonCommercial-ShareAlike 4.0 (this game is a private, non-commercial gift)
+                 https://sketchfab.com/3d-models/2020-mazda-3-hatchback-a72de3f3c1604409a7e6fc6be9854c9d
+avanza.glb       "Toyota Avanza 2022" by teenlin3, CC Attribution 4.0 (thinned to 30 percent of its triangles)
+                 https://sketchfab.com/3d-models/toyota-avanza-2022-c06ad3e8cdc74a70ae6a87130d49f6f7

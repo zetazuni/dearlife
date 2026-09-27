@@ -302,3 +302,15 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - Checked in Play mode by looking at each tab, the status window, the hint card and the round menu, and by measuring that the music clip is made and playing. **Not tested:** real mouse clicks on every button, the scroll wheel in the panel, tiny windows, the meow and purr by ear, the water and sizzle by ear.
 - Not changed: the scene (all of this is code, `Main.unity` was not rebuilt). `M` still moves furniture, `P` hides and shows the side panel.
 
+## Session 33: dark mode, settings, colours, undo, cars, small things, build mode (2026-09-27) · v0.29.0
+
+- **UI:** the settings moved out of the side panel into a window opened from the top bar (Sound, Time, Picture, Game). The Hide panel button is now a vertical tab on the edge of the panel. **Dark mode** copies the 2D game's neon night look (pink and ice blue, gradient borders and glows), switch in Settings, Game.
+- **Colours:** Sims 4 style swatches (fabric and paint, wood and stone) in the round menu and in the shop. Saved. The sofa in the shop no longer has the two loose green cushions.
+- **Decorate mode:** click once to pick a piece up, click again to put it down. Undo and redo for moves, buying, selling and colours (Ctrl+Z, Ctrl+Y, top bar buttons).
+- **Small things** are separate pieces now (before, they were parented to whatever they stood on): mug, fruit bowl, candles, books, vase, desk lamp, plants, boxes, towels and more can be picked up alone, and are in the shop under Decor. Also added: armchair, side table, potted plant.
+- **Cars:** four models from Sketchfab in the shop (see `CREDITS.txt`), 30 to 400 thousand triangles each. The old sedan and MPV in the garage are unchanged. Prices are far above the RM 15,000 start so they are goals.
+- **Build mode** rewritten (see `CLAUDE.md`). New shop pictures for all the new things (`tools/blender_thumbs.py`, now also reads glTF and glb).
+- **Scene rebuilt** (the shop lists live in the generated scene). Checked afterwards that the orbit camera is on.
+- Checked in Play mode: settings window and dark mode, the vertical tab, colours on the sofa and a Porsche, undo and redo of colours, undo and redo of a room with a window, an archway and a diagonal half wall (money came back and went again exactly), picking a sofa up (it follows the mouse until cancelled), the shop with pictures, the cars in the shop list. **Not tested with a real mouse:** the grid and measurement labels while dragging, the opening previews, the eyedropper, clicking the colour swatches, click to place, Ctrl+Z, the meow and other sounds. Please try those.
+- Not done: stairs and roofs in build mode, walls in the shop for hanging pictures, more paint options for the cars' wheels and glass.
+

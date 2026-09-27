@@ -1768,9 +1768,15 @@ namespace Tiramisu.EditorTools
             (string id, string name, string category)[] items =
             {
                 ("sofa", "Sofa", "Living"), ("beanbag", "Bean bag", "Living"), ("marbletable", "Coffee table", "Living"), ("geomrug", "Rug", "Living"),
-                ("tvunit", "TV and console", "Living"), ("uplight", "Floor lamp", "Living"), ("bookcase", "Bookcase", "Living"), ("candles", "Candles", "Living"), ("globe", "Globe", "Living"),
+                ("tvunit", "TV and console", "Living"), ("uplight", "Floor lamp", "Living"), ("bookcase", "Bookcase", "Living"),
+                ("modern_arm_chair_01", "Armchair", "Living"), ("side_table_01", "Side table", "Living"), ("potted_plant_01", "Potted plant", "Living"),
+                // small things, each one on its own so they can be put anywhere
+                ("candles", "Candles", "Decor"), ("globe", "Globe", "Decor"), ("fruitbowl", "Fruit bowl", "Decor"), ("mug", "Mug", "Decor"), ("cuttingboard", "Chopping board", "Decor"),
+                ("utensils", "Utensils", "Decor"), ("herbs", "Herbs", "Decor"), ("towelstack", "Towels", "Decor"), ("book_encyclopedia_set_01", "Book set", "Decor"),
+                ("ceramic_vase_03", "Vase", "Decor"), ("desk_lamp_arm_01", "Desk lamp", "Decor"), ("potted_plant_04", "Small plant", "Decor"), ("calathea_orbifolia_01", "Calathea", "Decor"),
+                ("cardboardboxes", "Cardboard boxes", "Decor"), ("paintcans", "Paint cans", "Decor"), ("sparetyres", "Spare tyres", "Decor"),
                 ("diningtable", "Dining table", "Kitchen"), ("diningchair", "Dining chair", "Kitchen"), ("barstool", "Bar stool", "Kitchen"), ("longdining", "Long table", "Kitchen"),
-                ("fridge", "Fridge", "Kitchen"), ("espresso", "Coffee machine", "Kitchen"), ("waterdispenser", "Water dispenser", "Kitchen"), ("fruitbowl", "Fruit bowl", "Kitchen"),
+                ("fridge", "Fridge", "Kitchen"), ("espresso", "Coffee machine", "Kitchen"), ("waterdispenser", "Water dispenser", "Kitchen"),
                 ("platformbed", "Bed", "Bedroom"), ("platformbed_e", "Bed (dark)", "Bedroom"), ("nightstand", "Nightstand", "Bedroom"), ("wardrobe", "Wardrobe", "Bedroom"), ("bedlamp", "Bedside lamp", "Bedroom"),
                 ("bathtub", "Bathtub", "Bath"), ("vanity", "Vanity", "Bath"), ("towelrack", "Towel rack", "Bath"), ("washer", "Washing machine", "Bath"), ("dryer", "Dryer", "Bath"), ("basket", "Laundry basket", "Bath"),
                 ("officedesk", "Office desk", "Study"), ("officechair", "Office chair", "Study"), ("teacherdesk", "Teacher's desk", "Study"), ("filecabinet", "File cabinet", "Study"),
@@ -1781,12 +1787,16 @@ namespace Tiramisu.EditorTools
                 ("planter", "Planter", "Garden"), ("planterbox", "Planter box", "Garden"), ("flowerbed", "Flower bed", "Garden"), ("gnome", "Garden gnome", "Garden"), ("flamingo", "Flamingo", "Garden"),
                 ("mailbox", "Mailbox", "Garden"), ("wheelbarrow", "Wheelbarrow", "Garden"), ("wateringcan", "Watering can", "Garden"), ("hosereel", "Hose reel", "Garden"),
                 ("workbench", "Workbench", "Garage"), ("toolchest", "Tool chest", "Garage"), ("bicycle", "Bicycle", "Garage"), ("beachball", "Beach ball", "Garage"),
+                ("avanza", "Toyota Avanza", "Cars"), ("mazda3", "Mazda 3", "Cars"), ("bmwm3", "BMW M3 Competition", "Cars"), ("porsche911", "Porsche 911 Turbo S", "Cars"),
             };
             foreach (var it in items)
             {
+                // our own models are fbx files, the photoscanned ones are glTF folders, the cars are glb files
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{it.id}.fbx");
+                if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/PolyHaven/{it.id}/{it.id}.gltf");
+                if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/Cars/{it.id}.glb");
                 if (!prefab) continue;
-                cat.entries.Add(new CatalogEntry { id = it.id, name = it.name, category = it.category, prefab = prefab });
+                cat.entries.Add(new CatalogEntry { id = it.id, name = it.name, category = it.category, prefab = prefab, scale = it.id == "potted_plant_01" ? 1.35f : 1f });
             }
             game.AddComponent<BuyMode>();
 

@@ -8,7 +8,7 @@ namespace Tiramisu
         void OnGUI()
         {
             var cam = Camera.main;
-            if (!cam || Splash.Showing) return;
+            if (!cam || Splash.Showing || SettingsWindow.Open) return;
             Ui.Begin();
             foreach (var c in Character.All)
             {
