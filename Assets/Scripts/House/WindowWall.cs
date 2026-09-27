@@ -315,7 +315,7 @@ namespace Tiramisu
 
         // ---------- saving ----------
 
-        const string PrefKey = "tiramisu.windows";
+        static string PrefKey => SaveSystem.Key("tiramisu.windows");
 
         [Serializable] class Entry { public string wall; public int i; public float center, width; }
         [Serializable] class Layout { public int version = 1; public List<Entry> items = new List<Entry>(); }

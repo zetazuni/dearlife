@@ -20,7 +20,7 @@ namespace Tiramisu
         public bool auto;
         public float secondsPerHour = 20f;
 
-        const string PrefKey = "tiramisu.hour";
+        static string PrefKey => SaveSystem.Key("tiramisu.hour");
         Exposure exposure;
         Bloom bloom;
         PhysicallyBasedSky sky;

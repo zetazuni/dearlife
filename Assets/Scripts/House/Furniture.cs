@@ -142,7 +142,7 @@ namespace Tiramisu
 
         // ---------- saved layout (PlayerPrefs, new fields must keep defaults, the key is never renamed) ----------
 
-        const string PrefKey = "tiramisu.layout";
+        static string PrefKey => SaveSystem.Key("tiramisu.layout");
 
         [Serializable] class Entry { public string key; public Vector3 pos; public float yaw; public string host; public string ta, tb; }
         [Serializable] class Layout { public int version = 1; public List<Entry> items = new List<Entry>(); }

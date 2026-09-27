@@ -27,7 +27,7 @@ namespace Tiramisu
         [Tooltip("three colours of falling leaf (each a leaf shaped sprite, HDRP unlit has no vertex colours)")] public Material[] leafMaterials;
         [Tooltip("two shades of blossom petal")] public Material[] petalMaterials;
 
-        const string PrefKey = "tiramisu.season";
+        static string PrefKey => SaveSystem.Key("tiramisu.season");
 
         /// <summary>One season's look, blended between neighbours.</summary>
         struct Look

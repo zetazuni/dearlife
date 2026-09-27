@@ -111,10 +111,14 @@ namespace Tiramisu
     /// <summary>What was bought and what was sold, kept between sessions.</summary>
     public static class PurchaseSave
     {
-        const string Key = "tiramisu.bought", SoldKey = "tiramisu.sold";
+        static string Key => SaveSystem.Key("tiramisu.bought");
+        static string SoldKey => SaveSystem.Key("tiramisu.sold");
         [System.Serializable] class Item { public string key, id; public Vector3 pos; public float yaw; public string ta, tb; }
         [System.Serializable] class Data { public List<Item> items = new List<Item>(); public List<string> sold = new List<string>(); }
         static Data data;
+
+        /// <summary>Clears the in-memory cache so a slot switch (a scene reload keeps static fields) reads the new slot's data.</summary>
+        public static void ResetCache() { data = null; }
 
         static Data Load()
         {

@@ -18,6 +18,10 @@ namespace Tiramisu
         public static void Toggle() { Open = !Open; GameAudio.Play(GameAudio.Sfx.Click); }
         public static void ForceClose() { Open = false; }
 
+        /// <summary>Whether a Graphics tab dropdown is unfolded right now - shared with the title screen's own mini settings, which reuses <see cref="Drop"/>.</summary>
+        public static bool DropdownOpen => openDrop >= 0;
+        public static void CloseDropdowns() { openDrop = -1; }
+
         void Update() { if (Open && Input.GetKeyDown(KeyCode.Escape)) Open = false; }
 
         void OnGUI()
@@ -142,8 +146,8 @@ namespace Tiramisu
             }
         }
 
-        /// <summary>A drop-down: a wide button that unfolds a list under it. Returns the index chosen (or the current one).</summary>
-        int Drop(ref float y, float w, int id, string label, string[] names, int cur, bool enabled = true)
+        /// <summary>A drop-down: a wide button that unfolds a list under it. Returns the index chosen (or the current one). Shared with the title screen's own mini settings.</summary>
+        public static int Drop(ref float y, float w, int id, string label, string[] names, int cur, bool enabled = true)
         {
             Ui.Label(new Rect(0f, y, w, 20f), label, 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold); y += 22f;
             var head = new Rect(0f, y, w, 34f);
@@ -163,7 +167,8 @@ namespace Tiramisu
             return result;
         }
 
-        void DrawGraphics(float w)
+        /// <summary>Shared with the title screen's own mini settings.</summary>
+        public static void DrawGraphics(float w)
         {
             DisplaySettings.Init();
             float y = 0f;

@@ -5,7 +5,7 @@ namespace Tiramisu
     /// <summary>A few warm hints for the first minutes, as a card like the 2D game's guide (F1 shows them again). Skipping is remembered.</summary>
     public class Tutorial : MonoBehaviour
     {
-        const string Key = "tiramisu.tutorial";
+        static string Key => SaveSystem.Key("tiramisu.tutorial");
         static Tutorial instance;
 
         static readonly (string title, string text)[] Steps =
@@ -37,7 +37,7 @@ namespace Tiramisu
 
         void OnGUI()
         {
-            if (!open || Splash.Showing) { box = Rect.zero; return; }
+            if (!open || Splash.Showing || MainMenu.Active) { box = Rect.zero; return; }
             Ui.Begin();
             float w = Ui.W;
             float bw = 360f, bh = 190f;

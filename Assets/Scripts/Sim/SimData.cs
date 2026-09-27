@@ -115,7 +115,7 @@ namespace Tiramisu
             }
         }
 
-        string CareerKey => "tiramisu.career." + displayName;
+        string CareerKey => SaveSystem.Key("tiramisu.career." + displayName);
 
         public void SaveCareer()
         {

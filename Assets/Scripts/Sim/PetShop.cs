@@ -9,7 +9,7 @@ namespace Tiramisu
     {
         public static PetShop Instance { get; private set; }
         public GameObject dogPrefab;
-        const string Key = "tiramisu.dogs";
+        static string Key => SaveSystem.Key("tiramisu.dogs");
         static readonly string[] Names = { "Biscuit", "Mochi", "Coco", "Waffles", "Pepper" };
         public const int Price = 1500;
         int count;

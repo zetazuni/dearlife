@@ -34,7 +34,8 @@ namespace Tiramisu
         const float Snap = 0.25f, Thick = 0.15f, Height = 3f;
         const int FloorPerSqm = 12, PoolPerSqm = 110, RoofPerSqm = 30, StairsCost = 900;
         const float Storey = 3.3f;
-        const string SaveKey = "tiramisu.built", PaintKey = "tiramisu.painted";
+        static string SaveKey => SaveSystem.Key("tiramisu.built");
+        static string PaintKey => SaveSystem.Key("tiramisu.painted");
 
         static readonly (string name, float h)[] Heights = { ("Full wall", 3f), ("Half wall", 1.2f), ("Low wall", 0.6f) };
         static readonly (string name, float w, float sill, float top, int cost)[] Doors =

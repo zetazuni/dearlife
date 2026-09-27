@@ -27,7 +27,7 @@ namespace Tiramisu
         void Awake()
         {
             Instance = this;
-            if (PlayerPrefs.HasKey(PrefKey)) Funds = PlayerPrefs.GetInt(PrefKey);
+            if (PlayerPrefs.HasKey(SaveSystem.Key(PrefKey))) Funds = PlayerPrefs.GetInt(SaveSystem.Key(PrefKey));
         }
 
         void OnDestroy() { if (Instance == this) Instance = null; }
@@ -55,7 +55,7 @@ namespace Tiramisu
         {
             Ledger.Insert(0, (why, amount, Time.time));
             if (Ledger.Count > 30) Ledger.RemoveAt(Ledger.Count - 1);
-            PlayerPrefs.SetInt(PrefKey, Funds);
+            PlayerPrefs.SetInt(SaveSystem.Key(PrefKey), Funds);
         }
 
         // ---- messages at the bottom of the screen and a short history
