@@ -42,6 +42,8 @@ namespace Dearlife
                 case "outdoorsectional": foreach (float x in new[] { -0.8f, 0f, 0.8f }) Spot(go, "outdoor sofa", sit, new Vector3(x, 0.56f, 0.08f), 0f, new Vector3(x, 0f, 1.0f), 12f, 10f); break;
                 case "gardenbench": foreach (float x in new[] { -0.4f, 0.4f }) Spot(go, "bench", sit, new Vector3(x, 0.53f, 0f), 0f, new Vector3(x, 0f, 0.8f), 10f); break;
                 case "hammock": Spot(go, "hammock", lie, new Vector3(0f, 0.85f, 0.2f), 0f, new Vector3(1.3f, 0f, 0f), raise: 14f, legRaise: 12f, knee: -14f); break;
+                // in the bath: leaning back against the end away from the tap, legs stretched out under the foam
+                case "bathtub": Spot(go, "bath", lie, new Vector3(0.12f, 0.24f, 0f), -90f, new Vector3(0f, 0f, 0.95f), raise: 52f, legRaise: 2f, knee: 10f); break;
             }
         }
     }

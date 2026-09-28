@@ -119,11 +119,12 @@ namespace Dearlife
             switch (id)
             {
                 case "cook": case "grill": case "takeaway": c = Instance.sizzle; vol = 0.5f; break;
-                case "shower": case "bath": case "washface": case "laundry": case "swim": c = Instance.water; vol = 0.55f; break;
-                case "guitar": case "synth":
+                case "laundry": case "swim": c = Instance.water; vol = 0.55f; break;
+                case "guitar": case "synth": case "shower": case "bath": case "washface":
                 {
-                    // the real recordings of the 2D game, looped for as long as somebody plays, fading in and out
-                    var rec = Recording(id);
+                    // real recordings (the 2D game's music, and the bathroom's water), looped for as long as it lasts,
+                    // fading in and out
+                    var rec = Recording(id == "bath" ? "bathtub" : id == "washface" ? "sink_water" : id);
                     if (rec == null) return null;
                     var src = Spawn(rec, pos, 0.9f * VolSfx, 1f, seconds + 0.5f, true);
                     src.gameObject.name = "act sound";

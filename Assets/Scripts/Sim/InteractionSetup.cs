@@ -25,7 +25,11 @@ namespace Dearlife
         public static void Refresh()
         {
             foreach (var f in Object.FindObjectsByType<Furniture>(FindObjectsInactive.Include))
+            {
                 if (f && f.GetComponent<Interactable>() == null) Interactable.Attach(f.gameObject, f.name);
+                // pieces saved in the scene before they had a place to sit or lie (the bath) get it now
+                if (f && f.GetComponentInChildren<UseSpot>(true) == null) SeatSpots.Add(f.gameObject, InteractionTable.BaseId(f.name));
+            }
             if (!GameObject.Find("Pool interaction"))
             {
                 PoolRipples big = null; float area = 0f;

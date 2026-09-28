@@ -574,3 +574,34 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   `mpfb_test_shoes01`) are replaced by the wardrobe.
 - **Not done yet:** tint masks so one garment comes in many colours, spring bones for loose drape, more garments
   (skirts, abaya, outerwear), and the character creator (phase 4) that uses all of this.
+
+## Session 48: bathroom, TV, music corner and two pose fixes (2026-09-29) · v0.41.0
+
+- **Lily pets the cat like James.** Her rig's spine bends the other way round (like James's, which was already
+  handled), so in the crouch she leant back with her arms in the air. `CharacterRig.Set` now flips her spine and neck
+  too; reading, talking and the rest look alike for both.
+- **Reclining was upside down.** The lying pose bent the spine the wrong way for both of them, so they lay flat on a
+  lounger's raised backrest and sank to the bottom of the bath. Fixed in `LieTargets`; checked on a lounger and in the
+  bath.
+- **Bath.** Taking a bath is now lying back in the tub (a new `UseSpot` in the tub, away from the tap, legs under the
+  water) instead of standing beside it. `BathTub` fills the tub while it lasts: water rises under a heap of soft foam
+  that covers the bather to the chest, a few soap bubbles float up and a little steam rises, then it all drains. Idle
+  people never lie in the empty tub. Plays `bathtub.mp3`.
+- **Shower.** The shower's hinged door never moved and people washed standing outside. `ShowerStall` turns it into a
+  sliding door (along the outside of the fixed pane, hinges gone); a shower is now: the door slides open, the person
+  steps in, the door closes, water pours from the rain head, steam fills the cube and soap bubbles float and slide down
+  the body, then the water stops, the door opens and they step out. Plays `shower.mp3`. The effects are particles with
+  materials made by **Dearlife > Make bathroom effects** (`Resources/Effects`); they render before refraction, or the
+  refractive glass hid them.
+- **Sink.** Washing up at the vanity plays `sink_water.mp3`.
+- **TV.** The screen's texture coordinates were a box projection in metres, so only a sliver of the picture showed (a
+  dot and a smear), and by day the screen looked black. `TvScreen` now stretches the picture over the screen's face and
+  is much brighter by day (4000 nits, 45 at night).
+- **Music corner.** A guitar on its stand and the synth keyboard now stand in the living room by the glass wall to the
+  kitchen, in the house layout. New menu **Dearlife > Place missing house furniture** adds layout pieces the saved scene
+  is short of without rebuilding the house (saves only list sold pieces, so old saves get them too).
+- **Chats no longer interrupt what someone is doing.** Walking up to chat pulled the other person out of any activity
+  without ending it; in the shower that left them stuck inside. Busy people are now left alone, and joining a chat
+  ends an activity properly first.
+- **Crash:** the editor ran out of graphics memory once (a D3D12 device error after many Play mode runs in one long
+  session); restarting Unity cleared it. Nothing in the code.

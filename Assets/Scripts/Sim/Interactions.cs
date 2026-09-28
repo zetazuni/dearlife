@@ -53,8 +53,8 @@ namespace Dearlife
             Def("grill", "Grill some food", 20f, CharacterRig.Pose.Cook, "bbq", "bbqcounter").Fill(Need.Hunger, 65f).Fill(Need.Fun, 12f).Skilled(Skill.Cooking, 12f).Costs(25).Moodlet("Barbecue feast", 14f);
             // ---- bathroom
             Def("toilet", "Use the toilet", 8f, P, "toilet").Fill(Need.Bladder, 100f);
-            Def("shower", "Take a shower", 14f, CharacterRig.Pose.Wash, "shower").Fill(Need.Hygiene, 100f).Fill(Need.Energy, 4f).Moodlet("Fresh and clean", 10f);
-            Def("bath", "Take a bath", 22f, CharacterRig.Pose.Wash, "bathtub").Fill(Need.Hygiene, 100f).Fill(Need.Fun, 14f).Fill(Need.Energy, 8f).Moodlet("Lovely soak", 14f).wish = "shower";
+            Def("shower", "Take a shower", 24f, CharacterRig.Pose.Wash, "shower").Fill(Need.Hygiene, 100f).Fill(Need.Energy, 4f).Moodlet("Fresh and clean", 10f);
+            Def("bath", "Take a bath", 30f, CharacterRig.Pose.Lie, "bathtub").Seated().Fill(Need.Hygiene, 100f).Fill(Need.Fun, 14f).Fill(Need.Energy, 8f).Moodlet("Lovely soak", 14f).wish = "shower";
             Def("washface", "Wash up", 5f, CharacterRig.Pose.Wash, "vanity", "bathmirror").Fill(Need.Hygiene, 25f);
             // ---- rest
             Def("sleep", "Sleep", 40f, CharacterRig.Pose.Lie, "platformbed", "platformbed_e").Seated().Fill(Need.Energy, 100f).Fill(Need.Bladder, -12f).Moodlet("Slept like a log", 14f);
@@ -131,6 +131,9 @@ namespace Dearlife
             if (!it) it = go.AddComponent<Interactable>();
             it.id = InteractionTable.BaseId(modelId);
             it.defs = defs;
+            // the bathroom pieces that come alive when used
+            if (it.id == "bathtub" && !go.GetComponent<BathTub>()) go.AddComponent<BathTub>();
+            if (it.id == "shower" && !go.GetComponent<ShowerStall>()) go.AddComponent<ShowerStall>();
             return it;
         }
 
@@ -150,6 +153,9 @@ namespace Dearlife
         {
             point = default;
             if (hasCustomStand) { point = customStand; return true; }
+            var filter0 = new NavMeshQueryFilter { agentTypeID = DearlifeNav.AgentType, areaMask = ~(1 << DearlifeNav.StairsArea) };
+            var stall = GetComponent<ShowerStall>();
+            if (stall && NavMesh.SamplePosition(stall.Outside, out var sh, 0.4f, filter0)) { point = sh.position; return true; }   // in front of the door
             var f = GetComponent<Furniture>();
             var lb = f ? f.LocalBounds : new Bounds(Vector3.zero, Vector3.one);
             var filter = new NavMeshQueryFilter { agentTypeID = DearlifeNav.AgentType, areaMask = ~(1 << DearlifeNav.StairsArea) };

@@ -454,7 +454,7 @@ namespace Dearlife
         bool TryUseSpot()
         {
             var free = new List<UseSpot>();
-            foreach (var s in UseSpot.All) if (s.occupant == null && s.gameObject.activeInHierarchy) free.Add(s);
+            foreach (var s in UseSpot.All) if (s.occupant == null && s.gameObject.activeInHierarchy && s.label != "bath") free.Add(s);   // nobody lies in an empty bath
             for (int tries = 0; tries < 6 && free.Count > 0; tries++)
             {
                 var s = free[Random.Range(0, free.Count)];
@@ -618,6 +618,7 @@ namespace Dearlife
             it.user = this;
             GameAudio.StopAct(actSound);
             actSound = GameAudio.PlayAct(d.id, d.seconds, it.Centre);
+            if (d.id == "bath" && it.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(true);
             if (d.needsTv && spot != null) { var tv = TvScreen.Facing(spot); if (tv != null && !tv.on) tv.SetOn(true, true); }
             if (d.seat) { timer = d.seconds; return; }                    // seated: TickUsing runs it
             mode = Mode.Interacting; timer = d.seconds; blend = 0f;
@@ -626,6 +627,90 @@ namespace Dearlife
             HoldForInteraction(it, d);
             if (agent.enabled && agent.isOnNavMesh) agent.ResetPath();
             if (d.pose == CharacterRig.Pose.Swim) { standPos = transform.position; agent.enabled = false; GameAudio.Play(GameAudio.Sfx.Splash); }
+            if (d.id == "shower" && it && it.GetComponent<ShowerStall>() is ShowerStall st && st)
+            {
+                shower = st; showerStep = 0; showerT = 0f; showerRunning = false;
+                standPos = transform.position; agent.enabled = false;
+            }
+        }
+
+        // ---- the shower: open the sliding door, step in, shut it, wash in the steam, and back out the same way
+
+        ShowerStall shower;
+        int showerStep;
+        float showerT;
+        bool showerRunning;
+
+        static Vector3 Along(Vector3 a, Vector3 b, Vector3 c, float f)
+        {
+            float ab = Vector3.Distance(a, b), bc = Vector3.Distance(b, c), d = Mathf.Clamp01(f) * (ab + bc);
+            return d <= ab ? Vector3.Lerp(a, b, ab > 0f ? d / ab : 1f) : Vector3.Lerp(b, c, bc > 0f ? (d - ab) / bc : 1f);
+        }
+
+        void TickShower()
+        {
+            var st = shower;
+            showerT += Time.deltaTime;
+            Vector3 outside = standPos, inside = st.Inside, door = st.Doorway;
+            door.y = Mathf.Lerp(outside.y, inside.y, 0.5f);
+            Vector3 was = transform.position;
+            switch (showerStep)
+            {
+                case 0:                                                        // the door slides open
+                    st.open = true;
+                    rig.pose = CharacterRig.Pose.Stand;
+                    Face(-st.OutwardDir, 8f);
+                    if (showerT > 0.8f) { showerStep = 1; showerT = 0f; }
+                    break;
+                case 1:                                                        // step in
+                {
+                    float f = showerT / 1.8f;
+                    transform.position = Along(outside, door, inside, f);
+                    rig.pose = CharacterRig.Pose.Walk; rig.walkSpeed = 0.9f;
+                    Face(transform.position - was, 10f);
+                    if (f >= 1f) { showerStep = 2; showerT = 0f; st.open = false; }
+                    break;
+                }
+                case 2:                                                        // shut in, water on
+                    rig.pose = CharacterRig.Pose.Wash; rig.walkSpeed = 0f;
+                    transform.position = inside;
+                    Face(st.OutwardDir, 2.5f);
+                    if (!showerRunning && showerT > 0.7f) { st.Running(true, transform); showerRunning = true; }
+                    if (timer <= 3.6f) { st.Running(false, transform); showerRunning = false; st.open = true; showerStep = 3; showerT = 0f; }
+                    break;
+                case 3:                                                        // water off, door open, step out
+                {
+                    rig.pose = showerT < 0.7f ? CharacterRig.Pose.Stand : CharacterRig.Pose.Walk;
+                    rig.walkSpeed = 0.9f;
+                    float f = (showerT - 0.7f) / 1.8f;
+                    if (f > 0f) { transform.position = Along(inside, door, outside, f); Face(transform.position - was, 10f); }
+                    else Face(st.OutwardDir, 8f);
+                    if (f >= 1f) { st.open = false; showerStep = 4; }
+                    break;
+                }
+                default:
+                    rig.pose = CharacterRig.Pose.Stand; rig.walkSpeed = 0f;
+                    break;
+            }
+        }
+
+        void Face(Vector3 dir, float speed)
+        {
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 1e-6f) return;
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * speed);
+        }
+
+        void EndShower()
+        {
+            if (!shower) return;
+            shower.Running(false, transform);
+            shower.open = false;
+            // (interrupted inside: back in front of the door)
+            transform.position = standPos;
+            agent.enabled = true;
+            agent.Warp(standPos);
+            shower = null; showerRunning = false;
         }
 
         void TickActive(float dt)
@@ -646,7 +731,8 @@ namespace Dearlife
             TickActive(Time.deltaTime);
             timer -= Time.deltaTime;
             var centre = activeIt ? activeIt.Centre : transform.position + transform.forward;
-            if (active.pose == CharacterRig.Pose.Swim)
+            if (shower) TickShower();
+            else if (active.pose == CharacterRig.Pose.Swim)
             {
                 blend = Mathf.Min(1f, blend + Time.deltaTime / 1.2f);
                 float t = activeTime;
@@ -684,6 +770,8 @@ namespace Dearlife
             var d = active; active = null;
             GameAudio.StopAct(actSound); actSound = null;
             ReleaseHeld();
+            if (d.id == "bath" && activeIt && activeIt.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(false);
+            EndShower();
             if (activeIt) activeIt.user = null;
             activeIt = null;
             bool worth = completed || activeTime > d.seconds * 0.5f;
@@ -803,7 +891,7 @@ namespace Dearlife
         bool TryChat()
         {
             var o = OtherPerson();
-            if (o == null || o.mode == Mode.Waiting || o.mode == Mode.Sitting || o.mode == Mode.Using || o.mode == Mode.Rising || o.mode == Mode.Chatting || o.mode == Mode.ChatWalk) return false;
+            if (o == null || o.mode == Mode.Waiting || o.mode == Mode.Sitting || o.mode == Mode.Using || o.mode == Mode.Rising || o.mode == Mode.Chatting || o.mode == Mode.ChatWalk || o.mode == Mode.Interacting) return false;   // busy: not pulled into a chat
             if (!GoTo(o.transform.position, 1.6f)) return false;
             partner = o; mode = Mode.ChatWalk;
             return true;
@@ -811,7 +899,7 @@ namespace Dearlife
 
         void TickChatWalk()
         {
-            if (partner == null || partner.mode == Mode.Using || partner.mode == Mode.Sitting) { SetIdle(1f); return; }
+            if (partner == null || partner.mode == Mode.Using || partner.mode == Mode.Sitting || partner.mode == Mode.Interacting) { SetIdle(1f); return; }
             if (Vector3.Distance(transform.position, partner.transform.position) < 1.5f)
             {
                 agent.ResetPath();
@@ -824,6 +912,7 @@ namespace Dearlife
 
         void JoinChat(Character other)
         {
+            if (mode == Mode.Interacting) FinishInteraction(false);   // (and out of the shower first)
             partner = other;
             if (agent.enabled && agent.isOnNavMesh) agent.ResetPath();
             timer = 12f; lineIndex = 1; nextLine = 2.4f; mode = Mode.Chatting;

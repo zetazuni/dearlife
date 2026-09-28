@@ -104,6 +104,9 @@ Open **Settings > Game** and turn on **Cheats**. Then **right click the mailbox*
 ### Clothes and the clipping scan (v0.40)
 People made with MPFB2 wear clothes from `Assets/Resources/Clothes`. The `Wardrobe` component on a person puts on a whole outfit (`casual`, `modest`, `sleep`) or single pieces while the game runs, and hides only the skin under what is worn. To check that no clothes poke through, press Play, then use the menu **Dearlife > Scan characters** and wait about five minutes: it tries every outfit on 17 body shapes in 6 poses and writes `Logs/character_scan.txt` (the Console says when it is done).
 
+### Bathroom and music corner (v0.41)
+People lie back in the bath (it fills with water and foam) and walk into the shower through its sliding door (water, steam and soap bubbles). If the bathroom effects ever look missing, run **Dearlife > Make bathroom effects** once. **Dearlife > Place missing house furniture** adds any piece of the house layout the scene does not have yet (that is how the guitar and synth got into the living room), without rebuilding the house.
+
 ## 5. Test checklist
 
 Run through this after each update and tell Claude anything that feels off (with a screenshot if you can: **Win + Shift + S**).

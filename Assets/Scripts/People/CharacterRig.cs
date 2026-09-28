@@ -323,7 +323,9 @@ namespace Dearlife
         void Set(string n, float forward = 0f, float lift = 0f, float yaw = 0f)
         {
             if (!j.TryGetValue(n, out var jt)) return;
-            if ((kind == "amir" || kind == "mpfb") && (n == "spine" || n == "neck")) forward = -forward;   // these rigs' spine bones are turned the other way round
+            // these rigs' spine bones are turned the other way round (Lily's too: without this she leant back instead of
+            // over the cat when petting it, arms in the air)
+            if ((kind == "amir" || kind == "lily" || kind == "mpfb") && (n == "spine" || n == "neck")) forward = -forward;
             jt.tgt = forward; jt.liftTgt = lift; jt.yawTgt = yaw;
         }
 
@@ -631,7 +633,9 @@ namespace Dearlife
         void LieTargets(float breathe)
         {
             float raise = seat ? seat.raise : 0f, legs = seat ? seat.legRaise : 0f, knee = seat ? seat.kneeBend : 6f;
-            Set("spine", -raise + breathe * 1.5f);
+            // positive bends towards the chest (as in the crouch), which lying face up lifts the torso; it was negative,
+            // which bent Lily and James down through a lounger's backrest and to the bottom of the bath
+            Set("spine", raise + breathe * 1.5f);
             Set("neck", Mathf.Min(raise * 0.4f, 22f));
             Set("leg.L", legs); Set("leg.R", legs + 1.5f);
             Set("shin.L", -knee); Set("shin.R", -knee - 2f);

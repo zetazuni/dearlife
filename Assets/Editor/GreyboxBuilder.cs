@@ -1409,6 +1409,9 @@ namespace Dearlife.EditorTools
             ("beanbag", 1.4f, 4.9f, 25f, 0),
             ("sofa", 4f, 3.1f, 0f, 0),
             ("marbletable", 4f, 4.6f, 0f, 0),
+            // music corner on the east side (v0.40.1): the synth faces into the room, the guitar on its stand beside it
+            ("synth", 7.4f, 2.3f, 270f, 0),
+            ("guitar", 7.55f, 3.25f, 270f, 0),
             // kitchen (x 8 to 14): counter run on the back wall, fridge beside it, island, stools, dining set
             ("kitchenrun", 11.62f, 0.34f, 0f, 0),
             ("fridge", 8.98f, 0.4f, 0f, 0),
@@ -2146,7 +2149,52 @@ namespace Dearlife.EditorTools
                     }
                     break;
                 case "hammock": Spot(go, "hammock", lie, new Vector3(0f, 0.85f, 0.2f), 0f, new Vector3(1.3f, 0f, 0f), raise: 14f, legRaise: 12f, knee: -14f); break;
+                case "bathtub": Spot(go, "bath", lie, new Vector3(0.12f, 0.24f, 0f), -90f, new Vector3(0f, 0f, 0.95f), raise: 52f, legRaise: 2f, knee: 10f); break;
             }
+        }
+
+        /// <summary>
+        /// Puts in any piece of the layout that the saved scene does not have yet (added to the layout after the house was
+        /// built), with the same steps as the full build, without rebuilding everything else.
+        /// </summary>
+        [MenuItem("Dearlife/Place missing house furniture")]
+        static void PlaceMissing()
+        {
+            var ground = GameObject.Find("House/Furniture");
+            var upper = GameObject.Find("House/Upper floor");
+            if (!ground || !upper) { Debug.LogWarning("Dearlife: open the Main scene first."); return; }
+            keyCount.Clear();
+            foreach (var f in Object.FindObjectsByType<Furniture>(FindObjectsInactive.Include))
+            {
+                string id = f.name;
+                keyCount.TryGetValue(id, out int n);
+                keyCount[id] = n + 1;
+            }
+            int added = 0;
+            foreach (var l in Layout)
+            {
+                var parent = l.floor == 0 ? ground.transform : upper.transform;
+                // only when the scene has fewer of this piece than the layout (a piece moved by hand is not missing)
+                int inLayout = 0;
+                foreach (var o in Layout) if (o.id == l.id) inLayout++;
+                keyCount.TryGetValue(l.id, out int inScene);
+                if (inScene >= inLayout) continue;
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{l.id}.fbx");
+                if (!model) continue;
+                var go = (GameObject)PrefabUtility.InstantiatePrefab(model, parent);
+                go.name = l.id;
+                var spec = PhysicsSetup.Spec(l.id);
+                go.transform.position = new Vector3(l.x, (l.floor == 0 ? 0f : UPY) + FLOOR_TOP + spec.dropHeight, l.z);
+                go.transform.rotation = Quaternion.Euler(0f, l.rot, 0f);
+                PhysicsSetup.MakeSolid(go, spec);
+                MakeMovable(go, false);      // counts it too
+                AddSpots(go, l.id);
+                Undo.RegisterCreatedObjectUndo(go, "Place missing furniture");
+                added++;
+                Debug.Log($"Dearlife: placed {l.id} at ({l.x}, {l.z}).");
+            }
+            if (added > 0) UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(ground.scene);
+            Debug.Log($"Dearlife: {added} missing piece(s) placed.");
         }
 
         static void AttachTo(string wallPath, GameObject item)

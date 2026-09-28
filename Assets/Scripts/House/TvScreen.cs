@@ -42,6 +42,7 @@ namespace Dearlife
                 }
             }
             found:
+            if (mat != null) FitPicture();
             if (mat != null)
             {
                 tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
@@ -53,6 +54,40 @@ namespace Dearlife
             }
             glow = GetComponentInChildren<Light>(true);
             Apply();
+        }
+
+        /// <summary>
+        /// The screen model's texture coordinates are a box projection in metres (they ran from -0.6 to 1.35), so only a
+        /// sliver of the picture showed: a dot and a smear. Give the screen its own copy of the mesh with the picture
+        /// stretched over its front face, left to right and bottom to top as a viewer sees it.
+        /// </summary>
+        void FitPicture()
+        {
+            foreach (var r in GetComponentsInChildren<Renderer>())
+            {
+                bool isScreen = false;
+                foreach (var m in r.sharedMaterials) if (m && m.name.StartsWith("Screen")) isScreen = true;
+                var mf = r.GetComponent<MeshFilter>();
+                if (!isScreen || !mf || !mf.sharedMesh || !mf.sharedMesh.isReadable) continue;
+                var mesh = Instantiate(mf.sharedMesh);
+                var v = mesh.vertices;
+                var b = mesh.bounds;
+                // which way the screen faces in mesh space, and so which way is the viewer's right
+                var toFront = mf.transform.InverseTransformDirection(transform.forward);
+                var uv = new Vector2[v.Length];
+                bool thinZ = b.size.z <= b.size.x && b.size.z <= b.size.y;
+                for (int i = 0; i < v.Length; i++)
+                {
+                    float across = thinZ ? v[i].x : v[i].z, lo = thinZ ? b.min.x : b.min.z, span = thinZ ? b.size.x : b.size.z;
+                    float u = span > 0f ? (across - lo) / span : 0f;
+                    // the viewer looks back along the screen's front, so their right is up x (towards the screen)
+                    var right = Vector3.Cross(Vector3.up, -toFront);
+                    if ((thinZ ? right.x : right.z) < 0f) u = 1f - u;
+                    uv[i] = new Vector2(u, b.size.y > 0f ? (v[i].y - b.min.y) / b.size.y : 0f);
+                }
+                mesh.uv = uv;
+                mf.sharedMesh = mesh;
+            }
         }
 
         public void SetOn(bool value, bool byPerson = false)
@@ -83,7 +118,8 @@ namespace Dearlife
             tex.SetPixels32(px);
             tex.Apply(false);
             float night = DayNightCycle.Instance ? DayNightCycle.Instance.Night01 : 0f;
-            mat.SetColor(EmissiveCol, Color.white * Mathf.Lerp(320f, 26f, night));   // bright by day so it still shows, soft at night
+            // bright by day (the daylight exposure made 320 look black), soft at night
+            mat.SetColor(EmissiveCol, Color.white * Mathf.Lerp(4000f, 45f, night));
             if (glow) glow.color = Color.Lerp(glow.color, average, 0.35f);
         }
 
