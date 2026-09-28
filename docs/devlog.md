@@ -456,3 +456,27 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   mailbox's faded back out, and the gnome went back exactly where it was when the move was cancelled.
   **Not tested with a real mouse:** the right click on the mailbox itself and hovering by hand (both go
   through the same code that was tested, but deserve a quick try).
+
+## Session 43: dark mode bubbles, tags behind the HUD, character plan (2026-09-28) · v0.36.1
+
+- **Speech bubbles were white text on cream in dark mode**: `Ui.Bubble` had a fixed cream fill (`fffaf2`) but
+  used `Ui.Ink`, which turns near white in dark mode. It now fills with `Ui.Card`, like every other panel.
+  Scanned all UI code for the same mistake (fixed fills with theme text, fixed text on theme fills): the only
+  other ones were the status window's negative feelings (dark red) and income lines (dark green), which now get
+  lighter shades in dark mode.
+- **Name tags and speech bubbles drew over the HUD** (a tag on top of the side panel): every HUD script draws at
+  `GUI.depth` 0, so the order was left to chance. `CharacterHud` now draws at depth 10, behind all of them.
+  Checked by parking James under the side panel with the game paused: neither his tag nor his bubble showed
+  over it.
+- **Rule 8** in `docs/RULES.md`: people are hyper realistic, inspired by inZOI, never copied.
+- **`docs/CHARACTER_PLAN.md`**: the full plan for realistic characters and a character creator. It starts
+  with a scan of the current characters (posed on the road in daylight with the AI off, four angle contact
+  sheets of Stand, Crouch and Wave): skin pokes through Lily's tunic at the hip and lower back in a crouch, her
+  13 bone skeleton has no fingers, James's torso bends like a rigid tube and his sleeve stays behind when he
+  waves, and the "who you're playing" ring sits beside Lily's head. Licences were checked: MPFB2 (MakeHuman
+  for Blender, CC0 assets, a rig that maps fully onto Unity's Humanoid) is the base; MetaHuman is now allowed
+  in Unity but its raw files in a public repo are unclear and its face solver is Unreal only; Unity's Digital
+  Human package (Unity Companion License) supplies skin, eye and hair shaders. Clothes follow body sliders by
+  reusing MPFB2's per vertex clothes binding at run time, and hide the body under them (delete groups) so
+  clipping cannot happen. Seven phases, a clipping scan tool, and three questions for Amir at the end.
+- Nothing about the characters was changed yet: the plan waits for Amir's answers.
