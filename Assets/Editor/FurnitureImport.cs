@@ -183,6 +183,13 @@ namespace Dearlife.EditorTools
                         if (t) { mat.SetTexture("_BaseColorMap", t); mat.SetColor("_BaseColor", Color.white); }
                     }
                     if (mname.Contains("EyeColor")) { mat.SetFloat("_UseEmissiveIntensity", 0f); mat.SetColor("_EmissiveColor", new Color(0.1f, 0.6f, 0.15f) * 0.6f); }
+                    // hair, brows and lashes (tools/blender_mpfb_body.py names them "cut_...") are cards, see-through round the hairs
+                    if (mname.StartsWith("cut_"))
+                    {
+                        UnityEngine.Rendering.HighDefinition.HDMaterial.SetAlphaClipping(mat, true);
+                        UnityEngine.Rendering.HighDefinition.HDMaterial.SetAlphaCutoff(mat, 0.35f);
+                        mat.SetFloat("_DoubleSidedEnable", 1f);
+                    }
                     UnityEngine.Rendering.HighDefinition.HDMaterial.ValidateMaterial(mat);
                     EditorUtility.SetDirty(mat);
                     imp.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), mname), mat);

@@ -10,7 +10,14 @@ How the tools connect and how an asset gets from Blender into the game.
 | Unity Hub | | `S:\Unity\Unity Hub` |
 | Blender | 5.2.2 LTS | Blender MCP add-on v1.7 |
 | uv / uvx | | `S:\Tools\uv` (runs both MCP servers) |
+| MPFB (MakeHuman for Blender) | 2.0.17 | Extension in `S:\Tools\blender-extensions` (Blender repo "S Tools"), zip in `S:\Tools\mpfb` |
 | Git + Git LFS | LFS 3.7.1 | GitHub CLI at `C:\Program Files\GitHub CLI`, account `zetazuni` |
+
+## Realistic people (MPFB2)
+
+Rule 8 and `docs/CHARACTER_PLAN.md`. MPFB is installed as a Blender extension in a local repo on S: (`S:\Tools\blender-extensions`). Its user data (the assets) is set to `S:\Tools\mpfb\userdata` in its preferences, with MakeHuman's CC0 system asset pack (`S:\Tools\mpfb\makehuman_system_assets_cc0.zip`) loaded into it. Gotcha: switching the add-on off and on again wipes that preference, and MPFB reads it only when it starts, so after changing it either restart Blender or run `LocationService.__init__()` from `bl_ext.s_tools.mpfb.services.locationservice`.
+
+`tools/blender_mpfb_body.py` builds a person: base mesh, the `game_engine` rig (53 bones with fingers, maps onto Unity's Humanoid), eyes, brows, lashes, teeth, skin, an outfit and hair, then bakes the body sliders into shape keys on every mesh (both ends of gender, weight, muscle, height, proportions and adult age), records how the bones move per slider in a `.bodyshape.json`, deletes MakeHuman's fitting helpers and the body under the clothes, and exports an FBX plus a `.materials.json`. Hair, brow and lash materials are named `cut_...`, which `FurnitureImport.ImportCharacters` gives alpha clipping. In Unity, `BodyShape` drives the sliders and `CharacterRig` with `kind = "mpfb"` animates the skeleton.
 
 ## MCP connections (how Claude drives the tools)
 

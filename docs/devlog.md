@@ -480,3 +480,23 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   reusing MPFB2's per vertex clothes binding at run time, and hide the body under them (delete groups) so
   clipping cannot happen. Seven phases, a clipping scan tool, and three questions for Amir at the end.
 - Nothing about the characters was changed yet: the plan waits for Amir's answers.
+
+## Session 44: character plan phase 0, a realistic test person (2026-09-28) · v0.37.0
+
+- **Decisions recorded** in `docs/CHARACTER_PLAN.md`: free assets only, adults only, start fresh (Lily and James are
+  not remade; a new household comes from the creator in phase 5).
+- **MPFB 2.0.17 installed** from extensions.blender.org (checksum checked) into a local extension repo on S:, with its
+  user data on S: and MakeHuman's CC0 system asset pack loaded. It works on Blender 5.2.2, so no second Blender.
+- **`tools/blender_mpfb_body.py`** builds `mpfb_test`: a 1.66 m adult on the 53 bone `game_engine` rig (fingers, which
+  the old characters lacked), eyes, brows, lashes, teeth, a young adult skin, a casual outfit, shoes and long hair, with
+  twelve slider shape keys on every mesh and the bone movement per slider. MakeHuman's height ends (about 1.2 m and
+  2.3 m) are replaced by 1.50 m and 1.93 m, and age by 18 and 60. The body under the clothes is deleted for this test
+  person; phase 3 hides it at run time instead so outfits can change.
+- **`BodyShape`** (new) and **`CharacterRig`** `kind = "mpfb"`: see the architecture notes in `CLAUDE.md`.
+- **Tested in Play mode:** spawned with the old AI it walked from the living room out to the garden by itself; a copy
+  with weight, height and gender raised came out taller, heavier and male with its clothes and hair following and the
+  skeleton moved to match (feet on the ground, joints in the right places); the crouch that pushed skin through Lily's
+  tunic now shows no skin through the jeans or shirt, the torso leans forward and the hands reach out with fingers.
+  At neutral the rebuilt bind poses match Unity's import to within 0.000001.
+- **Not done yet, on purpose:** the test person is not in the scene (only spawned by test code), skin, eyes and hair
+  still use MakeHuman's plain materials (phase 1), and the rig is still posed by code, not animation clips (phase 2).

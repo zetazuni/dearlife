@@ -87,9 +87,9 @@ A dedicated screen reached from New Game, and later from a mirror or the Family 
 - **Household:** create up to the cap (start with four), set relationships, then move in.
 - **Saving:** a character is a small JSON (shape key weights, material values, garment ids and colours), saved in the save slot through `SaveSystem.Key`, and as shareable preset files.
 
-## 8. Private assets (only if we ever buy some)
+## 8. Free assets only (decided 2026-09-28)
 
-Some realistic assets (scanned skin maps, hair) are only sold with licences that forbid public raw files. If we buy any: keep them in a git ignored folder (for example `Assets/Private/`), make the game fall back to our own public assets when that folder is missing, and write down each asset's licence in `Assets/Private/LICENSES.md` (also git ignored). Ask Amir before buying anything.
+Nothing is bought. Every file the characters use is CC0, our own work, or under a licence that allows it in a public repo (like the Unity Companion License for Unity packages), and is credited in a `CREDITS.txt` next to it. If a free source is not good enough (realistic skin maps are the likely gap), we make it ourselves in Blender: sculpted pore detail baked to normal maps, painted colour and roughness maps.
 
 ## 9. Frame rate budget (rule 6: 60 FPS at 1080p on the RTX 4050 laptop)
 
@@ -102,20 +102,20 @@ Some realistic assets (scanned skin maps, hair) are only sold with licences that
 
 | Phase | What | Done when |
 | --- | --- | --- |
-| 0 | MPFB2 working on S:\ (Blender 5.2 or a 4.5 LTS side by side), one test body exported to Unity as a Humanoid with shape keys | A test body walks in Unity with the old AI, sliders move its shape in Play mode |
+| 0 | MPFB2 working on S:\ (Blender 5.2 or a 4.5 LTS side by side), one test body exported to Unity as a Humanoid with shape keys | **Done 2026-09-28** (session 44): MPFB 2.0.17 runs on Blender 5.2.2, `mpfb_test` walked with the old AI, `BodyShape` sliders reshape body, clothes, hair and skeleton in Play mode. Still a Generic rig, Humanoid comes in phase 2 |
 | 1 | Realistic materials: skin, eyes, lashes and brows, teeth, one hair style | Close up screenshots in the studio light look like a person, not a doll |
 | 2 | Animation: Animator, clips for every `CharacterRig.Pose`, IK for seats and props | Every pose plays; sitting lines up on every `UseSpot` |
 | 3 | Clothes: run time refit, delete groups, layers, three first outfits (casual, modest with a hijab, sleepwear) | The clipping scan (below) passes for all outfits at slider extremes |
 | 4 | Character creator screen and saving | A new household can be made, saved, loaded |
-| 5 | Replace Lily, James and the old models; default household made in the creator; old models and `tools/blender_rig*.py` removed | Nothing uses the old FBX files |
+| 5 | Replace Lily, James and the old models with a fresh default household made in the creator (new people, new names); old models and `tools/blender_rig*.py` removed | Nothing uses the old FBX files |
 | 6 | Realistic pets (Bedah the cat, the dog) to match | Pets no longer look cartoon next to people |
 
 ## 11. The clipping scan, as a tool
 
 What was done by hand this session becomes an editor menu, **Dearlife > Scan characters**: for every body preset at the slider extremes, every outfit and every pose, it renders a four angle contact sheet and runs a penetration check (rays from body vertices along their normal: a hit on the outside of the garment within 2 mm is flagged). It writes a report to `Assets/Screenshots/scan/` (git ignored). Run it at the end of phases 3, 4 and 5.
 
-## 12. Questions for Amir before phase 0
+## 12. Decisions (Amir, 2026-09-28)
 
-1. Is it fine to buy assets later (section 8), or free and CC0 only?
-2. Age range to start with: adults only, or teens and elders too (MPFB2 supports all, but each needs clothes and animation)?
-3. Should Lily and James stay as the names of the default household, remade realistically, or start fresh?
+1. **Free only**: no bought assets (section 8).
+2. **Adults only** to start: one adult age range in the creator, no teens, children or elders for now. MPFB2's age macro is limited to the adult range.
+3. **Start fresh**: Lily and James are not remade. Phase 5 replaces them with a new default household made in the creator, with new names; the old names and models go.

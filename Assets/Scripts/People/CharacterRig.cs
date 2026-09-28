@@ -47,6 +47,20 @@ namespace Dearlife
             { "leg.R", "Base HumanRThigh_06" }, { "shin.R", "Base HumanRCalf_07" },
         };
 
+        // the MPFB2 "game engine" skeleton (tools/blender_mpfb_body.py)
+        static readonly Dictionary<string, string> MpfbBones = new Dictionary<string, string>
+        {
+            { "pelvis", "pelvis" }, { "spine", "spine_02" }, { "neck", "neck_01" },
+            { "arm.L", "upperarm_l" }, { "forearm.L", "lowerarm_l" }, { "arm.R", "upperarm_r" }, { "forearm.R", "lowerarm_r" },
+            { "leg.L", "thigh_l" }, { "shin.L", "calf_l" }, { "leg.R", "thigh_r" }, { "shin.R", "calf_r" },
+            { "foot.L", "foot_l" }, { "foot.R", "foot_r" },
+        };
+
+        static readonly Dictionary<string, Dictionary<string, string>> Aliases = new Dictionary<string, Dictionary<string, string>>
+        {
+            { "amir", AmirBones }, { "mpfb", MpfbBones },
+        };
+
         static readonly string[] PersonJoints = { "pelvis", "spine", "neck", "arm.L", "forearm.L", "arm.R", "forearm.R", "leg.L", "shin.L", "leg.R", "shin.R", "foot.L", "foot.R" };
         static readonly string[] PetJoints = { "body", "head", "tail", "legFL", "legFR", "legBL", "legBR" };
 
@@ -95,10 +109,11 @@ namespace Dearlife
         void Awake()
         {
             lastPos = transform.position;
-            if (kind != "amir") BuildSkeleton();
+            Aliases.TryGetValue(kind, out var aliases);
+            if (aliases == null) BuildSkeleton();
             foreach (var n in pet ? PetJoints : PersonJoints)
             {
-                var t = FindDeep(transform, kind == "amir" && AmirBones.TryGetValue(n, out var alias) ? alias : n);
+                var t = FindDeep(transform, aliases != null && aliases.TryGetValue(n, out var alias) ? alias : n);
                 if (!t) continue;
                 j[n] = new Joint
                 {
@@ -110,6 +125,7 @@ namespace Dearlife
                     upInParent = t.parent ? Quaternion.Inverse(t.parent.rotation) * transform.up : Vector3.up,
                 };
             }
+            if (kind == "mpfb") LowerArms();
             if (!pet)
             {
                 // where the hands and the chest are, so things can be put in them whatever the pose
@@ -135,6 +151,36 @@ namespace Dearlife
             }   // the bounds of a posed skin change
         }
 
+
+        /// <summary>
+        /// MPFB skeletons rest in an "A" pose (arms out at about 45 degrees). Swing each upper arm down to hang 10 degrees
+        /// off the body and make that the rest, so every pose starts from relaxed arms.
+        /// </summary>
+        void LowerArms()
+        {
+            foreach (var side in new[] { "L", "R" })
+            {
+                if (!j.TryGetValue("arm." + side, out var arm) || !j.TryGetValue("forearm." + side, out var fore)) continue;
+                var dir = (fore.t.position - arm.t.position).normalized;
+                float outward = Mathf.Sign(Vector3.Dot(dir, transform.right));
+                var want = Quaternion.AngleAxis(10f * outward, transform.forward) * -transform.up;
+                arm.t.rotation = Quaternion.FromToRotation(dir, want) * arm.t.rotation;
+            }
+            foreach (var jt in j.Values)
+            {
+                jt.rest = jt.t.localRotation;
+                jt.rightLocal = Quaternion.Inverse(jt.t.rotation) * transform.right;
+                jt.upLocal = Quaternion.Inverse(jt.t.rotation) * transform.up;
+                jt.upInParent = jt.t.parent ? Quaternion.Inverse(jt.t.parent.rotation) * transform.up : Vector3.up;
+            }
+        }
+
+        /// <summary>The bones were moved (a body slider changed, see <see cref="BodyShape"/>): take their new places as the rest positions.</summary>
+        public void RefreshRest(float restHip)
+        {
+            foreach (var jt in j.Values) if (jt.t) jt.restPos = jt.t.localPosition;
+            if (!pet && restHip > 0.4f) RestHip = restHip;
+        }
 
         // ------------------------------------------------------------ things held in the hands
 
@@ -259,7 +305,7 @@ namespace Dearlife
         void Set(string n, float forward = 0f, float lift = 0f, float yaw = 0f)
         {
             if (!j.TryGetValue(n, out var jt)) return;
-            if (kind == "amir" && (n == "spine" || n == "neck")) forward = -forward;   // his spine bones are turned the other way round
+            if ((kind == "amir" || kind == "mpfb") && (n == "spine" || n == "neck")) forward = -forward;   // these rigs' spine bones are turned the other way round
             jt.tgt = forward; jt.liftTgt = lift; jt.yawTgt = yaw;
         }
 
