@@ -403,3 +403,24 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   GitHub repo was renamed `zetazuni/tiramisu-3d` to `zetazuni/dearlife`, its description updated, and its
   git history rewritten to a single fresh commit so no old commit message or diff mentions the old names
   either.
+
+## Session 41: title screen polish, hide-names setting, missing-script fix (2026-09-28) · v0.35.1
+
+- **The glow behind the title now bleeds off the left edge of the screen**, with a slow breathing drift
+  (`Mathf.Sin(Time.unscaledTime * 0.22f) * 16f`) instead of sitting still, and reaches far enough right to
+  softly spill into the fade toward the cinematic view.
+- **Fixed the "Load Game unlocks once you've played" hint overlapping the Settings button** below it: the
+  hint now reserves its own row instead of being squeezed into the existing button gap, and the gap between
+  every title screen button grew from 14 to 20 for more breathing room.
+- **New Settings toggle: hide names** (`Ui.ShowNames`, saved as `dearlife.showNames`, Game tab, on by
+  default). `CharacterHud` only draws a name tag when it's on; speech bubbles are unaffected. The title
+  screen's cinematic shots never show names regardless of the setting, since a menu background isn't the
+  place for it - `CharacterHud` checks `!MainMenu.Active` unconditionally.
+- **Fixed the pre-existing "missing script" bug** on `Catalog` and `InteractionSetup` flagged in the last
+  session: both lived in a multi-class file that didn't match their own name (`BuyMode.cs`,
+  `Interactions.cs`), the same issue already documented here for `LotManager`/`Lot.cs`. Moved each into its
+  own file (`Catalog.cs`, `InteractionSetup.cs`); confirmed with a scan of `Main.unity` that zero components
+  on the root `Game` object have a broken `m_Script` reference now, versus two before.
+- Checked in Play mode: title screen screenshot confirmed the wider glow, the fixed button spacing, and no
+  name tag over the person visible in the background room; Console had zero errors or missing-script
+  warnings after rebuilding the scene.
