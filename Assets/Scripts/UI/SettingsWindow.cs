@@ -124,6 +124,8 @@ namespace Dearlife
                     if (Ui.Pill(new Rect(0f, y, dw, 36f), "Light mode", !Ui.Dark, 14f)) Ui.SetDark(false);
                     if (Ui.Pill(new Rect(dw + 8f, y, dw, 36f), "Dark mode", Ui.Dark, 14f)) Ui.SetDark(true);
                     y += 54f;
+                    if (Ui.Pill(new Rect(0f, y, w, 36f), Ui.ShowNames ? "Names are shown above people and pets" : "Names are hidden", Ui.ShowNames, 14f)) Ui.SetShowNames(!Ui.ShowNames);
+                    y += 52f;
                     if (Ui.Pill(new Rect(0f, y, w, 36f), "Show the hints again (F1)", false, 14f)) { Tutorial.Restart(); Open = false; }
                     y += 52f;
                     var dec = DecorateMode.Instance;

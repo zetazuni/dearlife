@@ -210,7 +210,12 @@ namespace Dearlife
             float titleW = Ui.TextWidth("Dearlife", titleSize, Ui.Weight.Script);
             // the glow sits behind the middle of the rendered glyphs, not the label's oversized layout box
             var glowCentre = new Vector2(titleX + titleW * 0.5f, titleY + titleSize * 0.62f);
-            Ui.Round(new Rect(glowCentre.x - 230f, glowCentre.y - 130f, 460f, 260f), new Color(0.65f, 0.4f, 0.9f, 0.10f), 130f);
+            // wide enough to bleed off the left edge of the screen and softly spill into the cinematic view on the
+            // right, with a slow drift so it breathes in and out rather than sitting dead still
+            float glowW = 760f, glowH = 300f;
+            float breathe = Mathf.Sin(Time.unscaledTime * 0.22f) * 16f;
+            var glowRect = new Rect(glowCentre.x - glowW * 0.62f + breathe, glowCentre.y - glowH * 0.5f, glowW, glowH);
+            Ui.Round(glowRect, new Color(0.65f, 0.4f, 0.9f, 0.10f), glowH * 0.5f);
 
             Ui.Label(new Rect(titleX + 4f, titleY - 4f, leftW + 200f, 150f), "Dearlife", titleSize, new Color(1f, 0.93f, 0.95f, 0.15f), TextAnchor.UpperLeft, Ui.Weight.Script);
             Ui.Label(new Rect(titleX, titleY, leftW + 200f, 150f), "Dearlife", titleSize, new Color(1f, 0.93f, 0.95f, 1f), TextAnchor.UpperLeft, Ui.Weight.Script);
@@ -221,13 +226,17 @@ namespace Dearlife
             for (int i = 0; i < 3; i++) Ui.Round(new Rect(44f + rw / 3f * i, ry, rw / 3f + 1f, 3f), cols[i], 1.5f);
             Ui.Label(new Rect(46f, ry + 14f, leftW - 40f, 26f), "A COSY LIFE, TOGETHER", 13f, new Color(0.86f, 0.6f, 0.75f, 0.9f), TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
 
-            float bw = Mathf.Min(300f, leftW - 88f), bx = 44f, by = h * 0.48f, bh = 54f, gap = 14f;
+            float bw = Mathf.Min(300f, leftW - 88f), bx = 44f, by = h * 0.48f, bh = 54f, gap = 20f;
             if (BigButton(new Rect(bx, by, bw, bh), "Start", true)) { page = Page.NewSlots; confirmSlot = -1; }
             by += bh + gap;
             bool anySave = AnySave();
             if (BigButton(new Rect(bx, by, bw, bh), "Load Game", false, anySave)) page = Page.LoadSlots;
-            if (!anySave) Ui.Label(new Rect(bx + 2f, by + bh + 6f, bw, 18f), "Load Game unlocks once you've played.", 11f, new Color(0.75f, 0.7f, 0.88f, 0.8f), TextAnchor.UpperLeft, Ui.Weight.Bold);
             by += bh + gap;
+            if (!anySave)
+            {
+                Ui.Label(new Rect(bx + 2f, by - gap + 6f, bw, 18f), "Load Game unlocks once you've played.", 11f, new Color(0.75f, 0.7f, 0.88f, 0.8f), TextAnchor.UpperLeft, Ui.Weight.Bold);
+                by += 20f;      // extra room so the hint never overlaps the button below it
+            }
             if (BigButton(new Rect(bx, by, bw, bh), "Settings", false)) page = Page.Settings;
             by += bh + gap;
             if (BigButton(new Rect(bx, by, bw, bh), "Exit game", false)) confirmExit = true;

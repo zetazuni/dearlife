@@ -12,6 +12,9 @@ namespace Dearlife
         // the palette of the 2D game (its :root variables), and its dark mode: a neon pink and ice blue night version
         public static bool Dark { get; private set; }
         public static void SetDark(bool on) { Dark = on; PlayerPrefs.SetInt("dearlife.dark", on ? 1 : 0); }
+        /// <summary>Whether name tags show above people and pets. Always off on the title screen regardless of this.</summary>
+        public static bool ShowNames { get; private set; } = true;
+        public static void SetShowNames(bool on) { ShowNames = on; PlayerPrefs.SetInt("dearlife.showNames", on ? 1 : 0); }
         static readonly Color inkL = Hex("5b4636"), inkD = Hex("eaf3ff"), softL = Hex("8c7462"), softD = Hex("a9b3e8"), cardL = Hex("fff8ef"), cardD = Hex("161129");
         static readonly Color lineL = Hex("f0dcc6"), lineD = Hex("3a2f66"), pinkL = Hex("f4a6b7"), pinkD = Hex("ff4fa8"), accL = Hex("e98aa0"), accD = Hex("57e6ff");
         static readonly Color goldL = Hex("f2b84b"), goldD = Hex("ffd3ec"), goldTL = Hex("c98a17"), goldTD = Hex("ffd3ec"), roseL = Hex("b5566e"), roseD = Hex("ff8fc9");
@@ -62,6 +65,7 @@ namespace Dearlife
                 script = Resources.Load<Font>("Fonts/GreatVibes-Regular");
                 white = Texture2D.whiteTexture;
                 Dark = PlayerPrefs.GetInt("dearlife.dark", 0) == 1;
+                ShowNames = PlayerPrefs.GetInt("dearlife.showNames", 1) == 1;
                 gradient = new Texture2D(64, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
                 for (int i = 0; i < 64; i++) gradient.SetPixel(i, 0, Color.Lerp(Hex("ff4fa8"), Hex("57e6ff"), i / 63f));
                 gradient.Apply();
