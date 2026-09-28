@@ -75,6 +75,37 @@ namespace Dearlife
             return null;
         }
 
+        readonly Dictionary<string, Color> colours = new Dictionary<string, Color>();
+
+        /// <summary>Changes into exactly these pieces (a person's own everyday or sleep clothes): everything else comes off.</summary>
+        public void Wear(IList<string> items)
+        {
+            Setup();
+            outfit = "";
+            foreach (var slot in new List<string>(worn.Keys)) Remove(slot, false);
+            foreach (var id in items) PutOn(id, false);
+            Refresh();
+        }
+
+        /// <summary>
+        /// A colour for one piece (a garment, or the hair), kept while it is taken off and put on again. Fabrics are tinted
+        /// (the colour replaces a plain garment's colour and multiplies a printed one); hair takes it as its tint.
+        /// </summary>
+        public void SetColour(string id, Color c)
+        {
+            colours[id] = c;
+            foreach (var kv in wornItems)
+                if (kv.Value.id == id && worn.TryGetValue(kv.Key, out var r) && r) Tint(r, c);
+        }
+
+        public bool TryGetColour(string id, out Color c) => colours.TryGetValue(id, out c);
+
+        static void Tint(Renderer r, Color c)
+        {
+            foreach (var m in r.materials)          // this person's own copies
+                if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+        }
+
         /// <summary>Changes into a whole outfit from wardrobe.json: everything else comes off.</summary>
         public bool Wear(string outfitName)
         {
@@ -125,6 +156,7 @@ namespace Dearlife
             else r.sharedMesh = Instantiate(r.sharedMesh);
             worn[item.slot] = r;
             wornItems[item.slot] = item;
+            if (colours.TryGetValue(id, out var col)) Tint(r, col);
             if (refresh) Refresh();
             return true;
         }

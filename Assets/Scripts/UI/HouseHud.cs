@@ -26,7 +26,7 @@ namespace Dearlife
             OrbitCamera.IsOverUi = p =>
             {
                 var u = Ui.ToUi(p);
-                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || LoadingScreen.Blocking || ColourPicker.Box.Contains(u) || MainMenu.Active;
+                return TopBar.Contains(u) || CameraColumn.Contains(u) || (PanelOpen && Side.Contains(u)) || Handle.Contains(u) || SettingsWindow.Open || MapWindow.Open || LoadingScreen.Blocking || ColourPicker.Box.Contains(u) || MainMenu.Busy;
             };
             if (!GetComponent<LoadingScreen>()) gameObject.AddComponent<LoadingScreen>();
             if (!GetComponent<Splash>()) gameObject.AddComponent<Splash>();
@@ -37,7 +37,7 @@ namespace Dearlife
 
         void Update()
         {
-            if (MainMenu.Active) return;
+            if (MainMenu.Busy) return;
             // the shop and the build tool own their tab while they are on
             if (BuyMode.Active && Current != Tab.Shop) { Current = Tab.Shop; PanelOpen = true; }
             else if (BuildMode.Active && Current != Tab.Build) { Current = Tab.Build; PanelOpen = true; }
@@ -63,7 +63,7 @@ namespace Dearlife
             Ui.Begin();
             float w = Ui.W, h = Ui.H;
             var view = HouseView.Instance; var cam = OrbitCamera.Instance;
-            if (!view || !cam || MainMenu.Active) return;
+            if (!view || !cam || MainMenu.Busy) return;
 
             DrawTopBar(w);
             DrawCameraColumn(view, cam);

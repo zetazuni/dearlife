@@ -619,6 +619,7 @@ namespace Dearlife
             GameAudio.StopAct(actSound);
             actSound = GameAudio.PlayAct(d.id, d.seconds, it.Centre);
             if (d.id == "bath" && it.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(true);
+            if ((d.id == "sleep" || d.id == "nap") && GetComponent<PersonLook>() is PersonLook look && look) look.Dress(true);   // into pyjamas
             if (d.needsTv && spot != null) { var tv = TvScreen.Facing(spot); if (tv != null && !tv.on) tv.SetOn(true, true); }
             if (d.seat) { timer = d.seconds; return; }                    // seated: TickUsing runs it
             mode = Mode.Interacting; timer = d.seconds; blend = 0f;
@@ -771,6 +772,7 @@ namespace Dearlife
             GameAudio.StopAct(actSound); actSound = null;
             ReleaseHeld();
             if (d.id == "bath" && activeIt && activeIt.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(false);
+            if ((d.id == "sleep" || d.id == "nap") && GetComponent<PersonLook>() is PersonLook look && look) look.Dress(false);
             EndShower();
             if (activeIt) activeIt.user = null;
             activeIt = null;

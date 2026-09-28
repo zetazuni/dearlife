@@ -10,7 +10,7 @@ namespace Dearlife
             var cam = Camera.main;
             if (!cam || Splash.Showing || SettingsWindow.Open) return;
             // the title screen's cinematic shots are meant to be anonymous, so names never show there regardless of the setting
-            bool showNames = Ui.ShowNames && !MainMenu.Active;
+            bool showNames = Ui.ShowNames && !MainMenu.Busy;
             Ui.Begin();
             GUI.depth = 10;      // behind every HUD panel (they draw at 0): tags belong to the world, not on top of the interface
             foreach (var c in Character.All)

@@ -42,7 +42,7 @@ namespace Dearlife
 
         void Update()
         {
-            if (MainMenu.Active) return;
+            if (MainMenu.Busy) return;
             if (Input.GetKeyDown(KeyCode.C)) { StatusOpen = !StatusOpen; GameAudio.Play(GameAudio.Sfx.Click); }
             if (StatusOpen && Input.GetKeyDown(KeyCode.Escape)) StatusOpen = false;
         }
@@ -107,7 +107,7 @@ namespace Dearlife
 
         void OnGUI()
         {
-            if (MainMenu.Active) return;
+            if (MainMenu.Busy) return;
             Ui.Begin();
             float w = Ui.W, h = Ui.H;
             var who = LiveMode.Selected;

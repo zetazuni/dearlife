@@ -55,6 +55,38 @@ SLIDERS = [
     ("age", AGE_18, "age_18"), ("age", AGE_60, "age_60"),
 ]
 
+# Face sliders for the character creator (phase 4): each end is one or more of MakeHuman's CC0 face targets (left and
+# right together), baked like the body sliders into a shape key on every mesh. (slider, low targets, high targets)
+def _lr(t):
+    return ["l-" + t, "r-" + t]
+
+
+FACE = [
+    ("faceWidth", ["head-scale-horiz-decr"], ["head-scale-horiz-incr"]),
+    ("faceLength", ["head-scale-vert-decr"], ["head-scale-vert-incr"]),
+    ("jaw", ["chin-width-decr", "chin-bones-decr"], ["chin-width-incr", "chin-bones-incr"]),
+    ("chin", ["chin-prominent-decr"], ["chin-prominent-incr"]),
+    ("cheekbones", _lr("cheek-bones-decr"), _lr("cheek-bones-incr")),
+    ("eyeSize", _lr("eye-scale-decr"), _lr("eye-scale-incr")),
+    ("eyeSpacing", _lr("eye-trans-in"), _lr("eye-trans-out")),
+    ("noseWidth", ["nose-scale-horiz-decr"], ["nose-scale-horiz-incr"]),
+    ("noseLength", ["nose-scale-vert-decr"], ["nose-scale-vert-incr"]),
+    ("lips", ["mouth-upperlip-volume-decr", "mouth-lowerlip-volume-decr"], ["mouth-upperlip-volume-incr", "mouth-lowerlip-volume-incr"]),
+    ("mouthWidth", ["mouth-scale-horiz-decr"], ["mouth-scale-horiz-incr"]),
+    ("brows", ["eyebrows-trans-down"], ["eyebrows-trans-up"]),
+    ("ears", _lr("ear-scale-decr"), _lr("ear-scale-incr")),
+]
+
+
+def set_targets(human, names, weight):
+    keys = human.data.shape_keys.key_blocks
+    for n in names:
+        if n in keys:
+            keys[n].value = weight
+        elif weight > 0.0:
+            TargetService.load_target(human, TargetService.target_full_path(n), weight=weight)
+    HumanService.refit(human)
+
 
 def select_only(o):
     bpy.ops.object.select_all(action='DESELECT')
@@ -725,6 +757,11 @@ def run():
         set_macros(human, dict(NEUTRAL, **{macro: value}))
         captured.append((key,) + capture())
     set_macros(human, NEUTRAL)
+    for name, low, high in FACE:
+        for end, targets in (("low", low), ("high", high)):
+            set_targets(human, targets, 1.0)
+            captured.append((f"{name}_{end}",) + capture())
+            set_targets(human, targets, 0.0)
 
     # the neutral body becomes the basis, every slider end a shape key on every mesh
     TargetService.bake_targets(human)
@@ -753,6 +790,8 @@ def run():
     for macro in dict.fromkeys(m for m, _, _ in SLIDERS):
         ends = [k for m, _, k in SLIDERS if m == macro]
         shape["sliders"].append({"name": macro, "low": ends[0], "high": ends[1]})
+    for name, _, _ in FACE:
+        shape["sliders"].append({"name": name, "low": name + "_low", "high": name + "_high"})
     for bone, (h0, t0) in base_bones.items():
         moves = []
         for key, _, bones in captured:

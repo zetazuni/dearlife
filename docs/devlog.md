@@ -605,3 +605,25 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   ends an activity properly first.
 - **Crash:** the editor ran out of graphics memory once (a D3D12 device error after many Play mode runs in one long
   session); restarting Unity cleared it. Nothing in the code.
+
+## Session 49: character plan phase 4, the character creator (2026-09-29) · v0.42.0
+
+- **New Game now opens "Create your household".** The people stand on the sunny deck in front of the living room in
+  the game's own light; the camera looks from the garden with the house behind. A panel on the left has five tabs:
+  **Body** (feminine to masculine, height, weight, muscle, proportions, age 18 to 60), **Face** (13 sliders), **Skin and
+  hair** (a realistic skin tone range, long, short or no hair, six hair colours that brows and lashes follow),
+  **Clothes** (T-shirt and jeans or tunic and trousers, an optional hijab, shoes, pyjamas, each piece in nine
+  colours, with a sleepwear preview) and **About** (name, three traits, career). Drag beside the person to turn them
+  round, **Face** zooms in, morning, noon, evening and night change the light. Up to four people; **Random** rolls a
+  believable adult (names match the body), **Back** returns to the title screen.
+- **Move in** saves the household in the slot (`PersonData`, `HouseholdData`, as JSON) and they take over the house:
+  Lily and James step aside, the new people live, work and chat with their own traits and careers, and change into
+  their pyjamas for bed. Load Game brings them back as made; older saves keep Lily and James. New Game wipes a created
+  household and its careers.
+- **Face sliders** come from MakeHuman's CC0 face targets, baked by `tools/blender_mpfb_body.py` like the body sliders,
+  into every mesh and every garment, so the hijab and hair follow the face. The body now has 39 shape keys; the tool
+  still runs in under two minutes.
+- **People are made from `Resources/People/Person.prefab`** (**Dearlife > Make person prefab**), which also fixed a
+  missing eye material (the eyes were plain white without it).
+- Tested in Play mode on an empty slot: New Game, two people made, Move in, both living in the house, Load Game brought
+  them back with their shapes, skin and careers.

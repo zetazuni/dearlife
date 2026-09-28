@@ -85,6 +85,18 @@ namespace Dearlife
             if (who == "Bedah") { friendship["James"] = 40f; friendship["Lily"] = 50f; }
         }
 
+        /// <summary>A person made in the character creator: their own name, traits and career, fond of the rest of the household.</summary>
+        public void SetupPerson(PersonData p, IEnumerable<string> household)
+        {
+            displayName = p.name; isPet = false;
+            traits.Clear(); traits.AddRange(p.traits);
+            job = p.job ?? "";
+            NewWish(); NewWish(); NewWish(); LoadCareer();
+            foreach (var n in household) friendship[n] = 65f;
+            friendship["Bedah"] = 45f;
+            friendship[p.name] = 100f;
+        }
+
         public bool Has(string trait) => traits.Contains(trait);
 
         // ------------------------------------------------------------ careers

@@ -182,7 +182,7 @@ namespace Dearlife
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.V) && !Splash.Showing && !MapWindow.Open && !SettingsWindow.Open && !MainMenu.Active) Toggle();
+            if (Input.GetKeyDown(KeyCode.V) && !Splash.Showing && !MapWindow.Open && !SettingsWindow.Open && !MainMenu.Busy) Toggle();
             if (!cam) cam = Camera.main;
             if (!LotManager.AtHome) UpdateCuts();
             if (!Active) return;

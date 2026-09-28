@@ -17,6 +17,11 @@ namespace Dearlife
         public static MainMenu Instance { get; private set; }
         /// <summary>Set just before a slot switch reloads the scene, so the fresh load drops straight into play instead of showing the menu again.</summary>
         static bool pendingEnter;
+        /// <summary>New Game: after the reload the character creator opens instead of play.</summary>
+        static bool pendingCreate;
+
+        /// <summary>The title screen or the character creator is up: the game's own HUD and hotkeys stay out of the way.</summary>
+        public static bool Busy => Active || CharacterCreator.IsOpen;
 
         enum Page { Title, NewSlots, LoadSlots, Settings }
         Page page = Page.Title;
@@ -42,6 +47,7 @@ namespace Dearlife
             Instance = this;
             if (pendingEnter) { pendingEnter = false; Active = false; }
             else Active = true;
+            createNow = pendingCreate; pendingCreate = false;
 
             var rnd = new System.Random(7);
             sparks = new Spark[16];
@@ -49,9 +55,13 @@ namespace Dearlife
                 sparks[i] = new Spark { x = (float)rnd.NextDouble(), y = (float)rnd.NextDouble(), phase = (float)rnd.NextDouble() * 10f, speed = 0.02f + (float)rnd.NextDouble() * 0.03f, size = 3f + (float)rnd.NextDouble() * 5f };
         }
 
+        bool createNow;
+
         void Start()
         {
             BuildShots();
+            if (createNow) CharacterCreator.Begin();          // a new game: make the household first
+            else Residents.MoveInSaved();                     // this save's own household, if it has one
             if (Active) EnterCamera();
         }
 
@@ -138,7 +148,7 @@ namespace Dearlife
         void EnterSlot(int slot, bool wipe)
         {
             SaveSystem.SetActiveSlot(slot);
-            if (wipe) SaveSystem.NewGame(slot);
+            if (wipe) { SaveSystem.NewGame(slot); pendingCreate = true; }
             pendingEnter = true;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }

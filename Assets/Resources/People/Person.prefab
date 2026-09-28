@@ -1,0 +1,163 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &3074535215074212354
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      propertyPath: m_Name
+      value: Person
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6573512192771916659}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6428369460312542280}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 269826510534689751}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8576778193714024631}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2739199671076323706}
+  m_SourcePrefab: {fileID: 100100000, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+--- !u!1 &2768474264408442707 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 8955465d9fbe2a545ae635d54077d271, type: 3}
+  m_PrefabInstance: {fileID: 3074535215074212354}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &6573512192771916659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2768474264408442707}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3d67e43fc1ea7947982854fd66b235f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dearlife.BodyShape
+  shapeData: {fileID: 4900000, guid: ede25aeb2b769004fa27ae13323a8212, type: 3}
+  values: []
+--- !u!114 &6428369460312542280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2768474264408442707}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98eefc2bc7f22b747b66bb2cf254d3f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dearlife.Eyes
+  eyeMaterial: {fileID: 2100000, guid: 82803929a71fe79469fdb487b1698f92, type: 2}
+--- !u!114 &269826510534689751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2768474264408442707}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1213dc0ca7448445a55cac1c7113e2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dearlife.Wardrobe
+  outfit: 
+--- !u!114 &8576778193714024631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2768474264408442707}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88d32e9aac12d634eab0d06059296520, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dearlife.CharacterRig
+  pet: 0
+  kind: mpfb
+  hideMaterial: 
+  pose: 0
+  walkSpeed: 1
+--- !u!114 &2739199671076323706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2768474264408442707}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 246c70f72afed514eb063dd1e1c7f913, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dearlife.PersonLook
+  data:
+    name: 
+    sliders: []
+    skin: 0.3
+    hair: hair_long
+    hairColour: {r: 0.12, g: 0.08, b: 0.06, a: 1}
+    everyday:
+    - casual
+    - shoes
+    sleep:
+    - pyjama_top
+    - pyjama_bottoms
+    colours: []
+    traits: []
+    job: 

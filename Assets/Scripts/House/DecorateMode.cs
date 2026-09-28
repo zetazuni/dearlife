@@ -108,7 +108,7 @@ namespace Dearlife
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.P) && !SettingsWindow.Open && !MainMenu.Active) Toggle();
+            if (Input.GetKeyDown(KeyCode.P) && !SettingsWindow.Open && !MainMenu.Busy) Toggle();
             bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
             if (ctrl && (Active || BuyMode.Active) && !BuildMode.Active && held == null)
             {

@@ -24,7 +24,7 @@ namespace Dearlife
         {
             "dearlife.funds", "dearlife.built", "dearlife.painted", "dearlife.bought", "dearlife.sold",
             "dearlife.layout", "dearlife.windows", "dearlife.dogs", "dearlife.hour", "dearlife.season",
-            "dearlife.tutorial", "dearlife.career.James", "dearlife.career.Lily",
+            "dearlife.tutorial", "dearlife.career.James", "dearlife.career.Lily", HouseholdData.KeyBase,
         };
 
         /// <summary>Turns a base key into the active slot's key. Every system that saves game state should read and write through this.</summary>
@@ -95,6 +95,13 @@ namespace Dearlife
         /// <summary>Wipes one slot's save (not the player's settings), leaving every other slot untouched.</summary>
         public static void NewGame(int slot)
         {
+            // the careers of a created household are saved under their own names
+            var hk = KeyFor(HouseholdData.KeyBase, slot);
+            if (PlayerPrefs.HasKey(hk))
+            {
+                var h = JsonUtility.FromJson<HouseholdData>(PlayerPrefs.GetString(hk));
+                if (h != null) foreach (var m in h.members) PlayerPrefs.DeleteKey(KeyFor("dearlife.career." + m.name, slot));
+            }
             foreach (var k in StateKeys) PlayerPrefs.DeleteKey(KeyFor(k, slot));
             PlayerPrefs.DeleteKey(KeyFor(LastSavedKeyBase, slot));
             PlayerPrefs.Save();

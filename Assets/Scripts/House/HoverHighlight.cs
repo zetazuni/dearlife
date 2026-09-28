@@ -74,7 +74,7 @@ namespace Dearlife
 
         void PickTarget(ref object key, ref System.Func<List<Renderer>> sources)
         {
-            if (MainMenu.Active || Splash.Showing || SettingsWindow.Open || BuildMode.Active) return;
+            if (MainMenu.Busy || Splash.Showing || SettingsWindow.Open || BuildMode.Active) return;
             var cam = Camera.main;
             if (!cam) return;
 

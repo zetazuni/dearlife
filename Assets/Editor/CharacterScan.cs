@@ -54,6 +54,9 @@ namespace Dearlife.EditorTools
             bodies.Add(("strong tall man", new Dictionary<string, float> { { "gender", 1f }, { "muscle", 1f }, { "height", 1f } }));
             bodies.Add(("slim older woman", new Dictionary<string, float> { { "gender", -1f }, { "weight", -1f }, { "age", 1f } }));
             bodies.Add(("heavy short man", new Dictionary<string, float> { { "gender", 1f }, { "weight", 1f }, { "height", -1f } }));
+            // the face sliders (phase 4): the hijab's opening and the hair must follow the face at its extremes
+            bodies.Add(("broad face", new Dictionary<string, float> { { "gender", -1f }, { "faceWidth", 1f }, { "jaw", 1f }, { "cheekbones", 1f }, { "ears", 1f }, { "chin", 1f } }));
+            bodies.Add(("long narrow face", new Dictionary<string, float> { { "gender", 1f }, { "faceLength", 1f }, { "faceWidth", -1f }, { "jaw", -1f }, { "brows", 1f }, { "eyeSize", 1f } }));
             foreach (var o in Wardrobe.Catalogue.outfits)
                 foreach (var (name, sliders) in bodies)
                     foreach (var p in Poses)
@@ -96,8 +99,8 @@ namespace Dearlife.EditorTools
             var w = person.GetComponent<Wardrobe>();
             if (index == 0 || cases[index - 1].outfit != c.outfit || !w.Worn.GetEnumerator().MoveNext()) w.Wear(c.outfit);
             var bs = person.GetComponent<BodyShape>();
-            foreach (var s in new[] { "gender", "weight", "muscle", "height", "proportions", "age" })
-                bs.Set(s, c.sliders.TryGetValue(s, out var v) ? v : 0f);
+            bs.values.Clear();
+            foreach (var kv in c.sliders) bs.Set(kv.Key, kv.Value);
             bs.Apply();
             var rig = person.GetComponent<CharacterRig>();
             rig.pose = (CharacterRig.Pose)System.Enum.Parse(typeof(CharacterRig.Pose), c.pose);

@@ -10,7 +10,7 @@ namespace Dearlife
 
         static readonly (string title, string text)[] Steps =
         {
-            ("Welcome home", "Click James or Lily on the Family tab (or in the house) to play as them. The little ring over their head shows who you are playing."),
+            ("Welcome home", "Click someone on the Family tab (or in the house) to play as them. The little ring over their head shows who you are playing."),
             ("Walk and do things", "Click the floor and they walk there. Click furniture, a person or the pet, or right click, for a round menu of things to do: sit, cook, swim, work out, watch TV, chat."),
             ("Needs and mood", "The bars at the bottom left are their needs: hunger, bathroom, energy, fun, friends and hygiene. Keep them happy. Press C for the full status: skills, wishes, friends."),
             ("Money", "The money at the top pays for things and comes from work (the desks), wishes that come true and selling. Bills come every few days, and nothing bad ever happens if you cannot pay them yet."),
@@ -37,7 +37,7 @@ namespace Dearlife
 
         void OnGUI()
         {
-            if (!open || Splash.Showing || MainMenu.Active) { box = Rect.zero; return; }
+            if (!open || Splash.Showing || MainMenu.Busy) { box = Rect.zero; return; }
             Ui.Begin();
             float w = Ui.W;
             float bw = 360f, bh = 190f;

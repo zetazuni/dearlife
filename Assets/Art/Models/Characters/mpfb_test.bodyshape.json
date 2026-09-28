@@ -29,6 +29,71 @@
    "name": "age",
    "low": "age_18",
    "high": "age_60"
+  },
+  {
+   "name": "faceWidth",
+   "low": "faceWidth_low",
+   "high": "faceWidth_high"
+  },
+  {
+   "name": "faceLength",
+   "low": "faceLength_low",
+   "high": "faceLength_high"
+  },
+  {
+   "name": "jaw",
+   "low": "jaw_low",
+   "high": "jaw_high"
+  },
+  {
+   "name": "chin",
+   "low": "chin_low",
+   "high": "chin_high"
+  },
+  {
+   "name": "cheekbones",
+   "low": "cheekbones_low",
+   "high": "cheekbones_high"
+  },
+  {
+   "name": "eyeSize",
+   "low": "eyeSize_low",
+   "high": "eyeSize_high"
+  },
+  {
+   "name": "eyeSpacing",
+   "low": "eyeSpacing_low",
+   "high": "eyeSpacing_high"
+  },
+  {
+   "name": "noseWidth",
+   "low": "noseWidth_low",
+   "high": "noseWidth_high"
+  },
+  {
+   "name": "noseLength",
+   "low": "noseLength_low",
+   "high": "noseLength_high"
+  },
+  {
+   "name": "lips",
+   "low": "lips_low",
+   "high": "lips_high"
+  },
+  {
+   "name": "mouthWidth",
+   "low": "mouthWidth_low",
+   "high": "mouthWidth_high"
+  },
+  {
+   "name": "brows",
+   "low": "brows_low",
+   "high": "brows_high"
+  },
+  {
+   "name": "ears",
+   "low": "ears_low",
+   "high": "ears_high"
   }
  ],
  "bones": [
@@ -3374,6 +3439,22 @@
       0.0,
       -0.005281,
       -0.016443
+     ]
+    },
+    {
+     "key": "faceLength_low",
+     "d": [
+      0.0,
+      0.0,
+      0.011
+     ]
+    },
+    {
+     "key": "faceLength_high",
+     "d": [
+      0.0,
+      0.0,
+      -0.011
      ]
     }
    ]

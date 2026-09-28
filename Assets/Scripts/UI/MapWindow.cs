@@ -26,7 +26,7 @@ namespace Dearlife
 
         void Update()
         {
-            if (Splash.Showing || SettingsWindow.Open || MainMenu.Active) return;
+            if (Splash.Showing || SettingsWindow.Open || MainMenu.Busy) return;
             if (Input.GetKeyDown(KeyCode.M)) Toggle();
             if (Open && Input.GetKeyDown(KeyCode.Escape)) Open = false;
         }

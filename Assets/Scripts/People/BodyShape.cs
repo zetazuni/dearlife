@@ -18,7 +18,11 @@ namespace Dearlife
         [System.Serializable] public class Data { public SliderData[] sliders; public BoneData[] bones; }
 
         public TextAsset shapeData;
-        [Range(-1f, 1f)] public float gender, weight, muscle, height, proportions, age;
+
+        /// <summary>A slider and where it is set, -1 to 1.</summary>
+        [System.Serializable] public struct Value { public string name; [Range(-1f, 1f)] public float value; }
+        [Tooltip("Body sliders (gender, weight, muscle, height, proportions, age) and face sliders (faceWidth, jaw, eyeSize ...), -1 to 1; anything not listed is 0")]
+        public List<Value> values = new List<Value>();
 
         Data data;
         Transform root;
@@ -30,21 +34,25 @@ namespace Dearlife
 
         public float Get(string slider)
         {
-            switch (slider)
-            {
-                case "gender": return gender; case "weight": return weight; case "muscle": return muscle;
-                case "height": return height; case "proportions": return proportions; case "age": return age;
-            }
+            foreach (var v in values) if (v.name == slider) return v.value;
             return 0f;
         }
 
         public void Set(string slider, float v)
         {
             v = Mathf.Clamp(v, -1f, 1f);
-            switch (slider)
+            for (int i = 0; i < values.Count; i++)
+                if (values[i].name == slider) { values[i] = new Value { name = slider, value = v }; return; }
+            values.Add(new Value { name = slider, value = v });
+        }
+
+        /// <summary>Every slider the shape data knows, in order (body first, then face).</summary>
+        public IEnumerable<string> Sliders
+        {
+            get
             {
-                case "gender": gender = v; break; case "weight": weight = v; break; case "muscle": muscle = v; break;
-                case "height": height = v; break; case "proportions": proportions = v; break; case "age": age = v; break;
+                if (data == null && shapeData) data = JsonUtility.FromJson<Data>(shapeData.text);
+                if (data != null) foreach (var s in data.sliders) yield return s.name;
             }
         }
 
