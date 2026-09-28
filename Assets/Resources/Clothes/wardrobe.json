@@ -1,0 +1,85 @@
+{
+ "items": [
+  {
+   "id": "casual",
+   "slot": "outfit",
+   "bit": 0,
+   "hidesHair": false
+  },
+  {
+   "id": "shoes",
+   "slot": "feet",
+   "bit": 1,
+   "hidesHair": false
+  },
+  {
+   "id": "hair_long",
+   "slot": "hair",
+   "bit": -1,
+   "hidesHair": false
+  },
+  {
+   "id": "hair_short",
+   "slot": "hair",
+   "bit": -1,
+   "hidesHair": false
+  },
+  {
+   "id": "tunic",
+   "slot": "top",
+   "bit": 2,
+   "hidesHair": false
+  },
+  {
+   "id": "trousers",
+   "slot": "bottom",
+   "bit": 3,
+   "hidesHair": false
+  },
+  {
+   "id": "hijab",
+   "slot": "head",
+   "bit": 4,
+   "hidesHair": true
+  },
+  {
+   "id": "pyjama_top",
+   "slot": "top",
+   "bit": 5,
+   "hidesHair": false
+  },
+  {
+   "id": "pyjama_bottoms",
+   "slot": "bottom",
+   "bit": 6,
+   "hidesHair": false
+  }
+ ],
+ "outfits": [
+  {
+   "name": "casual",
+   "items": [
+    "casual",
+    "shoes",
+    "hair_long"
+   ]
+  },
+  {
+   "name": "modest",
+   "items": [
+    "tunic",
+    "trousers",
+    "hijab",
+    "shoes"
+   ]
+  },
+  {
+   "name": "sleep",
+   "items": [
+    "pyjama_top",
+    "pyjama_bottoms",
+    "hair_long"
+   ]
+  }
+ ]
+}

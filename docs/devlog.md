@@ -545,3 +545,32 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   back on the raised backrest) and a row of 14 copies each playing one action pose were checked by screenshot.
 - **Not done yet:** hand IK so held props (book, mug, guitar) sit in the fingers instead of hanging off the forearm,
   foot IK on stairs, a proper guitar clip, and the crouch is a bend to pick up rather than a kneel to pat a pet.
+
+## Session 47: character plan phase 3, clothes; quieter nights; feminine women (2026-09-28 to 29) · v0.40.0
+
+- **Night crickets removed.** The night sound was a synthesized 4.3 kHz chirp in `GameAudio.cs`; it came across as a
+  distracting beep, so it is gone (wind and daytime birds stay).
+- **Women look feminine.** The test person had been shown at MakeHuman's neutral gender, halfway between male and
+  female, which gave broad shoulders and a straight waist. Women are now made at the female end of the gender slider,
+  and that end adds MakeHuman's CC0 measurement targets on top: narrower shoulders and shoulder caps, less V in the
+  torso, a smaller waist and fuller hips, seat and bust. Checked in Blender side by side and in the game.
+- **Clothes (phase 3).** MakeHuman's free clothes have no modest wear or sleepwear, so `tools/blender_mpfb_body.py`
+  now makes our own from the body's surface: a long sleeved tunic with a high-low hem, wide trousers, a hijab with a
+  smooth oval face opening that lies flat over the ears and drapes over the shoulders, and loose pyjamas. They carry
+  every body slider, so they fit any body without a run time refit. With MakeHuman's casual set, shoes and two hair
+  styles that makes the wardrobe in `Assets/Resources/Clothes` and three outfits: casual, modest and sleep.
+- **Wardrobe.** New `Wardrobe` component: wears a whole outfit or single pieces while the game runs, binds each piece
+  to the person's bones, hands it to `BodyShape` (new `AddSkin`) and hides only the skin under what is worn (the body
+  is no longer cut; a second UV channel holds a cover bit per garment). A hijab also hides the hair. Garments get a
+  double sided fabric with a woven detail map made in code (`CharacterLook.UpgradeWear`).
+- **Clipping scan.** New menu **Dearlife > Scan characters** (Play mode): 3 outfits x 17 bodies x 6 poses = 306 cases,
+  report in `Logs/character_scan.txt`. The first run passed 62. Each failure pointed at something real, which became a
+  step of the tool: garments re-take the skin weights under them, inner layers are tucked inside outer ones and follow
+  their weights, MakeHuman's clothes are lifted off and pushed out over visible skin, the hem curves up at the front
+  clear of the hip crease, the neckline dips clear of the chin, the hijab has room under the chin, and stray shape key
+  spikes are removed. The last run: **306 of 306 pass**, deepest point 4.9 mm (limit 8 mm). Body parts pressing
+  together in a pose (arm on torso, belly on thighs) are listed as contact, not counted.
+- **Cleanup:** the old per-person hair and clothes files (`mpfb_test_cut_long01`, `mpfb_test_female_casualsuit01`,
+  `mpfb_test_shoes01`) are replaced by the wardrobe.
+- **Not done yet:** tint masks so one garment comes in many colours, spring bones for loose drape, more garments
+  (skirts, abaya, outerwear), and the character creator (phase 4) that uses all of this.

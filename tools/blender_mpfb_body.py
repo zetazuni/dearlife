@@ -1,15 +1,20 @@
-"""Phase 0 of docs/CHARACTER_PLAN.md: a realistic adult test body from MPFB2 (MakeHuman for Blender, CC0 assets).
+"""Phases 0 to 3 of docs/CHARACTER_PLAN.md: a realistic adult body from MPFB2 (MakeHuman for Blender, CC0 assets) and a
+wardrobe of clothes that can be changed while the game runs.
 
 Makes a human with the game engine rig (53 bones, fingers included), eyes, brows, lashes and teeth, bakes the body
 sliders (gender, weight, muscle, height, proportions, age within adult years) into shape keys on every mesh, records
-how far each bone moves per slider (Unity moves the bones to match, see BodyShape.cs), removes MakeHuman's fitting
-helpers and exports an FBX, a .materials.json (for FurnitureImport.ImportCharacters) and a .bodyshape.json.
+how far each bone moves per slider (Unity moves the bones to match, see BodyShape.cs) and removes MakeHuman's fitting
+helpers. Clothes and hair are exported one file each into Assets/Resources/Clothes with a wardrobe.json; the body under
+each garment is not deleted but marked in a second UV channel ("hide", one bit per garment) so Wardrobe.cs can hide it
+while the garment is worn. Our own garments (tunic, wide trousers, hijab, pyjamas) are made here from the body's own
+surface, so they carry its slider shape keys and skin weights.
 
 Needs the MPFB extension enabled in Blender and the MakeHuman system asset pack loaded (see docs/PIPELINE.md).
 Run through the Blender MCP: exec(open(r"S:\\Dearlife by Zetazuni\\tools\\blender_mpfb_body.py").read())
 """
 import os, json, shutil
 import bpy
+from mathutils import Vector
 from bl_ext.s_tools.mpfb.services.humanservice import HumanService
 from bl_ext.s_tools.mpfb.services.targetservice import TargetService
 from bl_ext.s_tools.mpfb.services.locationservice import LocationService
@@ -19,9 +24,21 @@ PROJECT = r"S:\Dearlife by Zetazuni"
 OUT = os.path.join(PROJECT, "Assets", "Art", "Models", "Characters")
 NAME = "mpfb_test"
 SKIN = "young_asian_female"
+CLOTHES_OUT = os.path.join(PROJECT, "Assets", "Resources", "Clothes")
 PARTS = (("eyes", "high-poly", "Eyes"), ("eyebrows", "eyebrow001", "Eyebrows"), ("eyelashes", "eyelashes01", "Eyelashes"), ("teeth", "teeth_base", "Teeth"))
-# a first outfit and hair from MakeHuman's CC0 system pack (phase 3 brings our own clothes and run time outfit changes)
-OUTFIT = (("clothes", "female_casualsuit01", "Clothes"), ("clothes", "shoes01", "Clothes"), ("hair", "long01", "Hair"))
+# MakeHuman's own CC0 pieces: (asset folder, asset, MPFB type, our garment id, slot)
+MH_WEAR = (("clothes", "female_casualsuit01", "Clothes", "casual", "outfit"), ("clothes", "shoes01", "Clothes", "shoes", "feet"),
+           ("hair", "long01", "Hair", "hair_long", "hair"), ("hair", "short02", "Hair", "hair_short", "hair"))
+# our own garments, made from the body's surface: (id, slot, colour, region, how far out it stands in metres)
+MADE_WEAR = (("tunic", "top", (0.46, 0.55, 0.50), "top", "tunic"),
+             ("trousers", "bottom", (0.20, 0.22, 0.30), "bottom", "wide"),
+             ("hijab", "head", (0.62, 0.48, 0.50), "hijab", "hijab"),
+             ("pyjama_top", "top", (0.78, 0.74, 0.86), "top", "loose"),
+             ("pyjama_bottoms", "bottom", (0.78, 0.74, 0.86), "bottom", "loose"))
+OUTFITS = {"casual": ["casual", "shoes", "hair_long"],
+           "modest": ["tunic", "trousers", "hijab", "shoes"],
+           "sleep": ["pyjama_top", "pyjama_bottoms", "hair_long"]}
+HIDES_HAIR = {"hijab"}
 
 # MakeHuman's age slider: 0.1875 is 11 years, 0.5 is 25, 1.0 is 90. Adults only (rule 8 decisions): 18 to 60.
 AGE_18 = 0.5 - (25 - 18) / (25 - 11) * (0.5 - 0.1875)
@@ -55,7 +72,7 @@ def build():
     bpy.context.scene.MPFB_ADR_standard_rig = 'game_engine'
     bpy.context.scene.MPFB_ADR_import_weights = True
     bpy.ops.mpfb.add_standard_rig()
-    for sub, folder, kind in PARTS + OUTFIT:
+    for sub, folder, kind in PARTS + tuple((s, f, k) for s, f, k, _, _ in MH_WEAR):
         d = LocationService.get_user_data(os.path.join(sub, folder))
         f = next(os.path.join(d, n) for n in os.listdir(d) if n.endswith(".mhclo"))
         select_only(human)
@@ -77,10 +94,25 @@ def meshes():
     return _MESHES
 
 
+# MakeHuman's own female end is still broad in the shoulders and straight in the waist. On top of it, the female end of
+# our gender slider narrows the shoulders and shoulder caps, takes the V out of the torso, pulls in the waist and
+# fills out the hips, seat and bust (MakeHuman's CC0 measurement targets, faded in from the neutral middle).
+FEMININE = {"measure-shoulder-dist-decr": 0.7, "torso-vshape-decr": 0.5, "measure-waist-circ-decr": 0.8,
+            "hip-scale-horiz-incr": 0.35, "buttocks-volume-incr": 0.45, "measure-bust-circ-incr": 0.35,
+            "l-upperarm-shoulder-muscle-decr": 0.4, "r-upperarm-shoulder-muscle-decr": 0.4}
+
+
 def set_macros(human, values):
     for k, v in values.items():
         HumanObjectProperties.set_value(k, v, entity_reference=human)
     TargetService.reapply_macro_details(human)
+    fem = max(0.0, (0.5 - values.get("gender", 0.5)) / 0.5)
+    keys = human.data.shape_keys.key_blocks
+    for name, w in FEMININE.items():
+        if name in keys:
+            keys[name].value = w * fem
+        elif fem > 0.0:
+            TargetService.load_target(human, TargetService.target_full_path(name), weight=w * fem)
     HumanService.refit(human)
 
 
@@ -102,21 +134,25 @@ def capture():
     return coords, bones
 
 
-def paint_scalp(human, hair, out_file):
+def paint_scalp(human, hairs, out_file):
     """Hair cards alone leave bare skin showing at the parting. Real game characters have a hair coloured scalp painted
-    on the skin, so do the same: every body vertex within 2 cm of the hair (above the brows) gets a weight that fades out
-    from 1 cm, and those triangles are painted in the skin texture with the hair's own average colour, darkened."""
+    on the skin, so do the same: every body vertex within 2 cm of any hair style (above the brows) gets a weight that
+    fades out from 1 cm, and those triangles are painted in the skin texture with the first hair's average colour, darkened."""
     import numpy as np
     from mathutils.kdtree import KDTree
+    hair = hairs[0]
     body_mat = human.data.materials[0]
     img = next(n.image for n in body_mat.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower())
     hair_img = next(n.image for n in hair.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower())
     hp = np.array(hair_img.pixels[:], dtype=np.float32).reshape(-1, 4)
     hp = hp[hp[:, 3] > 0.8]
     hair_col = np.median(hp[:, :3], axis=0) * 0.55
-    kd = KDTree(len(hair.data.vertices))
-    for i, v in enumerate(hair.data.vertices):
-        kd.insert(hair.matrix_world @ v.co, i)
+    kd = KDTree(sum(len(hh.data.vertices) for hh in hairs))
+    i = 0
+    for hh in hairs:
+        for v in hh.data.vertices:
+            kd.insert(hh.matrix_world @ v.co, i)
+            i += 1
     kd.balance()
     weight = np.zeros(len(human.data.vertices), dtype=np.float32)
     for i, v in enumerate(human.data.vertices):
@@ -163,6 +199,522 @@ def paint_scalp(human, hair, out_file):
     return painted
 
 
+def dominant_bones(o, bones):
+    """For every vertex, the rig bone that moves it most (MakeHuman also has non bone groups such as "Left" and "lips")."""
+    names = {g.index: g.name for g in o.vertex_groups if g.name in bones}
+    out = []
+    for v in o.data.vertices:
+        best = max(((g.weight, names[g.group]) for g in v.groups if g.group in names), default=(0.0, ""))
+        out.append(best[1])
+    return out
+
+
+WRISTS = []   # hand bone heads, set by run()
+
+
+def region(kind, co, no, bone):
+    """Is this body vertex under a garment of this kind? Heights are for the neutral body (1.67 m, arms in an A pose)."""
+    z = co.z
+    arm = bone.startswith(("clavicle", "upperarm", "lowerarm"))
+    if kind == "top":            # long sleeves to just short of the wrist, crew neck, hem over the hips
+        # the cuff stops 4 cm before the wrist joint, or a bent hand would dip into it
+        if bone.startswith("lowerarm") and any((co - Vector(w)).length < 0.04 for w in WRISTS):
+            return False
+        # the crew neck dips at the front, clear of the chin when the head bends forward
+        if co.y < -0.02 and z > 1.35 and (bone in ("neck_01", "spine_03") or bone.startswith("clavicle")):
+            return False
+        if bone.startswith("spine") or arm:
+            return True
+        if bone == "neck_01":
+            return z < 1.41
+        # a high-low hem: over the seat at the back, curving up to 0.92 m at the front, clear of the hip crease when
+        # the legs bend (a hem lower there folds into the crease, under the trousers)
+        hem = 0.86 + 0.06 * min(1.0, max(0.0, (-co.y - 0.02) / 0.06))
+        return (bone == "pelvis" or bone.startswith("thigh")) and z >= hem
+    if kind == "bottom":         # waist to just above the ankle bone
+        if bone == "pelvis" or bone.startswith(("thigh", "calf")):
+            return 0.115 <= z <= 0.98
+        return bone == "spine_01" and z <= 0.98
+    if kind == "hijab":          # head, neck and shoulders, with an oval opening for the face
+        if bone == "head":
+            f = face_oval(co)
+            # the middle of the face is always open (lips and nostrils face up and down); near its edge only what faces
+            # forward is, so the fabric still passes under the chin
+            return not (co.y < -0.04 and z > 1.44 and (f < 0.75 or (f < 1.0 and no.y < -0.2 and no.z > -0.45)))
+        if bone == "neck_01":
+            return True
+        return bone.startswith(("spine_03", "clavicle", "upperarm")) and z > 1.25
+    return False
+
+
+FACE_OVAL = (0.064, 1.525, 0.090)   # half width, centre height, half height of the hijab's face opening
+
+
+def face_oval(co):
+    w, zc, h = FACE_OVAL
+    return (co[0] / w) ** 2 + ((co[2] - zc) / h) ** 2
+
+
+# (tension passes, share of the offset the fabric always keeps from the skin)
+SMOOTHING = {"tunic": (100, 0.7), "loose": (100, 0.7), "wide": (60, 0.7), "loose_bottom": (60, 0.7), "hijab": (120, 0.6)}
+
+
+def offset(style, co, no, bone):
+    """How far the fabric stands off the skin, in metres."""
+    z = co.z
+    if style in ("tunic", "loose") and not (bone.startswith("thigh") or bone == "pelvis"):
+        base = 0.012 if style == "tunic" else 0.018
+        if bone.startswith("lowerarm"):
+            base += 0.004
+        return base
+    if style in ("tunic", "loose"):     # the hem, over the hips and outside the trousers' waist
+        return 0.020 if style == "tunic" else 0.024
+    if style in ("wide", "loose_bottom"):
+        t = min(1.0, max(0.0, (0.95 - z) / 0.85))
+        off = (0.010 + 0.030 * t) if style == "wide" else (0.012 + 0.016 * t)
+        # the inner thighs nearly touch: keep the fabric there close, or the two legs would meet
+        if z > 0.55 and co.x * no.x < 0 and abs(no.x) > 0.3:
+            off = min(off, 0.008)
+        return off
+    if style == "hijab":
+        import math
+        # a little fullness at the back of the head, where the hair is gathered under the scarf
+        bun = 0.014 * math.exp(-((z - 1.56) / 0.05) ** 2) if co.y > 0.0 else 0.0
+        # room under the chin and at the throat, where the chin comes down when the head bends forward
+        throat = 0.014 if (co.y < -0.02 and 1.37 < z < 1.47) else 0.0
+        if z > 1.45:
+            return 0.016 + bun + throat
+        # and at the front of the shoulders, where a raised arm lifts the sleeve under the drape
+        front_shoulder = 0.008 if (co.y < -0.04 and abs(co.x) > 0.12 and z < 1.32) else 0.0
+        return 0.016 + bun + throat + front_shoulder + 0.020 * min(1.0, (1.45 - z) / 0.12)
+    return 0.01
+
+
+def tri_normals(co, tris):
+    import numpy as np
+    a, b, c = co[tris[:, 0]], co[tris[:, 1]], co[tris[:, 2]]
+    fn = np.cross(b - a, c - a)
+    vn = np.zeros_like(co)
+    for k in range(3):
+        np.add.at(vn, tris[:, k], fn)
+    return vn / np.maximum(np.linalg.norm(vn, axis=1, keepdims=True), 1e-9)
+
+
+def neighbour_mean(co, e0, e1, deg):
+    import numpy as np
+    s = np.zeros_like(co)
+    np.add.at(s, e0, co[e1])
+    np.add.at(s, e1, co[e0])
+    return s / np.maximum(deg, 1)[:, None]
+
+
+def make_garment(human, gid, colour, kind, style, bones):
+    """A copy of the body faces under the garment, with the body's slider shape keys and skin weights, subdivided once
+    and pushed outward along each shape's own normals so the fabric follows every body shape. Returns the object and
+    the body vertices it covers."""
+    import numpy as np
+    dom = dominant_bones(human, bones)
+    inside = [region(kind, v.co, v.normal, dom[v.index]) for v in human.data.vertices]
+    # a stray vertex or two left out of the region would be a hole in the fabric: fill any small uncovered island
+    links = [[] for _ in inside]
+    for e in human.data.edges:
+        a, b = e.vertices
+        links[a].append(b)
+        links[b].append(a)
+    seen = [False] * len(inside)
+    for start in range(len(inside)):
+        if inside[start] or seen[start]:
+            continue
+        island, stack = [], [start]
+        seen[start] = True
+        while stack:
+            i = stack.pop()
+            island.append(i)
+            for j in links[i]:
+                if not inside[j] and not seen[j]:
+                    seen[j] = True
+                    stack.append(j)
+        if len(island) < 40:
+            for i in island:
+                inside[i] = True
+    # vertices whose every neighbour is also under the garment: only those hide the body, so a ring of skin stays
+    # under the hem and cuffs and no gap shows between skin and fabric
+    covered = list(inside)
+    for e in human.data.edges:
+        a, b = e.vertices
+        if inside[a] != inside[b]:
+            covered[a] = covered[b] = False
+    if kind == "hijab":   # the face edge is later slid onto the true oval: keep one more ring of skin round the face
+        edge = [not c for c in covered]
+        for e in human.data.edges:
+            a, b = e.vertices
+            if human.data.vertices[a].co.z > 1.40 and (edge[a] or edge[b]):
+                covered[a] = covered[b] = False
+    g = human.copy()
+    g.data = human.data.copy()
+    g.name = gid
+    bpy.context.collection.objects.link(g)
+    for m in list(g.modifiers):
+        if m.type != 'ARMATURE':
+            g.modifiers.remove(m)
+    select_only(g)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for v in g.data.vertices:
+        v.select = not inside[v.index]
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.delete(type='VERT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.subdivide(number_cuts=1, smoothness=0.0)   # shape keys and weights are carried to the new vertices
+    bpy.ops.object.mode_set(mode='OBJECT')
+    me = g.data
+    n = len(me.vertices)
+    me.calc_loop_triangles()
+    tris = np.array([t.vertices[:] for t in me.loop_triangles], dtype=np.int64)
+    ev = np.array([e.vertices[:] for e in me.edges], dtype=np.int64)
+    deg = np.bincount(ev.ravel(), minlength=n).astype(np.float64)
+    counts = {}
+    for p in me.polygons:
+        for ek in p.edge_keys:
+            counts[ek] = counts.get(ek, 0) + 1
+    border = np.array([ek for ek, c in counts.items() if c == 1], dtype=np.int64).reshape(-1, 2)
+    on_border = np.zeros(n, dtype=bool)
+    on_border[border.ravel()] = True
+    bdeg = np.bincount(border.ravel(), minlength=n).astype(np.float64)
+    ring = np.full(n, 99)                  # edges away from the garment's edge
+    ring[on_border] = 0
+    for r in range(1, 8):
+        near = np.zeros(n, dtype=bool)
+        prev = ring == r - 1
+        near[ev[:, 1][prev[ev[:, 0]]]] = True
+        near[ev[:, 0][prev[ev[:, 1]]]] = True
+        ring[near & (ring == 99)] = r
+    # small shapes fabric bridges over instead of following: ears under a hijab, nipples under a top, the crotch and
+    # the cleft of the seat under trousers. They become a membrane stretched over them (the body under is hidden).
+    flat = np.zeros(n, dtype=bool)
+    snap = np.zeros((n, 3))
+    groups = {"hijab": ("ears",), "tunic": ("nipple", "nippleTip"), "loose": ("nipple", "nippleTip")}.get(style, ())
+    gids = {g.vertex_groups[x].index for x in groups if x in g.vertex_groups}
+    for v in me.vertices:
+        flat[v.index] = any(x.group in gids and x.weight > 0.1 for x in v.groups)
+        if style in ("wide", "loose_bottom") and abs(v.co.x) < 0.05 and 0.70 < v.co.z < 0.87:
+            flat[v.index] = True
+        if style in ("tunic", "loose") and abs(v.co.x) < 0.05 and v.co.y > 0.02 and v.co.z < 0.95:
+            flat[v.index] = True     # the top of the seat's cleft, bridged like the trousers under it
+    if flat.any():
+        for _ in range(2 if style in ("wide", "loose_bottom") else 5):   # and a little around them
+            grow = flat.copy()
+            grow[ev[:, 1][flat[ev[:, 0]]]] = True
+            grow[ev[:, 0][flat[ev[:, 1]]]] = True
+            flat = grow
+    flat &= ~on_border
+    flat &= ring >= 6    # never next to an edge: by the hijab's face opening the skin shows, and fabric must stay over it
+    if style == "hijab":
+        # the face opening follows the mesh's quads in steps: slide its edge onto the true oval
+        for v in me.vertices:
+            if on_border[v.index] and v.co.z > 1.40 and v.co.y < -0.02:
+                f = face_oval(v.co)
+                if f > 1.0:
+                    k = 1.0 / f ** 0.5
+                    w, zc, h = FACE_OVAL
+                    snap[v.index] = (v.co.x * k - v.co.x, 0.0, (zc + (v.co.z - zc) * k) - v.co.z)
+    gdom = dominant_bones(g, bones)
+    basis = np.array([v.co[:] for v in me.vertices])
+    bn = tri_normals(basis, tris)
+    from mathutils import Vector
+    offs = np.array([offset(style, Vector(basis[i]), Vector(bn[i]), gdom[i]) for i in range(n)])
+    if style == "hijab":   # the face opening wraps close around the face, like an underscarf
+        face_edge = np.array([gdom[i] == "head" for i in range(n)]) & (ring < 6)
+        offs = np.where(face_edge, offs * (0.15 + 0.85 * ring / 6.0), offs)
+    passes, keep = SMOOTHING[style]
+    for kb in me.shape_keys.key_blocks:
+        skin = np.empty(n * 3)
+        kb.data.foreach_get("co", skin)
+        skin = skin.reshape(n, 3) + snap
+        # the skin the fabric is laid on has no ears, nipples or crotch: those parts become a membrane over the hollow
+        for _ in range(60 if flat.any() else 0):
+            skin = np.where(flat[:, None], neighbour_mean(skin, ev[:, 0], ev[:, 1], deg), skin)
+        nrm = tri_normals(skin, tris)
+        co = skin + nrm * offs[:, None]
+        # cloth under tension: each pass pulls every vertex towards its neighbours (a stretched membrane bridges the
+        # hollows: under the bust, the navel, the spine, the neck) and then pushes it back out to its least distance
+        # from the skin. Edge vertices only follow the edge, which rounds off the stepped hems.
+        lowest = offs * keep
+        for _ in range(passes):
+            move = neighbour_mean(co, ev[:, 0], ev[:, 1], deg) - co
+            if len(border):
+                bmove = neighbour_mean(co, border[:, 0], border[:, 1], bdeg) - co
+                move = np.where(on_border[:, None], bmove, move)
+            co = co + 0.5 * move
+            s = ((co - skin) * nrm).sum(axis=1)
+            co = co + nrm * np.maximum(0.0, lowest - s)[:, None]
+        kb.data.foreach_set("co", co.ravel())
+        if kb == me.shape_keys.key_blocks[0]:
+            me.vertices.foreach_set("co", co.ravel())
+    me.update()
+    despike(g)
+    rebind_weights(g, human, bones)
+    me.materials.clear()
+    mat = bpy.data.materials.new("cloth_" + gid)
+    mat.diffuse_color = (*colour, 1.0)
+    me.materials.append(mat)
+    for p in me.polygons:
+        p.material_index = 0
+    return g, covered
+
+
+LAYER = {"feet": 0, "bottom": 1, "top": 2, "outfit": 2, "head": 3}
+
+
+def clash(a, b):
+    return {a, b} in ({"outfit", "top"}, {"outfit", "bottom"})
+
+
+def despike(o, limit=0.01):
+    """In every shape key, a vertex whose change from the basis strays more than limit from its neighbours' changes
+    (a stray spike from the smoothing in a hollow) takes their average change instead."""
+    import numpy as np
+    me = o.data
+    n = len(me.vertices)
+    ev = np.array([e.vertices[:] for e in me.edges], dtype=np.int64)
+    deg = np.bincount(ev.ravel(), minlength=n).astype(np.float64)
+    keys = me.shape_keys.key_blocks
+    base = np.empty(n * 3); keys[0].data.foreach_get("co", base); base = base.reshape(n, 3)
+    fixed = 0
+    for kb in keys[1:]:
+        co = np.empty(n * 3); kb.data.foreach_get("co", co); co = co.reshape(n, 3)
+        for _ in range(2):
+            d = co - base
+            avg = neighbour_mean(d, ev[:, 0], ev[:, 1], deg)
+            bad = np.linalg.norm(d - avg, axis=1) > limit
+            fixed += int(bad.sum())
+            co = np.where(bad[:, None], base + avg, co)
+        kb.data.foreach_set("co", co.ravel())
+    if fixed:
+        print(f"despike {o.name}: {fixed}")
+
+
+def rebind_weights(g, human, bones):
+    """Smoothing slides garment vertices over the skin, but each kept the skin weights of the body point it was copied
+    from; two layers at one spot would then follow slightly different bones and cross when a joint bends. Every garment
+    vertex takes the weights of the body point right under it now (interpolated over that body face)."""
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    body = human.data
+    bvh = BVHTree.FromPolygons([v.co for v in body.vertices], [tuple(p.vertices) for p in body.polygons])
+    names = {grp.index: grp.name for grp in human.vertex_groups if grp.name in bones}
+    bw = [{names[x.group]: x.weight for x in v.groups if x.group in names} for v in body.vertices]
+    dst = {name: g.vertex_groups.get(name) or g.vertex_groups.new(name=name) for name in names.values()}
+    everyone = list(range(len(g.data.vertices)))
+    for grp in dst.values():
+        grp.remove(everyone)
+    for v in g.data.vertices:
+        loc, nor, idx, d = bvh.find_nearest(v.co)
+        if loc is None:
+            continue
+        poly = body.polygons[idx].vertices
+        f = poly_3d_calc([body.vertices[i].co for i in poly], loc)
+        mix = {}
+        for i, fw in zip(poly, f):
+            for name, w in bw[i].items():
+                mix[name] = mix.get(name, 0.0) + w * fw
+        total = sum(mix.values()) or 1.0
+        for name, w in mix.items():
+            if w / total > 0.001:
+                dst[name].add([v.index], w / total, 'REPLACE')
+
+
+def cover_under(human, o, delete_cov):
+    """MakeHuman's delete groups are cautious (the armpits and the collar of a T shirt stay), so a body vertex also counts
+    as covered when the garment lies right over it: its nearest garment vertex is within 2.5 cm, not on the garment's
+    edge, and outside the skin. MakeHuman's garments hug the skin at their edges, so no ring of skin is kept under them
+    (it would show through the fabric there)."""
+    import bmesh
+    from mathutils.kdtree import KDTree
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    edge = {v.index for v in bm.verts if v.is_boundary}
+    bm.free()
+    kd = KDTree(len(o.data.vertices))
+    for v in o.data.vertices:
+        kd.insert(v.co, v.index)
+    kd.balance()
+    inside = []
+    for v in human.data.vertices:
+        co, i, d = kd.find(v.co)
+        near = d < 0.025 and i not in edge and (co - v.co).dot(v.normal) > -0.003
+        inside.append(near or bool(delete_cov and delete_cov[v.index]))
+    return inside
+
+
+def stand_off(o, base=0.0015, edge=0.004, rings=3):
+    """MakeHuman's garments lie right on the skin; a bent neck or shoulder then pushes skin through a collar or a
+    sleeve's end. Lift them a little off the skin, more at their edges, in every shape key."""
+    import numpy as np, bmesh
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    n = len(bm.verts)
+    ring = np.full(n, 99)
+    for v in bm.verts:
+        if v.is_boundary:
+            ring[v.index] = 0
+    for r in range(1, rings + 1):
+        for e in bm.edges:
+            a, b = e.verts[0].index, e.verts[1].index
+            if ring[a] == r - 1 and ring[b] > r:
+                ring[b] = r
+            if ring[b] == r - 1 and ring[a] > r:
+                ring[a] = r
+    bm.free()
+    lift = np.where(ring <= rings, edge - (edge - base) * ring / rings, base)
+    o.data.calc_loop_triangles()
+    tris = np.array([t.vertices[:] for t in o.data.loop_triangles], dtype=np.int64)
+    for kb in o.data.shape_keys.key_blocks:
+        co = np.empty(n * 3); kb.data.foreach_get("co", co); co = co.reshape(n, 3)
+        co = co + tri_normals(co, tris) * lift[:, None]
+        kb.data.foreach_set("co", co.ravel())
+        if kb == o.data.shape_keys.key_blocks[0]:
+            o.data.vertices.foreach_set("co", co.ravel())
+    o.data.update()
+
+
+def fit_over_skin(o, human, cov, clearance=0.005):
+    """Wherever a garment lies under skin that stays visible while it is worn (a tight sleeve end, a collar), push it
+    out over the skin, in every shape key, with the push smoothed so the hem stays a clean line."""
+    import numpy as np
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    n = len(o.data.vertices)
+    o.data.calc_loop_triangles()
+    tris = np.array([t.vertices[:] for t in o.data.loop_triangles], dtype=np.int64)
+    ev = np.array([e.vertices[:] for e in o.data.edges], dtype=np.int64)
+    deg = np.bincount(ev.ravel(), minlength=n).astype(np.float64)
+    polys = [tuple(p.vertices) for p in human.data.polygons if not all(cov[v] for v in p.vertices)]
+    moved = 0
+    for kb in o.data.shape_keys.key_blocks:
+        bk = human.data.shape_keys.key_blocks.get(kb.name)
+        if bk is None:
+            continue
+        bodyco = [d.co.copy() for d in bk.data]
+        bvh = BVHTree.FromPolygons(bodyco, polys)
+        co = np.empty(n * 3); kb.data.foreach_get("co", co); co = co.reshape(n, 3)
+        gn = tri_normals(co, tris)
+        push = np.zeros((n, 3))
+        for i in range(n):
+            loc, nor, idx, d = bvh.find_nearest(Vector(co[i]), 0.03)
+            if loc is None or Vector(gn[i]).dot(nor) <= 0.0:
+                continue
+            along = (Vector(co[i]) - loc).dot(nor)
+            if along < clearance:
+                push[i] = np.array(nor) * (clearance - along)
+                moved += 1
+        for _ in range(3):
+            avg = neighbour_mean(push, ev[:, 0], ev[:, 1], deg)
+            mag, amag = np.linalg.norm(push, axis=1), np.linalg.norm(avg, axis=1)
+            push = np.where((amag > mag)[:, None], 0.5 * (push + avg), push)
+        co = co + push
+        kb.data.foreach_set("co", co.ravel())
+        if kb == o.data.shape_keys.key_blocks[0]:
+            o.data.vertices.foreach_set("co", co.ravel())
+    o.data.update()
+    print(f"fit_over_skin {o.name}: {moved} moves")
+
+
+def layer_fit(inner, outer, margin=0.008, move_outer=False):
+    """Pulls the inner garment in wherever it is not at least margin inside the outer one, in every shape key (measured
+    against the outer garment's exact surface). With move_outer the outer one is pushed out instead (a trouser hem goes
+    round a shoe, the shoe is not squeezed)."""
+    import numpy as np
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    n_in, n_out = len(inner.data.vertices), len(outer.data.vertices)
+    polys = [tuple(p.vertices) for p in outer.data.polygons]
+    moved = 0
+    for kb in inner.data.shape_keys.key_blocks:
+        ok = outer.data.shape_keys.key_blocks.get(kb.name)
+        if ok is None:
+            continue
+        p = np.empty(n_in * 3); kb.data.foreach_get("co", p); p = p.reshape(n_in, 3)
+        q = np.empty(n_out * 3); ok.data.foreach_get("co", q); q = q.reshape(n_out, 3)
+        bvh = BVHTree.FromPolygons([Vector(x) for x in q], polys)
+        push = np.zeros(n_out)
+        for i in range(n_in):
+            loc, nor, idx, d = bvh.find_nearest(Vector(p[i]), 0.03)
+            if loc is None:
+                continue
+            off = Vector(p[i]) - loc
+            along = off.dot(nor)
+            # only where the outer layer lies over this spot, not beside its edge
+            if (off - nor * along).length > abs(along) * 1.5 + 0.01:
+                continue
+            if along > -margin:
+                if move_outer:
+                    for j in polys[idx]:
+                        push[j] = max(push[j], along + margin)
+                else:
+                    p[i] -= np.array(nor) * (along + margin)
+                moved += 1
+        if move_outer:
+            q += tri_normals_poly(q, polys) * push[:, None]
+            ok.data.foreach_set("co", q.ravel())
+            if ok == outer.data.shape_keys.key_blocks[0]:
+                outer.data.vertices.foreach_set("co", q.ravel())
+        else:
+            kb.data.foreach_set("co", p.ravel())
+            if kb == inner.data.shape_keys.key_blocks[0]:
+                inner.data.vertices.foreach_set("co", p.ravel())
+    inner.data.update()
+    outer.data.update()
+    despike(outer if move_outer else inner)
+    if not move_outer:
+        follow_weights(inner, outer)
+    print(f"layer_fit {inner.name} under {outer.name}: {moved} moves")
+
+
+def follow_weights(inner, outer, reach=0.04):
+    """Where one garment lies under another, it takes the other's skin weights at that spot, so both bend exactly alike
+    and a bent hip or shoulder cannot fold the outer layer in through the inner one."""
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    od = outer.data
+    bvh = BVHTree.FromPolygons([v.co for v in od.vertices], [tuple(p.vertices) for p in od.polygons])
+    groups = {grp.index: grp.name for grp in outer.vertex_groups}
+    ow = [{groups[x.group]: x.weight for x in v.groups} for v in od.vertices]
+    bones = {b.name for b in bpy.data.objects["Human.rig"].data.bones}
+    for v in inner.data.vertices:
+        loc, nor, idx, d = bvh.find_nearest(v.co, reach)
+        if loc is None:
+            continue
+        off = v.co - loc
+        along = off.dot(nor)
+        if along > 0 or (off - nor * along).length > abs(along) * 1.5 + 0.01:
+            continue   # not under the outer layer
+        poly = od.polygons[idx].vertices
+        f = poly_3d_calc([od.vertices[i].co for i in poly], loc)
+        mix = {}
+        for i, fw in zip(poly, f):
+            for name, w in ow[i].items():
+                if name in bones:
+                    mix[name] = mix.get(name, 0.0) + w * fw
+        total = sum(mix.values())
+        if total <= 0:
+            continue
+        for grp in inner.vertex_groups:
+            if grp.name in bones:
+                grp.remove([v.index])
+        for name, w in mix.items():
+            if w / total > 0.001:
+                grp = inner.vertex_groups.get(name) or inner.vertex_groups.new(name=name)
+                grp.add([v.index], w / total, 'REPLACE')
+
+
+def tri_normals_poly(co, polys):
+    import numpy as np
+    tris = np.array([(pp[0], pp[k], pp[k + 1]) for pp in polys for k in range(1, len(pp) - 1)], dtype=np.int64)
+    return tri_normals(co, tris)
+
+
 def run():
     _MESHES.clear()
     human = build()
@@ -190,9 +742,10 @@ def run():
 
     # our own skin texture: MakeHuman's with a hair coloured scalp under the hair
     os.makedirs(OUT, exist_ok=True)
-    hair = next((o for o in meshes() if any(o.name.endswith(h) for h in ("long01", "short01", "short02", "short03", "short04", "bob01", "bob02", "braid01", "ponytail01", "afro01"))), None)
+    hair_names = [f for s, f, k, _, _ in MH_WEAR if k == "Hair"]
+    hairs = [o for o in meshes() if any(o.name.endswith(h) for h in hair_names)]
     skin_file = os.path.join(OUT, f"{NAME}_body.png")
-    scalp = paint_scalp(human, hair, skin_file) if hair else 0
+    scalp = paint_scalp(human, hairs, skin_file) if hairs else 0
 
     # bone movement per slider, in Blender rig space (BodyShape.cs turns it into Unity space)
     # lists, not dictionaries, so Unity's JsonUtility can read it
@@ -209,65 +762,138 @@ def run():
                 moves.append({"key": key, "d": [round(x, 6) for x in d]})
         shape["bones"].append({"name": bone, "head": [round(x, 6) for x in h0], "moves": moves})
 
-    # MakeHuman's fitting helpers (eye, teeth, skirt and tights stand-ins) are not part of the body, and the body under the
-    # clothes is never seen (its delete groups); shape keys survive deletion. Phase 3 hides covered faces at run time instead.
+    # MakeHuman's fitting helpers (eye, teeth, skirt and tights stand-ins) are not part of the body; shape keys survive
+    # deletion. The body under clothes stays: Wardrobe.cs hides it only while something covers it.
     select_only(human)
     keep = human.vertex_groups["body"].index
-    hidden = {g.index for g in human.vertex_groups if g.name.startswith("Delete.")}
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
     for v in human.data.vertices:
-        groups = {g.group for g in v.groups if g.weight > 0.5}
-        v.select = keep not in groups or bool(groups & hidden)
+        v.select = not any(g.group == keep and g.weight > 0.5 for g in v.groups)
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.delete(type='VERT')
     bpy.ops.object.mode_set(mode='OBJECT')
     for o in meshes():
         for m in list(o.modifiers):
-            if m.type in ('MASK', 'SUBSURF'):   # masks are done by the deletion above
+            if m.type in ('MASK', 'SUBSURF'):
                 o.modifiers.remove(m)
 
+    # the wardrobe: MakeHuman's pieces cover the body in their delete groups, ours where they were cut from it
+    bones = set(base_bones)
+    rig = bpy.data.objects["Human.rig"]
+    WRISTS[:] = [tuple(rig.data.bones[h].head_local) for h in ("hand_l", "hand_r")]
+    wear = []          # (id, slot, object, covered vertex flags or None)
+    for sub, folder, kind, gid, slot in MH_WEAR:
+        o = next(o for o in meshes() if o.name.endswith(folder))
+        grp = human.vertex_groups.get("Delete." + folder)
+        cov = None
+        if grp:
+            cov = [any(g.group == grp.index and g.weight > 0.5 for g in v.groups) for v in human.data.vertices]
+        if slot != "hair":
+            cov = cover_under(human, o, cov)
+            stand_off(o)
+            fit_over_skin(o, human, cov)
+        wear.append((gid, slot, o, cov))
+    for gid, slot, colour, kind, style in MADE_WEAR:
+        g, cov = make_garment(human, gid, colour, kind, "loose_bottom" if (style == "loose" and kind == "bottom") else style, bones)
+        wear.append((gid, slot, g, cov))
+    # inner layers stay inside outer ones in every body shape: the tunic under the hijab, trousers under the tunic's hem,
+    # shoes under a trouser hem. Outermost first, so a piece already tucked in is where the next one is fitted to.
+    order = sorted(((a, b) for a in wear for b in wear
+                    if a[1] in LAYER and b[1] in LAYER and LAYER[a[1]] < LAYER[b[1]] and not clash(a[1], b[1])),
+                   key=lambda ab: -LAYER[ab[0][1]])
+    for a, b in order:
+        # a trouser waist sits well inside a top's hem: bending at the hips folds the hem into the crease
+        layer_fit(a[2], b[2], margin=0.018 if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
+    bits = {}
+    for gid, _, _, cov in wear:
+        if cov and any(cov):
+            bits[gid] = len(bits)
+    mask = [0] * len(human.data.vertices)
+    for gid, _, _, cov in wear:
+        if gid in bits:
+            for i, c in enumerate(cov):
+                if c:
+                    mask[i] |= 1 << bits[gid]
+    hide = human.data.uv_layers.new(name="hide")    # Unity reads it as mesh.uv2 (channel 1): u is the garment bit mask
+    for loop in human.data.loops:
+        hide.data[loop.index].uv = (float(mask[loop.vertex_index]), 0.0)
+    human.data.uv_layers.active_index = 0
+    for l in human.data.uv_layers:
+        l.active_render = l.name != "hide"
+    human.data.uv_layers[0].active_render = True
+
+    # every shape key starts at 0 (MakeHuman's bake leaves them at 1, and the FBX carries that as a starting weight)
+    for o in set(meshes()) | {w[2] for w in wear}:
+        for kb in o.data.shape_keys.key_blocks[1:]:
+            kb.value = 0.0
+
     # readable names, then the files
+    wear_objs = {id(o) for _, _, o, _ in wear}
+    body_parts = [o for o in meshes() if id(o) not in wear_objs]
     rename = {"Human": "body"}
-    for o in meshes():
+    for o in body_parts:
         part = rename.get(o.name, o.name.replace("Human.", ""))
         o.name = f"{NAME}_{part}"
+    for gid, _, o, _ in wear:
+        o.name = gid
     rig = bpy.data.objects["Human.rig"]
     rig.name = NAME
     os.makedirs(OUT, exist_ok=True)
-    info = {}
-    for o in meshes():
-        for m in o.data.materials:
-            if not m or m.name in info:
-                continue
-            part = o.name.replace(NAME + "_", "")
-            # hair, brows and lashes are cards with see-through gaps: FurnitureImport gives "cut_" materials alpha clipping
-            m.name = ("cut_" + part) if any(part.startswith(p) for p in ("eyebrow", "eyelashes", "long", "short", "bob", "braid", "ponytail", "afro")) else part
-            img = None
-            if m.use_nodes:
-                img = next((n.image for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower()), None)
-            fn = None
-            if part == "body" and scalp:
-                fn = os.path.basename(skin_file)          # already written by paint_scalp
-            elif img:
-                src = bpy.path.abspath(img.filepath)
-                fn = f"{NAME}_{m.name}{os.path.splitext(src)[1]}"
-                shutil.copyfile(src, os.path.join(OUT, fn))
-            info[m.name] = {"texture": fn, "color": [0.8, 0.8, 0.8]}
+    os.makedirs(CLOTHES_OUT, exist_ok=True)
+
+    def material_info(objs, folder, prefix, part_of):
+        info = {}
+        for o in objs:
+            for m in o.data.materials:
+                if not m or m.name in info:
+                    continue
+                part = part_of(o)
+                if m.name.startswith("cloth_"):      # ours: a plain fabric colour, CharacterLook adds the weave
+                    info[m.name] = {"texture": None, "color": list(m.diffuse_color[:3])}
+                    continue
+                # hair, brows and lashes are cards with see-through gaps: CharacterLook gives "cut_" materials alpha clipping
+                m.name = ("cut_" + part) if any(part.startswith(p) for p in ("eyebrow", "eyelashes", "hair_")) else part
+                img = None
+                if m.use_nodes:
+                    img = next((n.image for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower()), None)
+                fn = None
+                if part == "body" and scalp:
+                    fn = os.path.basename(skin_file)          # already written by paint_scalp
+                elif img:
+                    src = bpy.path.abspath(img.filepath)
+                    fn = f"{prefix}{m.name}{os.path.splitext(src)[1]}"
+                    shutil.copyfile(src, os.path.join(folder, fn))
+                info[m.name] = {"texture": fn, "color": [0.8, 0.8, 0.8]}
+        return info
+
+    def export(objs, path):
+        bpy.ops.object.select_all(action='DESELECT')
+        rig.select_set(True)
+        for o in objs:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = rig
+        bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={'ARMATURE', 'MESH'},
+                                 axis_forward='-Z', axis_up='Y', apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL',
+                                 bake_space_transform=True, use_mesh_modifiers=False, mesh_smooth_type='FACE', add_leaf_bones=False,
+                                 bake_anim=False, path_mode='STRIP', embed_textures=False)   # textures come from the .materials.json
+
+    info = material_info(body_parts, OUT, NAME + "_", lambda o: o.name.replace(NAME + "_", ""))
     json.dump(info, open(os.path.join(OUT, NAME + ".materials.json"), "w"), indent=1)
     json.dump(shape, open(os.path.join(OUT, NAME + ".bodyshape.json"), "w"), indent=1)
+    export(body_parts, os.path.join(OUT, NAME + ".fbx"))
 
-    bpy.ops.object.select_all(action='DESELECT')
-    rig.select_set(True)
-    for o in meshes():
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = rig
-    bpy.ops.export_scene.fbx(filepath=os.path.join(OUT, NAME + ".fbx"), use_selection=True, object_types={'ARMATURE', 'MESH'},
-                             axis_forward='-Z', axis_up='Y', apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL',
-                             bake_space_transform=True, use_mesh_modifiers=False, mesh_smooth_type='FACE', add_leaf_bones=False,
-                             bake_anim=False, path_mode='STRIP', embed_textures=False)   # textures come from the .materials.json
-    return {o.name: (len(o.data.vertices), len(o.data.shape_keys.key_blocks)) for o in meshes()}
+    manifest = {"items": [], "outfits": []}
+    for gid, slot, o, _ in wear:
+        info = material_info([o], CLOTHES_OUT, "", lambda o: o.name)
+        json.dump(info, open(os.path.join(CLOTHES_OUT, gid + ".materials.json"), "w"), indent=1)
+        export([o], os.path.join(CLOTHES_OUT, gid + ".fbx"))
+        manifest["items"].append({"id": gid, "slot": slot, "bit": bits.get(gid, -1), "hidesHair": gid in HIDES_HAIR})
+    for name, items in OUTFITS.items():
+        manifest["outfits"].append({"name": name, "items": items})
+    json.dump(manifest, open(os.path.join(CLOTHES_OUT, "wardrobe.json"), "w"), indent=1)
+    return {o.name: (len(o.data.vertices), len(o.data.shape_keys.key_blocks)) for o in body_parts + [w[2] for w in wear]}, bits
 
 
 print(run())

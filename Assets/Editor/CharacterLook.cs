@@ -34,6 +34,76 @@ namespace Dearlife.EditorTools
             return false;
         }
 
+        public const string ClothesDir = "Assets/Resources/Clothes";
+        public const string ClothesMatDir = "Assets/Art/Materials/Clothes";
+        public const string WeaveMap = TexDir + "/fabric_weave_detail.png";
+
+        /// <summary>
+        /// Materials of the wardrobe (Assets/Resources/Clothes): hair styles ("cut_") get the hair shader, our own garments
+        /// ("cloth_") a soft fabric with a woven detail map, MakeHuman's textured clothes the same fabric finish on their
+        /// own texture. All are double sided, since the inside of a sleeve or a hem can be seen.
+        /// </summary>
+        public static bool UpgradeWear(Material mat, string part, Texture2D baseMap)
+        {
+            if (part.StartsWith("cut_")) { Hair(mat, baseMap, false); return true; }
+            var weave = AssetDatabase.LoadAssetAtPath<Texture2D>(MakeWeaveMap());
+            mat.SetFloat("_Smoothness", part.StartsWith("shoes") ? 0.45f : 0.22f);
+            mat.SetFloat("_Metallic", 0f);
+            mat.SetTexture("_DetailMap", weave);
+            mat.SetTextureScale("_DetailMap", new Vector2(60f, 60f));   // body UVs span about 1.7 m: a fine weave
+            mat.SetFloat("_DetailAlbedoScale", 0.6f);
+            mat.SetFloat("_DetailNormalScale", 0.7f);
+            mat.SetFloat("_DetailSmoothnessScale", 0.5f);
+            mat.SetFloat("_DoubleSidedEnable", 1f);
+            mat.SetFloat("_DoubleSidedNormalMode", 1f);   // mirror: the inside is lit like the outside
+            mat.EnableKeyword("_DETAIL_MAP");
+            HDMaterial.ValidateMaterial(mat);
+            return true;
+        }
+
+        /// <summary>A seamless 256 px woven cloth detail map (plain weave of soft threads), HDRP detail layout.</summary>
+        public static string MakeWeaveMap()
+        {
+            if (File.Exists(WeaveMap)) return WeaveMap;
+            Directory.CreateDirectory(TexDir);
+            const int n = 256, threads = 16;
+            var h = new float[n * n];
+            var rnd = new System.Random(3);
+            var jitter = new float[threads * 2];
+            for (int i = 0; i < jitter.Length; i++) jitter[i] = (float)rnd.NextDouble() * 0.3f;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float u = x * threads / (float)n, v = y * threads / (float)n;
+                    int cu = (int)u, cv = (int)v;
+                    float fu = u - cu, fv = v - cv;
+                    bool warpOver = ((cu + cv) & 1) == 0;       // plain weave: over, under, over
+                    float warp = Mathf.Sin(fu * Mathf.PI), weft = Mathf.Sin(fv * Mathf.PI);
+                    float over = warpOver ? warp * (0.6f + 0.4f * Mathf.Sin(fv * Mathf.PI)) : weft * (0.6f + 0.4f * Mathf.Sin(fu * Mathf.PI));
+                    h[y * n + x] = over * (0.85f + jitter[warpOver ? cu % threads : threads + cv % threads]);
+                }
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false, true);
+            const float strength = 3f;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float hx = h[y * n + (x + 1) % n] - h[y * n + (x - 1 + n) % n];
+                    float hy = h[((y + 1) % n) * n + x] - h[((y - 1 + n) % n) * n + x];
+                    var nrm = new Vector3(-hx * strength, -hy * strength, 1f).normalized;
+                    float hv = h[y * n + x];
+                    tex.SetPixel(x, y, new Color(0.38f + hv * 0.2f, nrm.y * 0.5f + 0.5f, 0.4f + hv * 0.15f, nrm.x * 0.5f + 0.5f));
+                }
+            File.WriteAllBytes(WeaveMap, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(WeaveMap);
+            var imp = (TextureImporter)AssetImporter.GetAtPath(WeaveMap);
+            imp.sRGBTexture = false;
+            imp.wrapMode = TextureWrapMode.Repeat;
+            imp.mipmapEnabled = true;
+            imp.SaveAndReimport();
+            return WeaveMap;
+        }
+
         static void Skin(Material mat, Texture2D baseMap)
         {
             mat.shader = Graph("Skin");
@@ -204,7 +274,7 @@ namespace Dearlife.EditorTools
         static Texture2D Strands(Texture2D src, out Color colour)
         {
             string srcPath = AssetDatabase.GetAssetPath(src);
-            string path = srcPath.Replace(".png", "_strands.png").Replace("Models/Characters", "Textures/Characters");
+            string path = $"{TexDir}/{Path.GetFileNameWithoutExtension(srcPath)}_strands.png";
             var imp = (TextureImporter)AssetImporter.GetAtPath(srcPath);
             if (!imp.isReadable) { imp.isReadable = true; imp.SaveAndReimport(); }
             int w = src.width, h = src.height;

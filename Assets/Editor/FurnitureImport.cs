@@ -147,9 +147,15 @@ namespace Dearlife.EditorTools
         /// </summary>
         static void ImportCharacters()
         {
-            const string dir = ModelDir + "/Characters";
+            ImportCharacterFolder(ModelDir + "/Characters", "Assets/Art/Materials/Characters", false);
+            // the wardrobe (clothes and hair styles made by tools/blender_mpfb_body.py), loaded while the game runs by Wardrobe.cs
+            ImportCharacterFolder(CharacterLook.ClothesDir, CharacterLook.ClothesMatDir, true);
+        }
+
+        static void ImportCharacterFolder(string dir, string matDir, bool wear)
+        {
             if (!System.IO.Directory.Exists(dir)) return;
-            System.IO.Directory.CreateDirectory("Assets/Art/Materials/Characters");
+            System.IO.Directory.CreateDirectory(matDir);
             foreach (var fbx in System.IO.Directory.GetFiles(dir, "*.fbx"))
             {
                 string path = fbx.Replace("\\", "/");
@@ -164,6 +170,11 @@ namespace Dearlife.EditorTools
                 // keeps the skin: bones stay ordinary transforms that CharacterRig drives. The MPFB2 people are Humanoid instead
                 // (motion capture retargeting, see CharacterAnimation), so they are left as they are.
                 if (!System.IO.Path.GetFileName(path).StartsWith("mpfb")) imp.animationType = ModelImporterAnimationType.Generic;
+                if (wear)
+                {
+                    imp.avatarSetup = ModelImporterAvatarSetup.NoAvatar;   // only the mesh and its bone names are used
+                    imp.meshCompression = ModelImporterMeshCompression.Off;
+                }
                 imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
                 string json = path.Replace(".fbx", ".materials.json");
                 if (!System.IO.File.Exists(json)) { imp.SaveAndReimport(); continue; }
@@ -176,7 +187,7 @@ namespace Dearlife.EditorTools
                     var inv = System.Globalization.CultureInfo.InvariantCulture;
                     var col = new Color(float.Parse(m.Groups[3].Value, inv), float.Parse(m.Groups[4].Value, inv), float.Parse(m.Groups[5].Value, inv));
                     string model = System.IO.Path.GetFileNameWithoutExtension(fbx);
-                    string mp = $"Assets/Art/Materials/Characters/{model}_{mname}.mat";
+                    string mp = $"{matDir}/{model}_{mname}.mat";
                     bool fur = mname.Contains("Fur");
                     if (mname == "NormalFur") col = new Color(0.94f, 0.92f, 0.88f);   // the white of the calico
                     var mat = MaterialLibrary.Plain(mp, tex == "null" ? col : Color.white, mname.Contains("Eye") ? 0.8f : fur ? 0.25f : 0.35f);
@@ -184,7 +195,8 @@ namespace Dearlife.EditorTools
                     if (t) { mat.SetTexture("_BaseColorMap", t); mat.SetColor("_BaseColor", Color.white); }
                     if (mname.Contains("EyeColor")) { mat.SetFloat("_UseEmissiveIntensity", 0f); mat.SetColor("_EmissiveColor", new Color(0.1f, 0.6f, 0.15f) * 0.6f); }
                     // the realistic MPFB2 people: skin, hair and teeth get HDRP's own skin and hair shaders (CharacterLook)
-                    if (!CharacterLook.Upgrade(mat, model, mname, t)) UnityEngine.Rendering.HighDefinition.HDMaterial.ValidateMaterial(mat);
+                    bool done = wear ? CharacterLook.UpgradeWear(mat, mname, t) : CharacterLook.Upgrade(mat, model, mname, t);
+                    if (!done) UnityEngine.Rendering.HighDefinition.HDMaterial.ValidateMaterial(mat);
                     if (model.StartsWith("mpfb") && mname == "high-poly") CharacterLook.MakeEye(model, t);
                     EditorUtility.SetDirty(mat);
                     imp.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), mname), mat);

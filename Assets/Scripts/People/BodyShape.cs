@@ -67,6 +67,24 @@ namespace Dearlife
             foreach (var b in root.GetComponentsInChildren<Transform>(true)) if (restRoot.ContainsKey(b)) order.Add(b);   // hierarchy order
         }
 
+        /// <summary>
+        /// Takes on a skinned mesh put on after the start (a garment or hair style from <see cref="Wardrobe"/>): it gets
+        /// its own copy of the mesh and the body's current shape. Its bones must already be this body's bones.
+        /// </summary>
+        public void AddSkin(SkinnedMeshRenderer r)
+        {
+            Capture();
+            if (!r || !r.sharedMesh || skins.Contains(r)) return;
+            r.sharedMesh = Instantiate(r.sharedMesh);
+            skins.Add(r);
+            Apply();
+        }
+
+        public void RemoveSkin(SkinnedMeshRenderer r) { skins.Remove(r); }
+
+        /// <summary>Makes sure the rest pose is remembered and the meshes are this person's own copies.</summary>
+        public void EnsureCaptured() => Capture();
+
         static Vector3 BlenderToUnity(float[] d) => new Vector3(-d[0], d[2], -d[1]);   // same axes as FBX export in the tools
 
         public void Apply()

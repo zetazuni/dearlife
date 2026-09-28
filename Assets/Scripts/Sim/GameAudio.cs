@@ -7,7 +7,7 @@ namespace Dearlife
     /// <summary>
     /// All the sound of the game. It is the sound of the 2D Tiramisu App brought over: the seasonal lofi music (jazzy seventh chords, swung
     /// drums, a little hook per season, vinyl crackle), its coin, pop, buy, love, level and error jingles, and the real recordings of Bedah
-    /// (meow and purr). What the 2D game never had is made in code here: sizzling food, running water, splashes, birds, crickets and wind.
+    /// (meow and purr). What the 2D game never had is made in code here: sizzling food, running water, splashes, birds and wind (the night crickets were removed in v0.40.0: their synthesized beep was distracting).
     /// F2 mutes everything, N turns the music off.
     /// </summary>
     public class GameAudio : MonoBehaviour
@@ -31,7 +31,7 @@ namespace Dearlife
         readonly AudioClip[] tracks = new AudioClip[4];
         readonly Task<float[]>[] rendering = new Task<float[]>[4];
         readonly Dictionary<string, AudioClip> recorded = new Dictionary<string, AudioClip>();
-        AudioSource sfx, music, birds, crickets, wind;
+        AudioSource sfx, music, birds, wind;
         AudioClip birdChirp, sizzle, water;
         float nextChirp, nextMeow;
         int playing = -1;
@@ -48,7 +48,6 @@ namespace Dearlife
             var go = gameObject;
             sfx = Source(go, false, 0.55f);
             music = Source(go, true, 0f);
-            crickets = Source(go, true, 0f);
             wind = Source(go, true, 0f);
             birds = Source(go, false, 0.35f);
             Build();
@@ -373,7 +372,6 @@ namespace Dearlife
             var rnd = new System.Random(3);
             clips[Sfx.Splash] = Make("splash", 0.6f, t => ((float)rnd.NextDouble() * 2f - 1f) * Env(t, 0.02f, 0.5f) * 0.25f);
 
-            crickets.clip = Make("crickets", 3f, t => Mathf.Repeat(t * 6f, 1f) < 0.25f ? Sine(4300f, t) * 0.4f * Mathf.Sin(Mathf.PI * Mathf.Repeat(t * 6f, 1f) / 0.25f) : 0f);
             var r2 = new System.Random(8); float lp = 0f;
             wind.clip = Make("wind", 6f, t => { lp = lp * 0.985f + ((float)r2.NextDouble() * 2f - 1f) * 0.015f; return lp * 9f * (0.6f + 0.4f * Sine(0.2f, t)); });
             // the bird of the 2D game: a quick rising chirp
@@ -390,7 +388,7 @@ namespace Dearlife
                 bub *= 0.9992f;
                 return (wl - wl2) * 0.09f * (0.7f + 0.3f * Sine(0.6f, t)) + Sine(bubHz * (1f + (1f - bub) * 1.4f), t) * bub * 0.05f;
             });
-            crickets.Play(); wind.Play();
+            wind.Play();
         }
 
         // ------------------------------------------------------------ every frame
@@ -414,7 +412,6 @@ namespace Dearlife
             }
             else music.volume = Mathf.Lerp(music.volume, MusicOn ? 0.32f * VolMusic * mute : 0f, k);
 
-            crickets.volume = Mathf.Lerp(crickets.volume, (winter > 0 ? 0.02f : 0.08f) * night * mute, k);
             wind.volume = Mathf.Lerp(wind.volume, (0.02f + 0.06f * winter) * mute, k);
             if (Time.time > nextChirp)
             {

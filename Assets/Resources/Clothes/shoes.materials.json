@@ -1,0 +1,10 @@
+{
+ "shoes": {
+  "texture": "shoes.png",
+  "color": [
+   0.8,
+   0.8,
+   0.8
+  ]
+ }
+}

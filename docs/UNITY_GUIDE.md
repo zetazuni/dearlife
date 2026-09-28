@@ -101,6 +101,9 @@ Point at something you can use (a fridge, the sofa, the TV) and it glows white a
 
 Open **Settings > Game** and turn on **Cheats**. Then **right click the mailbox** in the front garden for a round menu of cheats: money, filling needs (one at a time or all), "needs never drop", max skills, a promotion, granting a wish, time of day and the next season. Each one can be clicked as many times as you like. Turn cheats off in the same place and the mailbox goes back to normal.
 
+### Clothes and the clipping scan (v0.40)
+People made with MPFB2 wear clothes from `Assets/Resources/Clothes`. The `Wardrobe` component on a person puts on a whole outfit (`casual`, `modest`, `sleep`) or single pieces while the game runs, and hides only the skin under what is worn. To check that no clothes poke through, press Play, then use the menu **Dearlife > Scan characters** and wait about five minutes: it tries every outfit on 17 body shapes in 6 poses and writes `Logs/character_scan.txt` (the Console says when it is done).
+
 ## 5. Test checklist
 
 Run through this after each update and tell Claude anything that feels off (with a screenshot if you can: **Win + Shift + S**).

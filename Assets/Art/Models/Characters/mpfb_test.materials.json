@@ -23,32 +23,8 @@
    0.8
   ]
  },
- "female_casualsuit01": {
-  "texture": "mpfb_test_female_casualsuit01.png",
-  "color": [
-   0.8,
-   0.8,
-   0.8
-  ]
- },
  "high-poly": {
   "texture": "mpfb_test_high-poly.png",
-  "color": [
-   0.8,
-   0.8,
-   0.8
-  ]
- },
- "cut_long01": {
-  "texture": "mpfb_test_cut_long01.png",
-  "color": [
-   0.8,
-   0.8,
-   0.8
-  ]
- },
- "shoes01": {
-  "texture": "mpfb_test_shoes01.png",
   "color": [
    0.8,
    0.8,

@@ -220,14 +220,14 @@ Material:
     - _RefractionModel: 0
     - _RenderQueueType: 4
     - _RequireSplitLighting: 0
-    - _SecondarySpecular: 0.5
+    - _SecondarySpecular: 0.08
     - _SecondarySpecularShift: -0.1
     - _Smoothness: 0.35
     - _SmoothnessMax: 0.72
     - _SmoothnessMin: 0.35
     - _SmoothnessRemapMax: 1
     - _SmoothnessRemapMin: 0
-    - _Specular: 0.12
+    - _Specular: 0.08
     - _SpecularAAScreenSpaceVariance: 0.1
     - _SpecularAAThreshold: 0.2
     - _SpecularOcclusionMode: 1
@@ -251,7 +251,7 @@ Material:
     - _Thickness: 1
     - _TransmissionEnable: 1
     - _TransmissionMask: 1
-    - _TransmissionRim: 0.3
+    - _TransmissionRim: 0.15
     - _TransparentBackfaceEnable: 0
     - _TransparentCullMode: 2
     - _TransparentDepthPostpassEnable: 0
