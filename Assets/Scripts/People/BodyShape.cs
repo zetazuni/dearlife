@@ -127,6 +127,8 @@ namespace Dearlife
 
             var rig = GetComponent<CharacterRig>();
             if (rig && bones.TryGetValue("pelvis", out var pelvis)) rig.RefreshRest(newPos[pelvis].y);
+            var eyes = GetComponent<Eyes>();
+            if (eyes) eyes.Refit();
         }
     }
 }

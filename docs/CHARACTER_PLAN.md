@@ -103,7 +103,7 @@ Nothing is bought. Every file the characters use is CC0, our own work, or under 
 | Phase | What | Done when |
 | --- | --- | --- |
 | 0 | MPFB2 working on S:\ (Blender 5.2 or a 4.5 LTS side by side), one test body exported to Unity as a Humanoid with shape keys | **Done 2026-09-28** (session 44): MPFB 2.0.17 runs on Blender 5.2.2, `mpfb_test` walked with the old AI, `BodyShape` sliders reshape body, clothes, hair and skeleton in Play mode. Still a Generic rig, Humanoid comes in phase 2 |
-| 1 | Realistic materials: skin, eyes, lashes and brows, teeth, one hair style | Close up screenshots in the studio light look like a person, not a doll |
+| 1 | Realistic materials: skin, eyes, lashes and brows, teeth, one hair style | **Done 2026-09-28** (session 45) in daylight close ups: HDRP Skin, Eye and Hair shaders, our own pore map, eyeballs, scalp tint and strand map. Left for later: a faint light line at the very top of the parting in direct sun, and a proper studio light (comes with the creator, phase 4) |
 | 2 | Animation: Animator, clips for every `CharacterRig.Pose`, IK for seats and props | Every pose plays; sitting lines up on every `UseSpot` |
 | 3 | Clothes: run time refit, delete groups, layers, three first outfits (casual, modest with a hijab, sleepwear) | The clipping scan (below) passes for all outfits at slider extremes |
 | 4 | Character creator screen and saving | A new household can be made, saved, loaded |

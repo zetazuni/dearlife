@@ -102,6 +102,67 @@ def capture():
     return coords, bones
 
 
+def paint_scalp(human, hair, out_file):
+    """Hair cards alone leave bare skin showing at the parting. Real game characters have a hair coloured scalp painted
+    on the skin, so do the same: every body vertex within 2 cm of the hair (above the brows) gets a weight that fades out
+    from 1 cm, and those triangles are painted in the skin texture with the hair's own average colour, darkened."""
+    import numpy as np
+    from mathutils.kdtree import KDTree
+    body_mat = human.data.materials[0]
+    img = next(n.image for n in body_mat.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower())
+    hair_img = next(n.image for n in hair.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower())
+    hp = np.array(hair_img.pixels[:], dtype=np.float32).reshape(-1, 4)
+    hp = hp[hp[:, 3] > 0.8]
+    hair_col = np.median(hp[:, :3], axis=0) * 0.55
+    kd = KDTree(len(hair.data.vertices))
+    for i, v in enumerate(hair.data.vertices):
+        kd.insert(hair.matrix_world @ v.co, i)
+    kd.balance()
+    weight = np.zeros(len(human.data.vertices), dtype=np.float32)
+    for i, v in enumerate(human.data.vertices):
+        p = human.matrix_world @ v.co
+        if p.z < 1.47:
+            continue
+        d = kd.find(p)[2]
+        weight[i] = min(1.0, max(0.0, (0.02 - d) / 0.01))
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    uvs = human.data.uv_layers.active.data
+    painted = 0
+    for poly in human.data.polygons:
+        vw = [weight[j] for j in poly.vertices]
+        if max(vw) <= 0.0:
+            continue
+        pts = [(uvs[l].uv[0] * w, uvs[l].uv[1] * h) for l in poly.loop_indices]
+        for k in range(1, len(pts) - 1):
+            tri, tw = (pts[0], pts[k], pts[k + 1]), (vw[0], vw[k], vw[k + 1])
+            x0, x1 = int(max(0, min(p[0] for p in tri))), int(min(w - 1, max(p[0] for p in tri) + 1))
+            y0, y1 = int(max(0, min(p[1] for p in tri))), int(min(h - 1, max(p[1] for p in tri) + 1))
+            if x1 < x0 or y1 < y0:
+                continue
+            xs, ys = np.meshgrid(np.arange(x0, x1 + 1) + 0.5, np.arange(y0, y1 + 1) + 0.5)
+            (ax, ay), (bx, by), (cx, cy) = tri
+            den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+            if abs(den) < 1e-9:
+                continue
+            l1 = ((by - cy) * (xs - cx) + (cx - bx) * (ys - cy)) / den
+            l2 = ((cy - ay) * (xs - cx) + (ax - cx) * (ys - cy)) / den
+            l3 = 1.0 - l1 - l2
+            inside = (l1 >= -0.01) & (l2 >= -0.01) & (l3 >= -0.01)
+            a = np.clip(l1 * tw[0] + l2 * tw[1] + l3 * tw[2], 0.0, 1.0) * 0.92
+            region = px[y0:y1 + 1, x0:x1 + 1, :3]
+            blend = np.where(inside[..., None], a[..., None], 0.0)
+            px[y0:y1 + 1, x0:x1 + 1, :3] = region * (1.0 - blend) + hair_col * blend
+            painted += 1
+    out = bpy.data.images.new("scalp_skin", w, h, alpha=True)
+    out.pixels = px.ravel()
+    out.filepath_raw = out_file
+    out.file_format = 'PNG'
+    out.save()
+    bpy.data.images.remove(out)
+    return painted
+
+
 def run():
     _MESHES.clear()
     human = build()
@@ -126,6 +187,12 @@ def run():
                 raise RuntimeError(f"{o.name}: {len(pts)} captured vs {n} vertices for {key}")
             for i in range(n):
                 sk.data[i].co = pts[i]
+
+    # our own skin texture: MakeHuman's with a hair coloured scalp under the hair
+    os.makedirs(OUT, exist_ok=True)
+    hair = next((o for o in meshes() if any(o.name.endswith(h) for h in ("long01", "short01", "short02", "short03", "short04", "bob01", "bob02", "braid01", "ponytail01", "afro01"))), None)
+    skin_file = os.path.join(OUT, f"{NAME}_body.png")
+    scalp = paint_scalp(human, hair, skin_file) if hair else 0
 
     # bone movement per slider, in Blender rig space (BodyShape.cs turns it into Unity space)
     # lists, not dictionaries, so Unity's JsonUtility can read it
@@ -181,7 +248,9 @@ def run():
             if m.use_nodes:
                 img = next((n.image for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower()), None)
             fn = None
-            if img:
+            if part == "body" and scalp:
+                fn = os.path.basename(skin_file)          # already written by paint_scalp
+            elif img:
                 src = bpy.path.abspath(img.filepath)
                 fn = f"{NAME}_{m.name}{os.path.splitext(src)[1]}"
                 shutil.copyfile(src, os.path.join(OUT, fn))
