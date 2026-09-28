@@ -198,7 +198,7 @@ namespace Dearlife
             int shown = 0;
             foreach (var f in sim.Feelings())
             {
-                Ui.Label(new Rect(x0, yy, colW, 16f), $"{(f.value >= 0 ? "+" : "")}{Mathf.RoundToInt(f.value)}   {f.text}", 12f, f.value >= 0 ? Ui.Ink : Ui.Hex("c0504d"), TextAnchor.UpperLeft, Ui.Weight.Bold);
+                Ui.Label(new Rect(x0, yy, colW, 16f), $"{(f.value >= 0 ? "+" : "")}{Mathf.RoundToInt(f.value)}   {f.text}", 12f, f.value >= 0 ? Ui.Ink : Ui.Hex(Ui.Dark ? "ff8a8a" : "c0504d"), TextAnchor.UpperLeft, Ui.Weight.Bold);
                 yy += 17f; if (++shown >= 5) break;
             }
             HouseHud.Kicker(x0, statusPanel.yMax - 190f, colW, "Traits");
@@ -253,7 +253,7 @@ namespace Dearlife
             {
                 HouseHud.Kicker(rx, ry, 300f, "Recent money"); ry += 20f;
                 int n = 0;
-                foreach (var l in hh.Ledger) { Ui.Label(new Rect(rx, ry, 300f, 16f), $"{(l.amount >= 0 ? "+" : "")}{l.amount}   {l.text}", 12f, l.amount >= 0 ? Ui.Hex("3f9a5b") : Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold); ry += 16f; if (++n >= 4) break; }
+                foreach (var l in hh.Ledger) { Ui.Label(new Rect(rx, ry, 300f, 16f), $"{(l.amount >= 0 ? "+" : "")}{l.amount}   {l.text}", 12f, l.amount >= 0 ? Ui.Hex(Ui.Dark ? "7de3a0" : "3f9a5b") : Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold); ry += 16f; if (++n >= 4) break; }
             }
             Ui.Label(new Rect(statusPanel.x, statusPanel.yMax - 22f, statusPanel.width, 16f), "C or Esc closes this window", 11f, Ui.Soft, TextAnchor.UpperCenter, Ui.Weight.Bold);
         }

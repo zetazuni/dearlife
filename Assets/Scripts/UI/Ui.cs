@@ -180,7 +180,7 @@ namespace Dearlife
             float tw = Mathf.Min(220f, TextWidth(label, 13f) + 26f);
             float th = TextHeight(label, 13f, tw - 20f) + 14f;
             var r = new Rect(c.x - tw * 0.5f, c.y - th, tw, th);
-            Box(r, Hex("fffaf2"), Pink, 14f, 2f, true);
+            Box(r, Card, Pink, 14f, 2f, true);      // the card colour switches with dark mode, like the Ink text on it
             Label(new Rect(r.x + 10f, r.y + 7f, tw - 20f, th - 10f), label, 13f, Ink, TextAnchor.UpperCenter, Weight.Bold, true);
         }
 
