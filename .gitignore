@@ -1,0 +1,51 @@
+# Unity generated
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE and solution files (Unity regenerates these)
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.unityproj
+
+# Builds
+*.apk
+*.aab
+*.unitypackage
+/dist/
+
+# Blender backups
+*.blend1
+*.blend2
+
+# Private stuff that must never reach a public repo
+*-save.json
+*.env
+.netlify/
+node_modules/
+
+# Windows
+desktop.ini
+Thumbs.db
+
+# Screenshots taken while testing
+/[Aa]ssets/[Ss]creenshots/
+/[Aa]ssets/[Ss]creenshots.meta
+
+# secrets
+sketchfab_api_key.txt

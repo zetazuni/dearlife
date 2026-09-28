@@ -1,0 +1,112 @@
+{
+  "herringbone_parquet": {
+    "name": "Herringbone Parquet",
+    "width_m": 3.4000000953674316,
+    "height_m": 3.4000000953674316
+  },
+  "dark_wooden_planks": {
+    "name": "Dark Wooden Planks",
+    "width_m": 2.0,
+    "height_m": 2.0
+  },
+  "white_plaster_02": {
+    "name": "White Plaster 02",
+    "width_m": 1.0,
+    "height_m": 1.0
+  },
+  "brushed_concrete": {
+    "name": "Brushed Concrete ",
+    "width_m": 2.5,
+    "height_m": 2.5
+  },
+  "marble_tiles": {
+    "name": "Marble Tiles",
+    "width_m": 2.0,
+    "height_m": 2.0
+  },
+  "large_grey_tiles": {
+    "name": "Large Grey Tiles",
+    "width_m": 3.0,
+    "height_m": 3.0
+  },
+  "concrete_floor": {
+    "name": "Concrete Floor",
+    "width_m": 2.0799996852874756,
+    "height_m": 2.0799996852874756
+  },
+  "rubber_tiles": {
+    "name": "Rubber Tiles",
+    "width_m": 1.9999996423721313,
+    "height_m": 1.9999996423721313
+  },
+  "leafy_grass": {
+    "name": "Leafy Grass",
+    "width_m": 2.0,
+    "height_m": 2.0
+  },
+  "sparse_grass": {
+    "name": "Sparse Grass",
+    "width_m": 2.0,
+    "height_m": 2.0
+  },
+  "wood_floor_deck": {
+    "name": "Wood Floor Deck",
+    "width_m": 1.7999999523162842,
+    "height_m": 1.7999999523162842
+  },
+  "precast_stone_paving": {
+    "name": "Precast Stone Paving",
+    "width_m": 2.240000009536743,
+    "height_m": 2.240000009536743
+  },
+  "blue_floor_tiles_01": {
+    "name": "Blue Floor Tiles 01",
+    "width_m": 2.0,
+    "height_m": 2.0000009536743164
+  },
+  "box_profile_metal_sheet": {
+    "name": "Box Profile Metal Sheet",
+    "width_m": 2.0,
+    "height_m": 2.0
+  },
+  "bark_brown_02": {
+    "name": "Bark Brown 02",
+    "width_m": 0.9999990463256836,
+    "height_m": 0.999998927116394
+  },
+  "wool_boucle": {
+    "name": "Wool Boucle",
+    "width_m": 0.3147823709728821,
+    "height_m": 0.39010000228881836
+  },
+  "american_walnut_veneer": {
+    "name": "American Walnut Veneer",
+    "width_m": 1.0,
+    "height_m": 1.0
+  },
+  "marble_01": {
+    "name": "Marble 01",
+    "width_m": 1.5,
+    "height_m": 1.5
+  },
+  "poly_wool_herringbone": {
+    "name": "Poly Wool Herringbone",
+    "width_m": 0.2700788548673393,
+    "height_m": 0.27570000290870667
+  },
+  "rough_linen": {
+    "name": "Rough Linen",
+    "width_m": 0.2707081392676629,
+    "height_m": 0.27129998803138733
+  },
+  "grey_cartago_03": {
+    "name": "Grey Cartago 03",
+    "width_m": 0.9300000071525574,
+    "height_m": 0.9300000071525574
+  },
+  "forest_ground_06": {
+    "name": "Forest Ground 06",
+    "width_m": 2.109999895095825,
+    "height_m": 2.109999895095825
+  }
+}
