@@ -85,7 +85,7 @@ namespace Dearlife
             { "modern_arm_chair_01", 1500 }, { "side_table_01", 380 }, { "potted_plant_01", 260 },
             { "potted_plant_04", 220 }, { "calathea_orbifolia_01", 180 }, { "ceramic_vase_03", 130 }, { "book_encyclopedia_set_01", 85 }, { "desk_lamp_arm_01", 190 },
             { "cuttingboard", 35 }, { "utensils", 40 }, { "herbs", 45 }, { "towelstack", 55 }, { "cardboardboxes", 60 }, { "paintcans", 50 }, { "sparetyres", 220 },
-            { "guitar", 1400 }, { "synth", 2600 }, { "adopt_dog", 1500 },
+            { "guitar", 1400 }, { "synth", 2600 }, { "adopt_dog", 1500 }, { "petbed", 180 }, { "petbowls", 60 },
             { "avanza", 28000 }, { "mazda3", 42000 }, { "bmwm3", 95000 }, { "porsche911", 240000 },
         };
 

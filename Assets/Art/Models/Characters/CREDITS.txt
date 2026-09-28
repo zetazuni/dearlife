@@ -1,5 +1,6 @@
-Downloaded from Sketchfab (CC Attribution 4.0), rigged and adjusted in Blender by tools/blender_rig.py:
-- Bedah: "Tuxedo Cat Animated 2.0" by DreamNoms, https://sketchfab.com/3d-models/tuxedo-cat-animated-20-783fcb78b55b4394a212c2b6392e1113 (re-coloured as a calico, resized)
+Downloaded from Sketchfab (CC Attribution 4.0), prepared in Blender by tools/blender_pets.py (flattened, resized, bones renamed):
+- Bedah (bedah.fbx, bedah_*.png): "An Animated Cat" by Evil_Katz, https://sketchfab.com/3d-models/aec25699660043a29595f9572149d1e8 (its black coat repainted as a calico: white with orange and black patches, a black tail and one black ear; tufts and whiskers made pale)
+- The dog (dog.fbx, dog_*.png): "Animated Dog Sits Rolls Over Shake Paw" by LasquetiSpice, https://sketchfab.com/3d-models/d9020159339145e6b9ecd5f3d830830f (a Shiba Inu)
 
 Made with MPFB2 (MakeHuman for Blender), assets CC0 (base mesh, targets, skin, eyes, brows, lashes, teeth, the casual outfit, shoes and long hair from the MakeHuman system asset pack), by tools/blender_mpfb_body.py:
 - mpfb_test: the test person of docs/CHARACTER_PLAN.md. The female end of its gender slider adds MakeHuman's CC0 measurement targets (narrower shoulders, waist, hips, seat, bust).

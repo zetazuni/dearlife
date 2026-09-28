@@ -7,10 +7,10 @@ namespace Dearlife
     /// <summary>
     /// A person or a pet living in the house. It walks over the navigation surface (doors and gates open for it), sits on
     /// sofas and chairs, lies on beds and loungers, chats with the other person and pats the pets. Pets wander, sit,
-    /// groom and sleep and stay on the ground floor.
+    /// groom and sleep and stay on the ground floor, and do their own things too (Character.Pets.cs).
     /// </summary>
     [RequireComponent(typeof(NavMeshAgent))]
-    public class Character : MonoBehaviour
+    public partial class Character : MonoBehaviour
     {
         public static readonly List<Character> All = new List<Character>();
 
@@ -108,6 +108,15 @@ namespace Dearlife
                     case Mode.PetWalk: return "Going to pet";
                     case Mode.Petting: return "Petting";
                     case Mode.BeingPetted: return "Being petted";
+                    case Mode.PetActivity: return petDoing;
+                    case Mode.Idle when isPet && rig:
+                        switch (rig.pose)
+                        {
+                            case CharacterRig.Pose.Sleep: return "Sleeping";
+                            case CharacterRig.Pose.Groom: return rig.kind == "dog" ? "Scratching an itch" : "Grooming";
+                            case CharacterRig.Pose.Sit: return "Sitting";
+                            default: return "Relaxing";
+                        }
                     default: return "Relaxing";
                 }
             }
@@ -135,6 +144,7 @@ namespace Dearlife
         /// <summary>Puts this person or pet somewhere else at once (a trip to another lot): whatever they were doing is dropped.</summary>
         public void TeleportTo(Vector3 p)
         {
+            StopPetActivity();
             orders.Clear(); onOrder = false; arrive = null; afterSeat = null;
             if (active != null) FinishInteraction(false);
             if (spot) { spot.occupant = null; spot = null; }
@@ -204,7 +214,7 @@ namespace Dearlife
             if (!ok) { Say("Hmm, I can't get there."); SetIdle(0.05f); }
         }
 
-        enum Mode { Waiting, Idle, Walk, ToSpot, Sitting, Using, Rising, ChatWalk, Chatting, PetWalk, Petting, BeingPetted, Interacting }
+        enum Mode { Waiting, Idle, Walk, ToSpot, Sitting, Using, Rising, ChatWalk, Chatting, PetWalk, Petting, BeingPetted, Interacting, PetActivity }
 
         NavMeshAgent agent;
         CharacterRig rig;
@@ -265,6 +275,7 @@ namespace Dearlife
                 case Mode.Petting: TickPetting(); break;
                 case Mode.BeingPetted: TickBeingPetted(); break;
                 case Mode.Interacting: TickInteracting(); break;
+                case Mode.PetActivity: TickPetActivity(); break;
             }
             if (agent.enabled && agent.isOnNavMesh)
             {
@@ -292,7 +303,7 @@ namespace Dearlife
             agent.agentTypeID = DearlifeNav.AgentType;
             agent.radius = isPet ? 0.2f : 0.24f;
             agent.height = 1.7f * scale;
-            agent.speed = isPet ? (name.Contains("cat") ? 1.1f : 1.6f) : 1.3f;
+            agent.speed = isPet ? (rig && rig.kind == "dog" ? 1.35f : 0.95f) : 1.3f;
             agent.acceleration = 5f;
             agent.angularSpeed = 300f;
             agent.stoppingDistance = 0.1f;
@@ -308,6 +319,7 @@ namespace Dearlife
 
         void SetIdle(float seconds)
         {
+            if (mode == Mode.PetActivity) ReleasePet();
             mode = Mode.Idle;
             timer = seconds;
             rig.pose = CharacterRig.Pose.Stand;
@@ -329,6 +341,7 @@ namespace Dearlife
             float r = Random.value;
             if (isPet)
             {
+                if (PetDecide()) return;
                 if (r < 0.45f && Wander(6f)) return;
                 if (r < 0.65f) { Rest(CharacterRig.Pose.Sit, Random.Range(6f, 14f)); return; }
                 if (r < 0.8f) { Rest(CharacterRig.Pose.Groom, Random.Range(5f, 9f)); return; }
@@ -960,7 +973,7 @@ namespace Dearlife
         {
             foreach (var c in All)
             {
-                if (!c.isPet || c.mode == Mode.Waiting || c.mode == Mode.BeingPetted) continue;
+                if (!c.isPet || c.mode == Mode.Waiting || c.mode == Mode.BeingPetted || c.Napping) continue;   // a sleeping pet is left to sleep
                 if (!GoTo(c.transform.position, 1.2f)) continue;
                 partner = c; mode = Mode.PetWalk;
                 return true;
@@ -996,7 +1009,7 @@ namespace Dearlife
                     {
                         sim.Give(Need.Fun, 16f); sim.Befriend(partner.displayName, 5f); sim.Report("pet");
                         partner.sim.Give(Need.Fun, 32f); partner.sim.Give(Need.Social, 20f); partner.sim.Befriend(displayName, 5f);
-                        if (feeding && Household.Spend(5, "pet food")) { partner.sim.Give(Need.Hunger, 65f); Household.Toast($"{displayName} fed {partner.displayName}."); }
+                        if (feeding && Household.Spend(5, "pet food")) { partner.sim.Give(Need.Hunger, 65f); PetThing.Food = PetThing.FullBowl; Household.Toast($"{displayName} fed {partner.displayName} and filled the food bowl."); }
                     }
                     partner.EndPetted();
                 }
@@ -1007,6 +1020,7 @@ namespace Dearlife
 
         void BePetted(Character by)
         {
+            StopPetActivity();
             partner = by;
             if (agent.enabled && agent.isOnNavMesh) agent.ResetPath();
             timer = 6.2f; mode = Mode.BeingPetted;

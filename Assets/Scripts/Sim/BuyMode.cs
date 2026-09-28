@@ -54,7 +54,7 @@ namespace Dearlife
         static int counter;
         static readonly HashSet<string> Small = new HashSet<string>
         {
-            "fruitbowl", "candles", "mug", "globe", "bedlamp", "basket", "cuttingboard", "utensils", "herbs", "towelstack", "cardboardboxes", "paintcans",
+            "fruitbowl", "petbowls", "candles", "mug", "globe", "bedlamp", "basket", "cuttingboard", "utensils", "herbs", "towelstack", "cardboardboxes", "paintcans",
             "book_encyclopedia_set_01", "ceramic_vase_03", "desk_lamp_arm_01", "potted_plant_04", "calathea_orbifolia_01", "espresso",
         };
 
@@ -95,6 +95,7 @@ namespace Dearlife
             f.bought = true;
             SeatSpots.Add(go, id);
             Interactable.Attach(go, id);
+            if (id == "petbowls" || id == "petbed") go.AddComponent<PetThing>().kind = id == "petbed" ? PetThing.Kind.Bed : PetThing.Kind.Bowls;
             if (id == "tvunit")
             {
                 var lg = new GameObject("TV glow");

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 8ebff56e81f12a5439b35a57cf0461af
+guid: 1641ad15fdf03c547ab7feb9fc73fa8f
 ModelImporter:
   serializedVersion: 24600
   internalIDToNameTable: []
@@ -7,73 +7,28 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Collar
-    second: {fileID: 2100000, guid: 77769cb8e160fbc479c23d869d1b31fc, type: 2}
+      name: BlueWater
+    second: {fileID: 2100000, guid: edc47ebaceced3645bb715ed69f5724e, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Ears
-    second: {fileID: 2100000, guid: 0f2c6a633af83d948a4ed0c6894edde2, type: 2}
+      name: Bread
+    second: {fileID: 2100000, guid: a8be3c86a2d9c1e4a858d02a2be5507a, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Eye
-    second: {fileID: 2100000, guid: 2718064ece220cc4dac0612fc2393959, type: 2}
+      name: Ceramic
+    second: {fileID: 2100000, guid: 82822264440e4984781f99925522eacc, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Eye.002
-    second: {fileID: 2100000, guid: 082cf36f9602d104fbd1e5d12566f063, type: 2}
+      name: Mat_main
+    second: {fileID: 2100000, guid: 4bee48a1b5099574fab2678ff0b874bd, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: EyeColor
-    second: {fileID: 2100000, guid: 6a3cb501acd5dc24cb6c303b922877d7, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: EyeHighlight
-    second: {fileID: 2100000, guid: d2b47761559d25749b80513aafde5fbe, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Fur
-    second: {fileID: 2100000, guid: 2f9ac44a7e8d7154c82ecac3f703fb79, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Fur.004
-    second: {fileID: 2100000, guid: cda8cedf78393214f9ab4e237500bda4, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: FurCards
-    second: {fileID: 2100000, guid: f3aeb9a362d0f574b805a253925f9f93, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: FurCards.002
-    second: {fileID: 2100000, guid: 5fbd5427ede7f7945ba424c0dab63f8c, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: NormalBlackFur
-    second: {fileID: 2100000, guid: 346487dc82af86a4c8d8998d97dae11a, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: NormalFur
-    second: {fileID: 2100000, guid: 99eebbb6325416f409ee7cb4141e1117, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: OrangeFur
-    second: {fileID: 2100000, guid: b7e1abfaf385acf4f9f9c1f1bb50132b, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Pupil
-    second: {fileID: 2100000, guid: 0ed3e4c4f2c409b42bd9acb063e8a57e, type: 2}
+      name: Stainless
+    second: {fileID: 2100000, guid: 32343cce523bae940894ae6b243d148c, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -174,7 +129,7 @@ ModelImporter:
     skeletonHasParents: 1
   lastHumanDescriptionAvatarSource: {instanceID: 0}
   autoGenerateAvatarMappingIfUnspecified: 1
-  animationType: 2
+  animationType: 0
   humanoidOversampling: 1
   avatarSetup: 0
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1

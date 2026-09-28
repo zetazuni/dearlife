@@ -1411,6 +1411,9 @@ namespace Dearlife.EditorTools
             // music corner on the east side (v0.40.1): the synth faces into the room, the guitar on its stand beside it
             ("synth", 7.4f, 2.3f, 270f, 0),
             ("guitar", 7.55f, 3.25f, 270f, 0),
+            // the pets' corner (v0.44.0): a bed beside the bookcase, food and water in the kitchen corner
+            ("petbed", 1.3f, 7.1f, 0f, 0),
+            ("petbowls", 13.5f, 6.4f, 270f, 0),
             // kitchen (x 8 to 14): counter run on the back wall, fridge beside it, island, stools, dining set
             ("kitchenrun", 11.62f, 0.34f, 0f, 0),
             ("fridge", 8.98f, 0.4f, 0f, 0),
@@ -1788,7 +1791,7 @@ namespace Dearlife.EditorTools
         {
             game.AddComponent<Household>();
             game.AddComponent<LotManager>();
-            game.AddComponent<PetShop>().dogPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/dog.fbx");
+            game.AddComponent<PetShop>().dogPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/Characters/dog.fbx");
             game.AddComponent<MapWindow>();
             game.AddComponent<GameAudio>();
             game.AddComponent<InteractionSetup>();
@@ -1818,7 +1821,7 @@ namespace Dearlife.EditorTools
                 ("planter", "Planter", "Garden"), ("planterbox", "Planter box", "Garden"), ("flowerbed", "Flower bed", "Garden"), ("gnome", "Garden gnome", "Garden"), ("flamingo", "Flamingo", "Garden"),
                 ("mailbox", "Mailbox", "Garden"), ("wheelbarrow", "Wheelbarrow", "Garden"), ("wateringcan", "Watering can", "Garden"), ("hosereel", "Hose reel", "Garden"),
                 ("workbench", "Workbench", "Garage"), ("toolchest", "Tool chest", "Garage"), ("bicycle", "Bicycle", "Garage"), ("beachball", "Beach ball", "Garage"),
-                ("guitar", "Acoustic guitar", "Music"), ("synth", "Synth keyboard", "Music"), ("adopt_dog", "Adopt a dog", "Pets"),
+                ("guitar", "Acoustic guitar", "Music"), ("synth", "Synth keyboard", "Music"), ("adopt_dog", "Adopt a dog", "Pets"), ("petbed", "Pet bed", "Pets"), ("petbowls", "Food and water bowls", "Pets"),
                 ("avanza", "Toyota Avanza", "Cars"), ("mazda3", "Mazda 3", "Cars"), ("bmwm3", "BMW M3 Competition", "Cars"), ("porsche911", "Porsche 911 Turbo S", "Cars"),
             };
             foreach (var it in items)

@@ -26,6 +26,7 @@ namespace Dearlife.EditorTools
         /// <summary>Gives a freshly made character material its realistic shader, by what it is for. Returns true if it changed it.</summary>
         public static bool Upgrade(Material mat, string model, string part, Texture2D baseMap)
         {
+            if (model == "bedah" || model == "dog") return Pet(mat, model, part, baseMap);
             if (!model.StartsWith("mpfb")) return false;
             EnsureProfiles();
             if (part == "body") { Skin(mat, baseMap); return true; }
@@ -119,6 +120,27 @@ namespace Dearlife.EditorTools
             mat.SetFloat("_Subsurface_Dimmer", 1f);
             HDMaterial.SetDiffusionProfileShaderGraph(mat, Profile("SkinDiffusionProfile"), "_SkinDiffusionProfile");
             HDMaterial.ValidateMaterial(mat);
+        }
+
+        /// <summary>
+        /// The realistic pets (tools/blender_pets.py): soft matte fur with the dog's own normal map, glossy eyes, and the
+        /// cat's tufts and whiskers (cards with the strands in their alpha) on the hair shader.
+        /// </summary>
+        static bool Pet(Material mat, string model, string part, Texture2D baseMap)
+        {
+            if (part == "FurCards") { Hair(mat, baseMap, true); return true; }
+            mat.SetFloat("_Metallic", 0f);
+            mat.SetFloat("_Smoothness", part == "Eye" ? 0.92f : 0.16f);
+            string normal = $"Assets/Art/Models/Characters/{model}_{part}_normal.png";
+            if (File.Exists(normal))
+            {
+                var ti = (TextureImporter)AssetImporter.GetAtPath(normal);
+                if (ti.textureType != TextureImporterType.NormalMap) { ti.textureType = TextureImporterType.NormalMap; ti.SaveAndReimport(); }
+                mat.SetTexture("_NormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>(normal));
+                mat.SetFloat("_NormalScale", 1f);
+            }
+            HDMaterial.ValidateMaterial(mat);
+            return true;
         }
 
         static void Hair(Material mat, Texture2D baseMap, bool fine)

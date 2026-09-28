@@ -4,17 +4,18 @@ using UnityEngine;
 namespace Dearlife
 {
     /// <summary>
-    /// Poses and animates a jointed figure from tools/blender_characters.py (people and pets) by swinging its joints.
-    /// Angles are given as "forward" or "bend" values and turned into rotations about the figure's own right and up axes,
-    /// so it does not matter how the FBX importer oriented the joints.
+    /// Poses and animates people and pets. The realistic MPFB2 people play motion capture on a Humanoid Animator, with
+    /// seats and feet fitted here; the pets are posed on their own skeletons by <see cref="PetBody"/>. Joint angles are
+    /// given as "forward" or "bend" values and turned into rotations about the figure's own right and up axes, so it does
+    /// not matter how the FBX importer oriented the joints.
     /// </summary>
     public class CharacterRig : MonoBehaviour
     {
         public enum Pose { Stand, Walk, Sit, Lie, Wave, Crouch, Sleep, Groom, Happy, Eat, Cook, Read, Exercise, Work, Wash, Swim, Drink, Guitar, Keys, Dance, Talk }
 
         public bool pet;
-        [Tooltip("person, cat or dog: which joint table builds the skeleton")]
-        public string kind = "person";
+        [Tooltip("mpfb (a person), cat or dog: which skeleton this is")]
+        public string kind = "mpfb";
         public float RestHip { get; private set; } = 0.95f;   // pelvis height above the feet at rest, measured from the model
         [Tooltip("parts whose material name contains this are not drawn (once used to hide a model's glasses)")]
         public string hideMaterial = "";
@@ -34,6 +35,7 @@ namespace Dearlife
         }
 
         readonly Dictionary<string, Joint> j = new Dictionary<string, Joint>();
+        PetBody quad;
 
         // realistic (MPFB2) people play motion capture through a Humanoid Animator instead (docs/CHARACTER_PLAN.md, phase 2)
         Animator anim;
@@ -42,16 +44,7 @@ namespace Dearlife
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
 
-        // some downloaded rigs name their joints differently: our joint name -> the model's bone name
-        static readonly Dictionary<string, string> AmirBones = new Dictionary<string, string>
-        {
-            { "pelvis", "Base HumanPelvis_01" }, { "spine", "Base HumanSpine1_011" }, { "neck", "Base HumanNeck1_054" },
-            { "arm.L", "Base HumanLUpperarm_017" }, { "forearm.L", "Base HumanLForearm_018" },
-            { "arm.R", "Base HumanRUpperarm_036" }, { "forearm.R", "Base HumanRForearm_037" },
-            { "leg.L", "Base HumanLThigh_02" }, { "shin.L", "Base HumanLCalf_00" },
-            { "leg.R", "Base HumanRThigh_06" }, { "shin.R", "Base HumanRCalf_07" },
-        };
-
+        // the realistic people: our joint name -> the model's bone name
         // the MPFB2 "game engine" skeleton (tools/blender_mpfb_body.py)
         static readonly Dictionary<string, string> MpfbBones = new Dictionary<string, string>
         {
@@ -63,60 +56,23 @@ namespace Dearlife
 
         static readonly Dictionary<string, Dictionary<string, string>> Aliases = new Dictionary<string, Dictionary<string, string>>
         {
-            { "amir", AmirBones }, { "mpfb", MpfbBones },
+            { "mpfb", MpfbBones },
         };
 
         static readonly string[] PersonJoints = { "pelvis", "spine", "neck", "arm.L", "forearm.L", "arm.R", "forearm.R", "leg.L", "shin.L", "leg.R", "shin.R", "foot.L", "foot.R" };
-        static readonly string[] PetJoints = { "body", "head", "tail", "legFL", "legFR", "legBL", "legBR" };
-
-        // Joint positions in Blender space (x, y, z), as in tools/blender_characters.py. The FBX is flat: every part is named
-        // "joint|part", and the skeleton is built here at runtime and the parts are hung on it.
-        static readonly (string name, string parent, Vector3 pos)[] PersonTable =
-        {
-            ("pelvis", null, new Vector3(0, 0, 0.95f)), ("spine", "pelvis", new Vector3(0, 0, 0.95f)), ("neck", "spine", new Vector3(0, 0, 1.44f)),
-            ("arm.L", "spine", new Vector3(0.2f, 0, 1.4f)), ("forearm.L", "arm.L", new Vector3(0.2f, 0, 1.13f)),
-            ("arm.R", "spine", new Vector3(-0.2f, 0, 1.4f)), ("forearm.R", "arm.R", new Vector3(-0.2f, 0, 1.13f)),
-            ("leg.L", "pelvis", new Vector3(0.085f, 0, 0.93f)), ("shin.L", "leg.L", new Vector3(0.085f, 0, 0.5f)),
-            ("leg.R", "pelvis", new Vector3(-0.085f, 0, 0.93f)), ("shin.R", "leg.R", new Vector3(-0.085f, 0, 0.5f)),
-        };
-        static readonly (string name, string parent, Vector3 pos)[] CatTable =
-        {
-            ("body", null, new Vector3(0, 0, 0.2f)), ("head", "body", new Vector3(0, -0.27f, 0.3f)), ("tail", "body", new Vector3(0, 0.3f, 0.26f)),
-            ("legFL", "body", new Vector3(0.07f, -0.16f, 0.16f)), ("legFR", "body", new Vector3(-0.07f, -0.16f, 0.16f)),
-            ("legBL", "body", new Vector3(0.08f, 0.16f, 0.16f)), ("legBR", "body", new Vector3(-0.08f, 0.16f, 0.16f)),
-        };
-        static readonly (string name, string parent, Vector3 pos)[] DogTable =
-        {
-            ("body", null, new Vector3(0, 0, 0.36f)), ("head", "body", new Vector3(0, -0.36f, 0.5f)), ("tail", "body", new Vector3(0, 0.38f, 0.44f)),
-            ("legFL", "body", new Vector3(0.09f, -0.24f, 0.3f)), ("legFR", "body", new Vector3(-0.09f, -0.24f, 0.3f)),
-            ("legBL", "body", new Vector3(0.1f, 0.24f, 0.3f)), ("legBR", "body", new Vector3(-0.1f, 0.24f, 0.3f)),
-        };
-
-        void BuildSkeleton()
-        {
-            if (FindDeep(transform, pet ? "body" : "pelvis")) return;   // already jointed
-            var table = kind == "cat" ? CatTable : kind == "dog" ? DogTable : PersonTable;
-            var made = new Dictionary<string, Transform>();
-            foreach (var (n, par, pos) in table)
-            {
-                var g = new GameObject(n).transform;
-                g.SetParent(transform, false);
-                g.localPosition = new Vector3(-pos.x, pos.z, -pos.y);    // Blender to Unity
-                if (par != null) g.SetParent(made[par], true);
-                made[n] = g;
-            }
-            var parts = new List<Transform>();
-            foreach (Transform c in transform) if (c.name.Contains("|")) parts.Add(c);
-            foreach (var c in parts)
-                if (made.TryGetValue(c.name.Split('|')[0], out var joint)) c.SetParent(joint, true);
-        }
-
         void Awake()
         {
             lastPos = transform.position;
+            // the realistic pets (tools/blender_pets.py) are posed on their own skeletons
+            if (pet) quad = PetBody.Make(transform, kind);
+            if (quad != null)
+            {
+                foreach (var r in GetComponentsInChildren<SkinnedMeshRenderer>()) r.updateWhenOffscreen = true;
+                return;
+            }
+            if (pet) return;   // a pet model without its skeleton
             Aliases.TryGetValue(kind, out var aliases);
-            if (aliases == null) BuildSkeleton();
-            foreach (var n in pet ? PetJoints : PersonJoints)
+            foreach (var n in PersonJoints)
             {
                 var t = FindDeep(transform, aliases != null && aliases.TryGetValue(n, out var alias) ? alias : n);
                 if (!t) continue;
@@ -299,11 +255,15 @@ namespace Dearlife
             heldExtra.Clear();
         }
 
+        /// <summary>A pet's body centre (between hips and shoulders) in the current pose, or the figure's position.</summary>
+        public Vector3 BodyCentre => quad != null ? quad.BodyCentre : transform.position;
+
         /// <summary>The top of the head, from the neck joint (works sitting and lying too).</summary>
         public Vector3 HeadTop
         {
             get
             {
+                if (quad != null) return quad.HeadTop;
                 if (j.TryGetValue("neck", out var n) && n.t) return n.t.position + Vector3.up * (0.33f * transform.lossyScale.y);
                 return transform.position + Vector3.up * (1.75f * transform.lossyScale.y);
             }
@@ -323,9 +283,9 @@ namespace Dearlife
         void Set(string n, float forward = 0f, float lift = 0f, float yaw = 0f)
         {
             if (!j.TryGetValue(n, out var jt)) return;
-            // these rigs' spine bones are turned the other way round (Lily's too: without this she leant back instead of
-            // over the cat when petting it, arms in the air)
-            if ((kind == "amir" || kind == "lily" || kind == "mpfb") && (n == "spine" || n == "neck")) forward = -forward;
+            // the MPFB spine bones are turned the other way round (without this people lean back instead of over the cat
+            // when petting it)
+            if (kind == "mpfb" && (n == "spine" || n == "neck")) forward = -forward;
             jt.tgt = forward; jt.liftTgt = lift; jt.yawTgt = yaw;
         }
 
@@ -342,6 +302,7 @@ namespace Dearlife
             phase += moved / Mathf.Max(transform.lossyScale.y, 0.01f) * (pet ? 7.5f : 4.3f);
             amp = Mathf.Clamp01(speedSmooth / (pet ? 0.9f : 1.2f)) * 0.5f + 0.5f;
             if (pose == Pose.Walk && speedSmooth < 0.05f) amp = 0.35f;
+            if (quad != null) { quad.Tick(pose == Pose.Walk && speedSmooth < 0.05f ? Pose.Stand : pose, clock, speedSmooth, moved, Time.deltaTime); return; }
             if (animated)
             {
                 // standing still with a walk order would march on the spot: stand instead
@@ -351,7 +312,7 @@ namespace Dearlife
                 return;
             }
             foreach (var jt in j.Values) { jt.tgt = 0f; jt.liftTgt = 0f; jt.yawTgt = 0f; }
-            if (pet) PetTargets(); else PersonTargets();
+            PersonTargets();
 
             float k = 1f - Mathf.Exp(-14f * Time.deltaTime);
             foreach (var kv in j)
@@ -641,39 +602,6 @@ namespace Dearlife
             Set("shin.L", -knee); Set("shin.R", -knee - 2f);
             float rest = raise > 20f ? 30f : 10f;                       // hands lie on the belly when the body is propped up
             Set("arm.L", 6f); Set("arm.R", 6f); Set("forearm.L", rest + 12f); Set("forearm.R", rest + 12f);
-        }
-
-        void PetTargets()
-        {
-            float s = Mathf.Sin(phase), tailSway = Mathf.Sin(clock * 3.5f) * 12f;
-            switch (pose)
-            {
-                case Pose.Walk:
-                    float sw = 34f * s;
-                    Set("legFL", sw); Set("legBR", sw); Set("legFR", -sw); Set("legBL", -sw);
-                    Set("body", 0f, Mathf.Abs(s) * 0.012f);
-                    Set("head", -4f * s);
-                    Set("tail", 0f, 0f, 18f * Mathf.Sin(clock * 5f));
-                    break;
-                case Pose.Sit:
-                case Pose.Groom:
-                case Pose.Happy:
-                    Set("body", 32f, -0.07f);
-                    Set("legBL", 88f); Set("legBR", 88f);
-                    Set("head", pose == Pose.Groom ? -30f + 10f * Mathf.Sin(clock * 6f) : -8f);
-                    Set("tail", 0f, 0f, pose == Pose.Happy ? 38f * Mathf.Sin(clock * 14f) : tailSway);
-                    break;
-                case Pose.Sleep:
-                    Set("body", 0f, -0.09f);
-                    Set("legFL", 80f); Set("legFR", 80f); Set("legBL", 80f); Set("legBR", 80f);
-                    Set("head", -30f + 2f * Mathf.Sin(clock * 1.4f));
-                    Set("tail", 0f, 0f, 55f);
-                    break;
-                default:
-                    Set("body", 0f, Mathf.Sin(clock * 1.8f) * 0.004f);
-                    Set("tail", 0f, 0f, tailSway);
-                    break;
-            }
         }
 
         /// <summary>How high the pelvis (people) or body (pets) hangs above the figure's origin in each pose, unscaled.</summary>

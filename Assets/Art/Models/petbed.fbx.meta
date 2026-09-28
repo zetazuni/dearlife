@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: fb302c727e757bb4bbc53f4da4f56c1a
+guid: 55dcccf1475ddc54f9e2e0b29ae62516
 ModelImporter:
   serializedVersion: 24600
   internalIDToNameTable: []
@@ -7,28 +7,13 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Eye
-    second: {fileID: 2100000, guid: 9c75837247a91604fbe78e6475e402ce, type: 2}
+      name: Beanbag_main
+    second: {fileID: 2100000, guid: 447f08b7ce65dba4d9ed7a836b6c94d4, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: FurDog
-    second: {fileID: 2100000, guid: 605ec6b38c79702409f2afbc84348b80, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: FurDogLight
-    second: {fileID: 2100000, guid: cc5024a436f999b42a948f8961f78d96, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: PetNose
-    second: {fileID: 2100000, guid: 2b99f0bb10b1ab741b3244c4f6613da9, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: PetPink
-    second: {fileID: 2100000, guid: 071be28e56504c54a9247e1e6009275a, type: 2}
+      name: Fabric_main
+    second: {fileID: 2100000, guid: 53c6db3ef9c955e4f9d0bfd42878c70d, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

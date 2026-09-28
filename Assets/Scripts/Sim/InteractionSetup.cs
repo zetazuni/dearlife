@@ -29,6 +29,10 @@ namespace Dearlife
                 if (f && f.GetComponent<Interactable>() == null) Interactable.Attach(f.gameObject, f.name);
                 // pieces saved in the scene before they had a place to sit or lie (the bath) get it now
                 if (f && f.GetComponentInChildren<UseSpot>(true) == null) SeatSpots.Add(f.gameObject, InteractionTable.BaseId(f.name));
+                // the pets' bowls and bed
+                string bid = f ? InteractionTable.BaseId(f.name) : "";
+                if ((bid == "petbowls" || bid == "petbed") && f.GetComponent<PetThing>() == null)
+                    f.gameObject.AddComponent<PetThing>().kind = bid == "petbed" ? PetThing.Kind.Bed : PetThing.Kind.Bowls;
             }
             if (!GameObject.Find("Pool interaction"))
             {

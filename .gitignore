@@ -49,3 +49,4 @@ Thumbs.db
 
 # secrets
 sketchfab_api_key.txt
+tools/__pycache__/

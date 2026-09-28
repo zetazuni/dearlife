@@ -641,3 +641,30 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   renderer back on. `Wardrobe` now switches the hair object off instead of its renderer.
 - Tested in Play mode on an empty slot: Aina and Danial move in with their traits and careers and live in the house.
 
+## Session 51: character plan phase 6, realistic pets with more to do (2026-09-29) · v0.44.0
+
+- **Bedah and the dog are realistic now.** Bedah comes from "An Animated Cat" by Evil_Katz and the dog is a Shiba Inu
+  from "Animated Dog Sits Rolls Over Shake Paw" by LasquetiSpice (both CC BY on Sketchfab, credited in
+  `Characters/CREDITS.txt`, sources kept in `S:\Tools\pets`). `tools/blender_pets.py` flattens them (no parent
+  empties, rest pose, scale 1), turns them to face -Y, sizes them (the cat 34 cm to the ear tips, the dog 55 cm), gives
+  the bones clean names and exports them. The cat was a black cat: the tool repaints it as Bedah's calico by filling
+  its UV layout with the 3D position of every texel and painting patches there (ragged orange and black patches on the
+  back, a black tail and one black ear), keeping the fur strokes of the original. Its tufts and whiskers are pale cards
+  on HDRP's hair shader; the dog keeps its own normal map.
+- **`PetBody` poses them on their real skeletons**: turns in the pet's own axes added bone by bone from the body out,
+  so the imported bone directions do not matter. A walk (feet down one after another) or a trot (diagonal pairs) with
+  the paws lifting, standing with breathing, a looking head and twitching ears, sitting, lying like a sphinx, curled up
+  asleep on one side, grooming (the cat licks a paw, the dog scratches an ear), eating, happy (the cat's tail up with a
+  hooked tip and slow blinks, the dog wagging and panting) and a play bow. Every resting pose then settles onto the
+  floor: the skin is baked once, its lowest point measured and the body raised or lowered to touch (kept per pose).
+- **Pet corner**: a food and a water bowl on a silicone mat and a round pet bed (`tools/blender_petstuff.py`), in the
+  house layout (the bed by the living room bookcase, the bowls in the kitchen corner) and in Buy mode under Pets.
+- **More for the pets to do** (`Character.Pets.cs`): eat from the food bowl when hungry (a person feeding a pet now
+  also fills the bowl, three servings), drink, nap in the pet bed (people leave a sleeping pet alone), keep a person
+  company, a mad dash round the house, play together (cat and dog), sunbathe in the garden by day, sniff about, and
+  ask for food with a meow or a woof. Pet status shows what they are doing (Sleeping, Grooming, Napping in the pet bed).
+- The old stylised cat and dog (`cat.fbx`, `dog.fbx`, `tools/blender_characters.py`) and the jointed figure tables in
+  `CharacterRig` are removed. The shop picture of the dog is the new Shiba.
+- Tested in Play mode on an empty slot: Bedah walked to the bowl and ate, napped curled up in the bed, kept Aina
+  company; the dog sniffed about, slept, scratched and played with Bedah.
+

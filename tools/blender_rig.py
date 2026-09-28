@@ -167,7 +167,7 @@ def export_character(name, mesh, arm, out_dir=OUT):
     bpy.ops.export_scene.fbx(filepath=os.path.join(out_dir, name + ".fbx"), use_selection=True, object_types={'ARMATURE', 'MESH'},
                              axis_forward='-Z', axis_up='Y', apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL',
                              bake_space_transform=True, use_mesh_modifiers=True, mesh_smooth_type='FACE', add_leaf_bones=False,
-                             bake_anim=False, path_mode='COPY', embed_textures=False)
+                             bake_anim=False, path_mode='STRIP', embed_textures=False)
     return info
 
 

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 57c85dfe1032f334c85d1623b531bef4
+guid: 16f5bfe1194ee1142a7015fe4faeee20
 ModelImporter:
   serializedVersion: 24600
   internalIDToNameTable: []
@@ -7,28 +7,13 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Eye
-    second: {fileID: 2100000, guid: 9c75837247a91604fbe78e6475e402ce, type: 2}
+      name: Fur
+    second: {fileID: 2100000, guid: 71469d7489a07d947b89a0999659ab84, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: FurCat
-    second: {fileID: 2100000, guid: 27bc89f862bfa344dab56e8fe2be2c97, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: FurCatBlack
-    second: {fileID: 2100000, guid: 0134e89405e938447ba56f77f33a73a6, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: FurCatLight
-    second: {fileID: 2100000, guid: b85c3c7e5e23d4646abf02ae3a5c4359, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: PetNose
-    second: {fileID: 2100000, guid: 2b99f0bb10b1ab741b3244c4f6613da9, type: 2}
+      name: Fur.003
+    second: {fileID: 2100000, guid: 88beb3aec3c720d4fac3aa22c1c4334a, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -129,7 +114,7 @@ ModelImporter:
     skeletonHasParents: 1
   lastHumanDescriptionAvatarSource: {instanceID: 0}
   autoGenerateAvatarMappingIfUnspecified: 1
-  animationType: 0
+  animationType: 2
   humanoidOversampling: 1
   avatarSetup: 0
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1

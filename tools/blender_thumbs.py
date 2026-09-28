@@ -9,7 +9,7 @@ IDS = ("sofa beanbag marbletable geomrug tvunit uplight bookcase candles globe d
        "waterdispenser fruitbowl platformbed platformbed_e nightstand wardrobe bedlamp bathtub vanity towelrack washer dryer basket officedesk "
        "officechair teacherdesk filecabinet printer3d robotarm telescope treadmill weightbench spinbike punchbag yogamat dumbbells gardenbench "
        "lounger hammock parasol bbq bbqcounter firepit lantern outdoorsectional cooler planter planterbox flowerbed gnome flamingo mailbox "
-       "wheelbarrow wateringcan hosereel workbench toolchest bicycle beachball").split()
+       "wheelbarrow wateringcan hosereel workbench toolchest bicycle beachball petbed petbowls").split()
 
 if "ONLY" in globals():
     IDS = list(ONLY)
@@ -83,6 +83,8 @@ for i in range(START, min(END, len(IDS))):
     name = IDS[i]
     fname = name[6:] if name.startswith("adopt_") else name
     path = os.path.join(SRC, fname + ".fbx")
+    if not os.path.exists(path):
+        path = os.path.join(SRC, "Characters", fname + ".fbx")     # the pets
     if not os.path.exists(path):
         path = os.path.join(SRC, "PolyHaven", fname, fname + ".gltf")
     if not os.path.exists(path):

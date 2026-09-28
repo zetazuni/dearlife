@@ -81,6 +81,8 @@ namespace Dearlife.EditorTools
             { "robotarm", new FurnitureSpec { mass = 40f, dynamic = false } },
             { "printer3d", new FurnitureSpec { mass = 18f, dynamic = true } },
             { "beanbag", new FurnitureSpec { mass = 6f, dynamic = true } },
+            { "petbed", new FurnitureSpec { mass = 3f, dynamic = true } },
+            { "petbowls", new FurnitureSpec { mass = 1.2f, dynamic = false } },
             { "treadmill", new FurnitureSpec { mass = 110f, dynamic = false } },
             { "dumbbells", new FurnitureSpec { mass = 90f, dynamic = false } },
             { "weightbench", new FurnitureSpec { mass = 45f, dynamic = true } },

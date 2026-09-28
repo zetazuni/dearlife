@@ -110,6 +110,9 @@ People lie back in the bath (it fills with water and foam) and walk into the sho
 ### The character creator (v0.42)
 New Game (after picking a slot) opens **Create your household**: the chosen person stands on the deck, the panel on the left has tabs for body, face, skin and hair, clothes (everyday and sleepwear, with colours) and name, traits and career. Drag beside the person to turn them round, **Face** zooms in, the time buttons change the light. **+ Add** makes up to four people, **Random** rolls the chosen one again, **Move in** saves them and starts the game with them (Load Game brings them back). A save without a created household (an older save, or one made before the creator) gets the default household, Aina and Danial. If created people ever show up without their eyes or look plain, run **Dearlife > Make person prefab** once.
 
+### Pets (v0.44)
+Bedah and the dog are realistic now and have their own things to do: they eat from the food bowl in the kitchen corner (feeding a pet fills it), nap in the pet bed by the bookcase, keep people company, play together, dash about and sunbathe. Buy more bowls or beds under **Buy > Pets**. If the pets ever look plain grey, run **Dearlife > Import furniture** once. To remake them, run `tools/blender_pets.py` in Blender (the source models stay in `S:\Tools\pets`).
+
 ## 5. Test checklist
 
 Run through this after each update and tell Claude anything that feels off (with a screenshot if you can: **Win + Shift + S**).
