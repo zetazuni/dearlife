@@ -160,7 +160,8 @@ namespace Dearlife
         }
     }
 
-    /// <summary>The household made in the creator, kept in the save slot. Saves without one keep Lily and James.</summary>
+    /// <summary>The household made in the creator, kept in the save slot. Saves without one get the default household
+    /// (Aina and Danial, Resources/People/DefaultHousehold.json, made with the creator's own sliders).</summary>
     [System.Serializable]
     public class HouseholdData
     {
@@ -175,6 +176,12 @@ namespace Dearlife
             if (!PlayerPrefs.HasKey(k)) return null;
             var h = JsonUtility.FromJson<HouseholdData>(PlayerPrefs.GetString(k));
             return h != null && h.members.Count > 0 ? h : null;
+        }
+
+        public static HouseholdData Default()
+        {
+            var t = Resources.Load<TextAsset>("People/DefaultHousehold");
+            return t ? JsonUtility.FromJson<HouseholdData>(t.text) : null;
         }
 
         public void Save()

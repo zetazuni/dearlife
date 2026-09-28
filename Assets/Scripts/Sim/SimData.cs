@@ -71,18 +71,11 @@ namespace Dearlife
         public void Setup(string who, bool pet)
         {
             displayName = who; isPet = pet;
-            switch (who)
-            {
-                case "James": traits.AddRange(new[] { "Bookworm", "Foodie", "Handy" }); job = "Engineer"; break;
-                case "Lily": traits.AddRange(new[] { "Creative", "Cheerful", "Neat" }); job = "Teacher"; break;
-                default: traits.AddRange(new[] { "Cuddly", "Curious" }); break;
-            }
+            // people are set up from their creator data (SetupPerson); this is for the pets
+            traits.AddRange(pet ? new[] { "Cuddly", "Curious" } : new[] { "Cheerful" });
             if (!pet) { NewWish(); NewWish(); NewWish(); LoadCareer(); }
-            friendship["James"] = friendship["Lily"] = friendship["Bedah"] = 0f;
             friendship[who] = 100f;
-            if (who == "James") { friendship["Lily"] = 70f; friendship["Bedah"] = 40f; }
-            if (who == "Lily") { friendship["James"] = 70f; friendship["Bedah"] = 50f; }
-            if (who == "Bedah") { friendship["James"] = 40f; friendship["Lily"] = 50f; }
+            foreach (var s in All) if (s != this && s.displayName != "") friendship[s.displayName] = 45f;
         }
 
         /// <summary>A person made in the character creator: their own name, traits and career, fond of the rest of the household.</summary>

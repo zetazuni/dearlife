@@ -627,3 +627,17 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   missing eye material (the eyes were plain white without it).
 - Tested in Play mode on an empty slot: New Game, two people made, Move in, both living in the house, Load Game brought
   them back with their shapes, skin and careers.
+
+## Session 50: character plan phase 5, a fresh default household (2026-09-29) · v0.43.0
+
+- **Lily and James have moved out.** The default household is now **Aina** (a teacher: creative, cheerful, neat; tunic,
+  wide trousers and hijab in sage, navy and rose) and **Danial** (an engineer: bookworm, foodie, handy; T-shirt and
+  jeans), both made in the creator and kept as `Assets/Resources/People/DefaultHousehold.json`. Any save without its own
+  created household (older saves too) gets them; New Game still opens the creator.
+- **The old people are gone for good:** `lily.fbx`, `amir.fbx`, the glasses, their textures and materials, the
+  procedural `person_*.fbx`, `tools/blender_rig_lily.py` and `tools/blender_symmetrize.py`, and the two scene objects.
+  `tools/blender_characters.py` only makes the pets now; `SimData` no longer special cases the old names.
+- **Hair under the hijab:** living people showed their hair through the hijab because the floor view switches every
+  renderer back on. `Wardrobe` now switches the hair object off instead of its renderer.
+- Tested in Play mode on an empty slot: Aina and Danial move in with their traits and careers and live in the house.
+

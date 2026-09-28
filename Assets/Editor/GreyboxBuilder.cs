@@ -968,7 +968,6 @@ namespace Dearlife.EditorTools
             cut.attachments.Add(gate.gameObject);
         }
 
-        /// <summary>Paving stones from the back gate to the house and along the back of it to the shed.</summary>
         /// <summary>A paved sidewalk round the house with strips that run out to the front gate and the back gate.</summary>
         static void HouseSidewalk(Transform g, float gy)
         {
@@ -1722,20 +1721,11 @@ namespace Dearlife.EditorTools
 
         // ---------- people, pets and the places they use ----------
 
+        /// <summary>Only the cat lives in the built scene: the people (the default household, or the save's own) are made
+        /// while the game runs, by Residents, from the character creator's data.</summary>
         static void MoveIn(Transform parent)
         {
-            Person(parent, "lily", "Lily", new Vector3(5.6f, 0.02f, 5.6f), 1f, 200f);
-            Person(parent, "amir", "James", new Vector3(11.5f, 0.02f, 6.6f), 1f, 20f);
             Pet(parent, "bedah", "Bedah", new Vector3(3.2f, 0.02f, 6.3f));
-        }
-
-        static void Person(Transform parent, string model, string display, Vector3 at, float scale, float yaw)
-        {
-            var go = Spawn(parent, model, display, at, scale, yaw);
-            if (!go) return;
-            go.GetComponent<CharacterRig>().kind = model;   // "lily" has our joint names, "amir" is mapped
-            var ch = go.AddComponent<Character>();
-            ch.displayName = display; ch.isPet = false; ch.scale = scale;
         }
 
         static void Pet(Transform parent, string model, string display, Vector3 at)
@@ -1757,9 +1747,7 @@ namespace Dearlife.EditorTools
             go.name = objName;
             go.transform.SetPositionAndRotation(at, Quaternion.Euler(0f, yaw, 0f));
             go.transform.localScale = Vector3.one * scale;
-            var rig = go.AddComponent<CharacterRig>();
-            if (model == "lily") rig.hideMaterial = "Eyeglasses";   // she goes without glasses
-            if (model == "amir") PutOnGlasses(go);
+            go.AddComponent<CharacterRig>();
             go.AddComponent<UnityEngine.AI.NavMeshAgent>();
             go.AddComponent<DoorOpener>();
             return go;
@@ -2089,22 +2077,6 @@ namespace Dearlife.EditorTools
             l.enabled = false;
             tv.AddComponent<TvScreen>();
         }
-
-        static void PutOnGlasses(GameObject person)
-        {
-            var glasses = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/Characters/glasses.fbx");
-            Transform head = null;
-            foreach (var t in person.GetComponentsInChildren<Transform>(true)) if (t.name == "Base HumanHead_056") head = t;
-            if (!glasses || !head) { Debug.LogWarning("Dearlife: glasses or head bone not found."); return; }
-            var g = (GameObject)PrefabUtility.InstantiatePrefab(glasses);
-            g.name = "Glasses";
-            var up = person.transform.up; var fwd = person.transform.forward;
-            g.transform.SetPositionAndRotation(head.position + up * GlassesUp + fwd * GlassesForward, person.transform.rotation);
-            g.transform.localScale = Vector3.one * GlassesScale;
-            g.transform.SetParent(head, true);
-        }
-
-        public static float GlassesUp = 0.1f, GlassesForward = 0.15f, GlassesScale = 1.2f;
 
         /// <summary>A seat or bed on a piece: where the pelvis goes (piece space), which way to face, and where to stand before getting on.</summary>
         static void Spot(GameObject piece, string label, CharacterRig.Pose pose, Vector3 pelvis, float yaw, Vector3 approach,

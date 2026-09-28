@@ -207,7 +207,8 @@ namespace Dearlife
                 }
                 mesh.SetTriangles(keep, s, false);
             }
-            if (worn.TryGetValue("hair", out var hair) && hair) hair.enabled = !hideHair;
+            // the whole object, not just the renderer: Character switches every renderer on and off for its floor view
+            if (worn.TryGetValue("hair", out var hair) && hair) hair.gameObject.SetActive(!hideHair);
         }
 
         void OnDestroy()

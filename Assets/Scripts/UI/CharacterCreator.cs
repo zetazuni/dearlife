@@ -405,6 +405,7 @@ namespace Dearlife
         void Cancel()
         {
             Close();
+            Residents.MoveInSaved();      // the house is not left empty behind the title screen
             MainMenu.Open();
         }
 

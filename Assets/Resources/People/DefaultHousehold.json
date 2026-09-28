@@ -1,0 +1,306 @@
+{
+ "members": [
+  {
+   "name": "Aina",
+   "sliders": [
+    {
+     "name": "gender",
+     "value": -1.0
+    },
+    {
+     "name": "height",
+     "value": -0.15
+    },
+    {
+     "name": "weight",
+     "value": -0.05
+    },
+    {
+     "name": "muscle",
+     "value": -0.1
+    },
+    {
+     "name": "proportions",
+     "value": 0.5
+    },
+    {
+     "name": "age",
+     "value": -0.15
+    },
+    {
+     "name": "faceWidth",
+     "value": -0.15
+    },
+    {
+     "name": "faceLength",
+     "value": 0.1
+    },
+    {
+     "name": "jaw",
+     "value": -0.3
+    },
+    {
+     "name": "chin",
+     "value": -0.1
+    },
+    {
+     "name": "cheekbones",
+     "value": 0.35
+    },
+    {
+     "name": "eyeSize",
+     "value": 0.3
+    },
+    {
+     "name": "eyeSpacing",
+     "value": 0.05
+    },
+    {
+     "name": "noseWidth",
+     "value": -0.2
+    },
+    {
+     "name": "noseLength",
+     "value": -0.1
+    },
+    {
+     "name": "lips",
+     "value": 0.3
+    },
+    {
+     "name": "mouthWidth",
+     "value": -0.05
+    },
+    {
+     "name": "brows",
+     "value": 0.1
+    },
+    {
+     "name": "ears",
+     "value": -0.1
+    }
+   ],
+   "skin": 0.32,
+   "hair": "hair_long",
+   "hairColour": {
+    "r": 0.15,
+    "g": 0.095,
+    "b": 0.065,
+    "a": 1.0
+   },
+   "everyday": [
+    "tunic",
+    "trousers",
+    "hijab",
+    "shoes"
+   ],
+   "sleep": [
+    "pyjama_top",
+    "pyjama_bottoms"
+   ],
+   "colours": [
+    {
+     "id": "tunic",
+     "colour": {
+      "r": 0.46,
+      "g": 0.55,
+      "b": 0.5,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "trousers",
+     "colour": {
+      "r": 0.16,
+      "g": 0.2,
+      "b": 0.34,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "hijab",
+     "colour": {
+      "r": 0.72,
+      "g": 0.46,
+      "b": 0.5,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "pyjama_top",
+     "colour": {
+      "r": 0.7,
+      "g": 0.64,
+      "b": 0.82,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "pyjama_bottoms",
+     "colour": {
+      "r": 0.88,
+      "g": 0.84,
+      "b": 0.76,
+      "a": 1.0
+     }
+    }
+   ],
+   "traits": [
+    "Creative",
+    "Cheerful",
+    "Neat"
+   ],
+   "job": "Teacher"
+  },
+  {
+   "name": "Danial",
+   "sliders": [
+    {
+     "name": "gender",
+     "value": 1.0
+    },
+    {
+     "name": "height",
+     "value": 0.35
+    },
+    {
+     "name": "weight",
+     "value": 0.1
+    },
+    {
+     "name": "muscle",
+     "value": 0.3
+    },
+    {
+     "name": "proportions",
+     "value": 0.4
+    },
+    {
+     "name": "age",
+     "value": 0.05
+    },
+    {
+     "name": "faceWidth",
+     "value": 0.1
+    },
+    {
+     "name": "faceLength",
+     "value": 0.15
+    },
+    {
+     "name": "jaw",
+     "value": 0.35
+    },
+    {
+     "name": "chin",
+     "value": 0.2
+    },
+    {
+     "name": "cheekbones",
+     "value": 0.1
+    },
+    {
+     "name": "eyeSize",
+     "value": -0.1
+    },
+    {
+     "name": "eyeSpacing",
+     "value": 0.0
+    },
+    {
+     "name": "noseWidth",
+     "value": 0.15
+    },
+    {
+     "name": "noseLength",
+     "value": 0.1
+    },
+    {
+     "name": "lips",
+     "value": -0.1
+    },
+    {
+     "name": "mouthWidth",
+     "value": 0.1
+    },
+    {
+     "name": "brows",
+     "value": -0.1
+    },
+    {
+     "name": "ears",
+     "value": 0.0
+    }
+   ],
+   "skin": 0.42,
+   "hair": "hair_short",
+   "hairColour": {
+    "r": 0.045,
+    "g": 0.038,
+    "b": 0.034,
+    "a": 1.0
+   },
+   "everyday": [
+    "casual",
+    "shoes"
+   ],
+   "sleep": [
+    "pyjama_top",
+    "pyjama_bottoms"
+   ],
+   "colours": [
+    {
+     "id": "tunic",
+     "colour": {
+      "r": 0.2,
+      "g": 0.2,
+      "b": 0.22,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "trousers",
+     "colour": {
+      "r": 0.2,
+      "g": 0.2,
+      "b": 0.22,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "hijab",
+     "colour": {
+      "r": 0.16,
+      "g": 0.2,
+      "b": 0.34,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "pyjama_top",
+     "colour": {
+      "r": 0.16,
+      "g": 0.2,
+      "b": 0.34,
+      "a": 1.0
+     }
+    },
+    {
+     "id": "pyjama_bottoms",
+     "colour": {
+      "r": 0.2,
+      "g": 0.2,
+      "b": 0.22,
+      "a": 1.0
+     }
+    }
+   ],
+   "traits": [
+    "Bookworm",
+    "Foodie",
+    "Handy"
+   ],
+   "job": "Engineer"
+  }
+ ]
+}

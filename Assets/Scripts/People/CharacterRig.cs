@@ -16,7 +16,7 @@ namespace Dearlife
         [Tooltip("person, cat or dog: which joint table builds the skeleton")]
         public string kind = "person";
         public float RestHip { get; private set; } = 0.95f;   // pelvis height above the feet at rest, measured from the model
-        [Tooltip("parts whose material name contains this are not drawn (Lily's glasses)")]
+        [Tooltip("parts whose material name contains this are not drawn (once used to hide a model's glasses)")]
         public string hideMaterial = "";
         public Pose pose = Pose.Stand;
         [System.NonSerialized] public UseSpot seat;   // the piece being sat or lain on: the pose follows its shape

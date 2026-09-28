@@ -1,4 +1,4 @@
-"""People (Lily and Amir) and pets (cat and dog) as stylised jointed figures. Run inside Blender (Blender MCP).
+"""Pets (cat and dog) as stylised jointed figures (the people it once made are gone, see docs/CHARACTER_PLAN.md). Run inside Blender (Blender MCP).
 
 Every figure is a hierarchy of joint empties with the body parts parented to them, so Unity can swing the joints for walking,
 sitting, lying, waving and so on. Origin: on the ground under the figure. Front faces -Y (arrives facing +Z in Unity).
@@ -177,7 +177,8 @@ def dog():
 def build_all():
     fresh()
     out = {}
-    for fn, nm in ((lambda: person("person_lily", "lily"), "person_lily"), (lambda: person("person_amir", "amir"), "person_amir"), (cat, "cat"), (dog, "dog")):
+    # (the stylised people are no longer exported: people are MPFB2 persons made in the character creator)
+    for fn, nm in ((cat, "cat"), (dog, "dog")):
         rt = fn()
         out[rt.name] = stats(rt)
         export(rt, rt.name)

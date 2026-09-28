@@ -33,7 +33,7 @@ namespace Dearlife.EditorTools
             // no code is stripped: HDRP finds its volume and sky types by looking through the assemblies while the game runs
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);
 
-            // the people and pets: their meshes are copied while the game runs (Lily's glasses are cut out), which needs readable meshes
+            // the people and pets: their meshes are copied while the game runs (a person's body and clothes get their own copies), which needs readable meshes
             foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/Art/Models/Characters" }))
             {
                 var mi = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as ModelImporter;

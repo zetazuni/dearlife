@@ -5,9 +5,9 @@ using UnityEngine.AI;
 namespace Dearlife
 {
     /// <summary>
-    /// Who lives in the house. A save made with the character creator has its own household (<see cref="HouseholdData"/>):
-    /// its people are made from Resources/People/Person (an MPFB2 person with its shape, look and wardrobe) and
-    /// Lily and James step aside. Saves without one keep Lily and James.
+    /// Who lives in the house. A save made with the character creator has its own household (<see cref="HouseholdData"/>);
+    /// any other save gets the default household (Aina and Danial). People are made from Resources/People/Person (an
+    /// MPFB2 person with its shape, look and wardrobe).
     /// </summary>
     public static class Residents
     {
@@ -40,35 +40,34 @@ namespace Dearlife
             return go;
         }
 
-        /// <summary>Called on every scene load: if this save has a household, it moves in (Lily and James step aside).</summary>
+        /// <summary>Called on every scene load: this save's own household moves in, or the default one.</summary>
         public static void MoveInSaved()
         {
-            var h = HouseholdData.Load();
+            var h = HouseholdData.Load() ?? HouseholdData.Default();
             if (h != null) MoveIn(h);
         }
+
+        // where people start: the living room and the kitchen, then a step further along for a third and fourth
+        static readonly (Vector3 p, float yaw)[] Starts = { (new Vector3(5.6f, 0.02f, 5.6f), 200f), (new Vector3(11.5f, 0.02f, 6.6f), 20f) };
 
         public static void MoveIn(HouseholdData h)
         {
             foreach (var g in spawned) if (g) Object.Destroy(g);
             spawned.Clear();
             var group = GameObject.Find("People and pets");
-            var starts = new List<(Vector3 p, Quaternion r)>();
             if (group)
                 foreach (Transform t in group.transform)
                 {
                     var c = t.GetComponent<Character>();
-                    if (!c || c.isPet) continue;
-                    starts.Add((t.position, t.rotation));
-                    t.gameObject.SetActive(false);        // the default household steps aside
+                    if (c && !c.isPet && !spawned.Contains(t.gameObject)) t.gameObject.SetActive(false);   // anyone left from an older scene
                 }
-            if (starts.Count == 0) starts.Add((new Vector3(5.6f, 0.02f, 5.6f), Quaternion.identity));
             var names = new List<string>();
             foreach (var m in h.members) names.Add(m.name);
             for (int i = 0; i < h.members.Count; i++)
             {
-                var s = starts[i % starts.Count];
-                var at = s.p + new Vector3(0.7f * (i / starts.Count), 0f, 0.5f * (i / starts.Count));
-                var go = Make(h.members[i], at, s.r, true);
+                var s = Starts[i % Starts.Length];
+                var at = s.p + new Vector3(0.7f * (i / Starts.Length), 0f, 0.5f * (i / Starts.Length));
+                var go = Make(h.members[i], at, Quaternion.Euler(0f, s.yaw, 0f), true);
                 if (!go) continue;
                 if (group) go.transform.SetParent(group.transform, true);
                 var sim = go.GetComponent<Sim>();

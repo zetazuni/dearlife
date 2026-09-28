@@ -1,6 +1,4 @@
-Downloaded from Sketchfab (all CC Attribution 4.0), rigged and adjusted in Blender by tools/blender_rig.py:
-- Lily: "Female - Style 4 (Pose 1: Greeting)" by mifusaja, https://sketchfab.com/3d-models/female-style-4-pose-1-greeting-577be48ee19c46708a469ab502aae3d8 (arms lowered, skeleton and skin weights added)
-- Amir: "Casual Man Character" by strielecki, https://sketchfab.com/3d-models/casual-man-character-05d9dd5bdddd4157bd46dc179781ee6e (arms lowered)
+Downloaded from Sketchfab (CC Attribution 4.0), rigged and adjusted in Blender by tools/blender_rig.py:
 - Bedah: "Tuxedo Cat Animated 2.0" by DreamNoms, https://sketchfab.com/3d-models/tuxedo-cat-animated-20-783fcb78b55b4394a212c2b6392e1113 (re-coloured as a calico, resized)
 
 Made with MPFB2 (MakeHuman for Blender), assets CC0 (base mesh, targets, skin, eyes, brows, lashes, teeth, the casual outfit, shoes and long hair from the MakeHuman system asset pack), by tools/blender_mpfb_body.py:

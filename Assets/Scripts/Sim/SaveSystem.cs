@@ -24,7 +24,7 @@ namespace Dearlife
         {
             "dearlife.funds", "dearlife.built", "dearlife.painted", "dearlife.bought", "dearlife.sold",
             "dearlife.layout", "dearlife.windows", "dearlife.dogs", "dearlife.hour", "dearlife.season",
-            "dearlife.tutorial", "dearlife.career.James", "dearlife.career.Lily", HouseholdData.KeyBase,
+            "dearlife.tutorial", "dearlife.career.James", "dearlife.career.Lily", "dearlife.career.Aina", "dearlife.career.Danial", HouseholdData.KeyBase,
         };
 
         /// <summary>Turns a base key into the active slot's key. Every system that saves game state should read and write through this.</summary>
