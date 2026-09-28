@@ -28,6 +28,10 @@ namespace Dearlife
         const float PieDisc = 92f;
         float PieRadius => Mathf.Max(78f, options.Count * PieDisc * 1.05f / (2f * Mathf.PI));
         string pieTitle;
+        Furniture menuPiece;
+
+        /// <summary>The piece whose round menu is open right now (it stays highlighted while you choose), or null.</summary>
+        public static Furniture MenuPiece => Instance != null && Instance.pieOpen ? Instance.menuPiece : null;
 
         Rect portraits, speedPanel;
         float scale = 1f;
@@ -83,6 +87,9 @@ namespace Dearlife
 
         // ---------------------------------------------------------------- clicks
 
+        /// <summary>The person or pet a click at this mouse position would pick (clicks go to them before furniture).</summary>
+        public Character CharacterUnder(Vector3 mouse) => PickCharacter(mouse);
+
         Character PickCharacter(Vector3 mouse)
         {
             var cam = Camera.main;
@@ -125,6 +132,7 @@ namespace Dearlife
                 var tv = h.collider.GetComponentInParent<TvScreen>();
                 if (tv != null) { OpenTvMenu(tv, mouse); return; }
                 var piece = SeatOwner(h.collider.transform);
+                if (piece != null && right && Cheats.Enabled && InteractionTable.BaseId(piece.name) == "mailbox") { cheatPiece = piece; OpenCheats(CheatPage.Main, mouse); return; }
                 if (piece != null) { OpenFurnitureMenu(piece, h.point, mouse); return; }
                 var pool = PoolAt(h.point);
                 if (pool != null) { OpenThingMenu(pool, h.point, mouse); return; }
@@ -134,7 +142,8 @@ namespace Dearlife
             }
         }
 
-        static Furniture SeatOwner(Transform t)
+        /// <summary>The piece of furniture a click on this collider opens a menu for (it has a seat or things to do), or null.</summary>
+        public static Furniture SeatOwner(Transform t)
         {
             foreach (var f in t.GetComponentsInParent<Furniture>())
                 if (f.GetComponentInChildren<UseSpot>() != null || f.GetComponent<Interactable>() != null) return f;
@@ -159,15 +168,88 @@ namespace Dearlife
             markerAt = point; markerUntil = Time.unscaledTime + 0.9f;
         }
 
-        void OpenMenu(Vector3 mouse, string heading)
+        void OpenMenu(Vector3 mouse, string heading, Furniture piece = null)
+        {
+            pieCenter = new Vector2(mouse.x, Screen.height - mouse.y) / scale;
+            ShowMenuHere(heading, piece);
+        }
+
+        /// <summary>Opens (or reopens) the round menu where it already is, so a sub menu or a repeated cheat does not jump around.</summary>
+        void ShowMenuHere(string heading, Furniture piece)
         {
             pieOpen = true;
             pieTitle = heading;
-            pieCenter = new Vector2(mouse.x, Screen.height - mouse.y) / scale;
+            menuPiece = piece;
             // keep the whole ring on screen
             float m = PieRadius + PieDisc * 0.5f + 6f;
             pieCenter.x = Mathf.Clamp(pieCenter.x, m, Screen.width / scale - m);
             pieCenter.y = Mathf.Clamp(pieCenter.y, m, Screen.height / scale - m);
+        }
+
+        // ---------------------------------------------------------------- cheats (right click the mailbox, when switched on in Settings)
+
+        enum CheatPage { Main, Money, Needs, Life, World }
+        Furniture cheatPiece;
+
+        void OpenCheats(CheatPage page, Vector3? mouse)
+        {
+            options.Clear();
+            var sim = Selected != null && Selected ? Selected.sim : null;
+            string who = Selected != null && Selected ? Selected.displayName : "";
+            // every cheat reopens the same page afterwards, so it can be clicked again and again
+            System.Action<System.Action> Keep = a => { a(); OpenCheats(page, null); };
+            void Add(string label, System.Action act, bool enabled = true) => options.Add(new Option { label = label, enabled = enabled, act = act });
+            void Go(string label, CheatPage p) => Add(label, () => OpenCheats(p, null));
+            string heading = "Cheats";
+            switch (page)
+            {
+                case CheatPage.Main:
+                    Go("Money", CheatPage.Money);
+                    Go("Needs", CheatPage.Needs);
+                    Go("Skills, career and mood", CheatPage.Life);
+                    Go("Time and season", CheatPage.World);
+                    break;
+                case CheatPage.Money:
+                    heading = "Cheats: money";
+                    Add($"+{Household.Currency} 1,000", () => Keep(() => Cheats.AddMoney(1000)));
+                    Add($"+{Household.Currency} 10,000", () => Keep(() => Cheats.AddMoney(10000)));
+                    Add($"+{Household.Currency} 50,000", () => Keep(() => Cheats.AddMoney(50000)));
+                    Add($"+{Household.Currency} 250,000", () => Keep(() => Cheats.AddMoney(250000)));
+                    Go("Back", CheatPage.Main);
+                    break;
+                case CheatPage.Needs:
+                    heading = "Cheats: " + (who != "" ? who + "'s needs" : "needs");
+                    Add("Fill all needs", () => Keep(() => Cheats.FillAll(sim)), sim);
+                    foreach (Need n in System.Enum.GetValues(typeof(Need)))
+                    {
+                        var need = n;
+                        Add("Fill " + Sim.NeedName(need).ToLower(), () => Keep(() => Cheats.FillNeed(sim, need)), sim);
+                    }
+                    Add("Fill everyone's needs", () => Keep(Cheats.FillEveryone));
+                    Add(Cheats.FreezeSetting ? "Needs never drop: on" : "Needs never drop: off", () => Keep(Cheats.ToggleFreeze));
+                    Go("Back", CheatPage.Main);
+                    break;
+                case CheatPage.Life:
+                    heading = "Cheats: " + (who != "" ? who : "life");
+                    Add("Max all skills", () => Keep(() => Cheats.MaxSkills(sim)), sim);
+                    Add("Promote", () => Keep(() => Cheats.Promote(sim)), sim);
+                    Add("Grant a wish", () => Keep(() => Cheats.GrantWish(sim)), sim);
+                    Add("Feel fantastic", () => Keep(() => Cheats.MakeHappy(sim)), sim);
+                    Add("Everyone best friends", () => Keep(Cheats.BestFriends));
+                    Go("Back", CheatPage.Main);
+                    break;
+                case CheatPage.World:
+                    heading = "Cheats: time";
+                    Add("Morning", () => Keep(() => Cheats.SetHour(8f, "morning")));
+                    Add("Noon", () => Keep(() => Cheats.SetHour(13f, "noon")));
+                    Add("Sunset", () => Keep(() => Cheats.SetHour(18.5f, "sunset")));
+                    Add("Night", () => Keep(() => Cheats.SetHour(22.5f, "night")));
+                    Add("Next season", () => Keep(Cheats.NextSeason));
+                    Go("Back", CheatPage.Main);
+                    break;
+            }
+            if (mouse.HasValue) OpenMenu(mouse.Value, heading, cheatPiece);
+            else ShowMenuHere(heading, cheatPiece);
         }
 
         void OpenPersonMenu(Character who, Vector3 mouse)
@@ -252,7 +334,7 @@ namespace Dearlife
                 label = seat != null ? "Watch TV" : "No free seat", enabled = seat != null,
                 act = () => me.GiveOrder(new Character.Order { kind = Character.Order.Kind.Use, spot = seat, label = "Going to watch TV", after = () => { if (!tv.on) tv.SetOn(true); } })
             });
-            OpenMenu(mouse, "TV");
+            OpenMenu(mouse, "TV", tv.GetComponentInParent<Furniture>());
         }
 
         /// <summary>The nearest free seat that looks at the TV.</summary>
@@ -313,7 +395,7 @@ namespace Dearlife
                 options.Add(new Option { label = "Move", enabled = true, act = () => DecorateMode.Instance.StartMove(pc) });
                 options.Add(new Option { label = $"Sell (RM {Household.SellPrice(pc.name):N0})", enabled = true, act = () => DecorateMode.Instance.SellPiece(pc) });
             }
-            OpenMenu(mouse, piece.Label);
+            OpenMenu(mouse, piece.Label, piece);
         }
 
         // ---------------------------------------------------------------- the hexagon ring over the selected person

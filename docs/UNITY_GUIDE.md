@@ -93,6 +93,14 @@ Press **M**. Press on a sofa, chair, plant, mug, car or bike and drag it. A gree
 
 Every doorway between rooms has a sliding door. Hover over one and it glides open, move away and it closes. Windows sit in the concrete walls. In decorate mode (**M**) press on a window, drag it along the wall and it snaps every 10 cm. The wall re-forms around it. It turns red where it would hit a door, another window or the end of the wall.
 
+### Hover glow (v0.36)
+
+Point at something you can use (a fridge, the sofa, the TV) and it glows white and grows a little, like in The Sims 4. In decorate mode everything you can move glows the same way, and whatever you are carrying keeps glowing until you put it down.
+
+### Cheats (v0.36)
+
+Open **Settings > Game** and turn on **Cheats**. Then **right click the mailbox** in the front garden for a round menu of cheats: money, filling needs (one at a time or all), "needs never drop", max skills, a promotion, granting a wish, time of day and the next season. Each one can be clicked as many times as you like. Turn cheats off in the same place and the mailbox goes back to normal.
+
 ## 5. Test checklist
 
 Run through this after each update and tell Claude anything that feels off (with a screenshot if you can: **Win + Shift + S**).

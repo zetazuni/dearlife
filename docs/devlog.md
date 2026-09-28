@@ -424,3 +424,35 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - Checked in Play mode: title screen screenshot confirmed the wider glow, the fixed button spacing, and no
   name tag over the person visible in the background room; Console had zero errors or missing-script
   warnings after rebuilding the scene.
+
+## Session 42: cheats on the mailbox, Sims style hover glow (2026-09-28) · v0.36.0
+
+- **Cheat mode** (`Sim/Cheats.cs`): switched on in Settings, Game tab ("Cheats are on (right click the
+  mailbox)", saved as `dearlife.cheats`, off by default). With it on, a right click on the mailbox opens a
+  round menu of cheats instead of the mailbox's usual menu (`LiveMode.OpenCheats`, pages Money, Needs,
+  "Skills, career and mood", "Time and season", each with a Back button). Every cheat reopens its own page in
+  the same spot (`ShowMenuHere`), so it can be clicked again and again. Money: +RM 1,000 / 10,000 / 50,000 /
+  250,000. Needs (for whoever you're playing): fill all, fill each of the six on its own, fill everyone's
+  (pets too), and "Needs never drop" (`Cheats.NeedsFrozen`, checked in `Sim.Update`; needs still fill up when
+  used). Life: max all skills (level 10), promote to the next career rank (goes through `Sim.WorkXp`, so the
+  bonus, toast and save happen as normal), grant a wish (pays its reward), "Feel fantastic" moodlet, everyone
+  best friends. Time: morning, noon, sunset, night, next season.
+- **Hover glow** (`House/HoverHighlight.cs`): the thing under the mouse gets a soft white shell, a little
+  bigger than the piece (3.5 cm, clamped to 1.2 to 6 percent of its size), that eases in and out
+  (`1 - exp(-14 dt)` on unscaled time, so it works while paused). In live mode only things with something to
+  do light up (`LiveMode.SeatOwner`, plus the TV), not when a click would go to a person instead, and the piece
+  whose round menu is open stays lit (`LiveMode.MenuPiece`). In decorate mode anything movable lights up
+  (`DecorateMode.HoverTarget`, same rules as picking up, windows included) and the piece or window you are
+  carrying stays lit the whole time (`HeldPiece`, `HeldWindow`). The shell is copies of the piece's meshes
+  with an `HDRP/Unlit` transparent material and no colliders, in its own object, rebuilt when the piece's
+  parts change (windows rebuild while sliding), so the real piece and its physics are never scaled or
+  touched. It makes itself at startup (`RuntimeInitializeOnLoadMethod`, `DontDestroyOnLoad`), no scene change.
+- The HUD's small line under the title said "3D · v..." left over from the old name; now just the version.
+- Checked in Play mode (driving it by code, since the mouse can't be moved from here): two +RM 10,000 cheats
+  took funds from 15,000 to 35,000, filling one need then all worked, promote went rank 1 to 2 with its
+  bonus, skills reached level 10, frozen needs held at 100 over several seconds. Screenshots: the cheat menu
+  on the mailbox (and the Needs page with all ten options fitting), the mailbox and then the sofa lit white and
+  slightly bigger while their menus were open; the carried gnome's glow was at full strength while the
+  mailbox's faded back out, and the gnome went back exactly where it was when the move was cancelled.
+  **Not tested with a real mouse:** the right click on the mailbox itself and hovering by hand (both go
+  through the same code that was tested, but deserve a quick try).

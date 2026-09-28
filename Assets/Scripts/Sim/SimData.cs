@@ -144,7 +144,7 @@ namespace Dearlife
         {
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 6 && !Cheats.NeedsFrozen; i++)
             {
                 if (isPet && (i == (int)Need.Bladder || i == (int)Need.Hygiene || i == (int)Need.Social)) continue;
                 float rate = Rates[i];

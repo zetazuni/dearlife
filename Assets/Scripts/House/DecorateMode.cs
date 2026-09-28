@@ -306,6 +306,34 @@ namespace Dearlife
 
         public Furniture Selected { get; private set; }
 
+        /// <summary>The piece being carried or placed right now, or null.</summary>
+        public Furniture HeldPiece => held;
+        /// <summary>The window being slid along its wall right now (wall null when none).</summary>
+        public (WindowWall wall, int index) HeldWindow => (winWall, winIndex);
+
+        /// <summary>What a click would pick up at the mouse right now, the same way <see cref="TryGrab"/> decides, but without picking it up.</summary>
+        public bool HoverTarget(out Furniture piece, out WallWindowPart window)
+        {
+            piece = null; window = null;
+            if (!cam) cam = Camera.main;
+            if (!cam) return false;
+            var hits = Physics.RaycastAll(cam.ScreenPointToRay(Input.mousePosition), 300f, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var h in hits)
+            {
+                var part = h.collider.GetComponent<WallWindowPart>();
+                if (part) { window = part; return true; }
+                if (IsArchitecture(h.collider)) continue;
+                var f = h.collider.GetComponentInParent<Furniture>();
+                if (!f) return false;
+                while (f.attachedTo) f = f.attachedTo;
+                if (f.pinned) return false;
+                piece = f;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>Turns the last piece you picked up by the given angle (the HUD buttons). Refuses if it would hit something.</summary>
         public void RotateSelected(float deg)
         {

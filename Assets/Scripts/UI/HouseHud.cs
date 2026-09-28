@@ -82,7 +82,7 @@ namespace Dearlife
             Ui.Rect2(new Rect(0f, BarH - 2f, w, 2f), Ui.Dark ? Ui.Pink : Ui.Line);
 
             Ui.Label(new Rect(18f, 3f, 220f, 40f), "Dearlife", 34f, Ui.Rose, TextAnchor.UpperLeft, Ui.Weight.Script);
-            Ui.Label(new Rect(20f, 37f, 220f, 16f), $"3D  ·  v{GameInfo.Version}", 11f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+            Ui.Label(new Rect(20f, 37f, 220f, 16f), $"v{GameInfo.Version}", 11f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
 
             float x = 200f, y = 12f, ph = 34f;
             var hh = Household.Instance; var dn = DayNightCycle.Instance; var sea = SeasonCycle.Instance;

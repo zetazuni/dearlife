@@ -42,7 +42,7 @@ namespace Dearlife
                 if (Ui.Chip(new Rect(Box.x + 24f + i * (tw + 6f), Box.y + 58f, tw, 30f), names[i], tab == i, 13f)) { tab = i; scroll = 0f; openDrop = -1; if (i == 2) DisplaySettings.Init(); }
 
             var inner = new Rect(Box.x + 24f, Box.y + 102f, Box.width - 48f, Box.height - 102f - 22f);
-            scroll = Ui.Scroll(inner, scroll, tab == 2 ? 520f + (openDrop >= 0 ? 190f : 0f) : tab == 3 ? 480f : 420f, DrawTab);
+            scroll = Ui.Scroll(inner, scroll, tab == 2 ? 520f + (openDrop >= 0 ? 190f : 0f) : tab == 3 ? 640f : 420f, DrawTab);
 
             // a click on the dark outside closes it
             if (Event.current.type == EventType.MouseDown && !Box.Contains(Ui.Mouse) && !confirmExit) { Open = false; Event.current.Use(); }
@@ -125,6 +125,8 @@ namespace Dearlife
                     if (Ui.Pill(new Rect(dw + 8f, y, dw, 36f), "Dark mode", Ui.Dark, 14f)) Ui.SetDark(true);
                     y += 54f;
                     if (Ui.Pill(new Rect(0f, y, w, 36f), Ui.ShowNames ? "Names are shown above people and pets" : "Names are hidden", Ui.ShowNames, 14f)) Ui.SetShowNames(!Ui.ShowNames);
+                    y += 52f;
+                    if (Ui.Pill(new Rect(0f, y, w, 36f), Cheats.Enabled ? "Cheats are on (right click the mailbox)" : "Cheats are off", Cheats.Enabled, 14f)) Cheats.SetEnabled(!Cheats.Enabled);
                     y += 52f;
                     if (Ui.Pill(new Rect(0f, y, w, 36f), "Show the hints again (F1)", false, 14f)) { Tutorial.Restart(); Open = false; }
                     y += 52f;
