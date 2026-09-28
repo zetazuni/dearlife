@@ -523,3 +523,25 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   the new shaders.
 - **Still to improve:** a faint light line at the top of the parting in direct sun, brows are a little heavy, and the
   proper studio light belongs to the creator (phase 4). The test person is still not in the scene.
+
+## Session 46: character plan phase 2, motion capture (2026-09-28) · v0.39.0
+
+- **Clips:** the CMU library's index (2,548 described takes) was searched for every pose; 17 were downloaded (standing
+  still, walk, sitting in chair, waving, pick up, very happy, eating, mixing batter, palm pilot for reading, weight
+  lifting, typing, washing, swimming, sipping coffee, piano, salsa, conversation). Credits and the requested citation
+  are in `Assets/Art/Animations/CMU/CREDITS.txt`. No guitar recording exists, so Guitar borrows the piano clip.
+- **Three bugs found on the way:** (1) the downloaded FBX files say 0 fps, Unity assumed 1 fps and its Humanoid import
+  kept three poses per clip (a walk stride took 2.3 s); re-saved at 30 fps through Blender. (2) Arms came out raised
+  (a relaxed seated arm in the air): the T pose reference ignored the arm's roll, and the roll was then measured
+  against the CMU root's "forward", which points up (the root is turned 270 degrees about X). Now the body's own axes
+  are used; source and target arm angles agree within a few degrees in every clip. (3) Lying used the root's tipping
+  and a floor lying clip at once, so lying uses the standing hold, which the tipped root turns into lying face up.
+- **Fitting to furniture:** hips land on the `UseSpot` exactly and both feet are planted (under the knee, not below a
+  foot the recording stretched forward). Measured on all ten seat types: 0.0 cm hip error, ankles 7 cm above the floor
+  (the ankle height) on chairs, benches, sofas and the beanbag, on the foot ring on the bar stool. Loungers and hammocks
+  raise the torso and thighs like before.
+- **Tested in Play mode:** the test person walked with the AI (natural arm swing and stride), chose to pet Bedah on her
+  own, sat on the sofa when told to (relaxed, hands on thighs); the beanbag (knees up, feet flat), the lounger (leaning
+  back on the raised backrest) and a row of 14 copies each playing one action pose were checked by screenshot.
+- **Not done yet:** hand IK so held props (book, mug, guitar) sit in the fingers instead of hanging off the forearm,
+  foot IK on stairs, a proper guitar clip, and the crouch is a bend to pick up rather than a kneel to pat a pet.

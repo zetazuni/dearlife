@@ -39,7 +39,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BaseColorMap:
-        m_Texture: {fileID: 2800000, guid: ae7444c7f43ba5a41967bbe346ee52e0, type: 3}
+        m_Texture: {fileID: 2800000, guid: 642a12782cfe40848984316ccb4e59d8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BentNormalMap:
@@ -75,7 +75,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: ae7444c7f43ba5a41967bbe346ee52e0, type: 3}
+        m_Texture: {fileID: 2800000, guid: 642a12782cfe40848984316ccb4e59d8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskMap:
@@ -227,7 +227,7 @@ Material:
     - _SmoothnessMin: 0.35
     - _SmoothnessRemapMax: 1
     - _SmoothnessRemapMin: 0
-    - _Specular: 0.45
+    - _Specular: 0.18
     - _SpecularAAScreenSpaceVariance: 0.1
     - _SpecularAAThreshold: 0.2
     - _SpecularOcclusionMode: 1
@@ -269,8 +269,8 @@ Material:
     - _ZTestTransparent: 4
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.26638874, g: 0.15159717, b: 0.111824445, a: 1}
+    - _Color: {r: 0.2663887, g: 0.15159714, b: 0.111824416, a: 1}
     - _DiffusionProfileAsset: {r: 0, g: 0, b: 0, a: 0}
     - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}

@@ -1,0 +1,230 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+namespace Dearlife.EditorTools
+{
+    /// <summary>
+    /// Phase 2 of docs/CHARACTER_PLAN.md: motion capture from the CMU library (Assets/Art/Animations/CMU, free to use and
+    /// share, not to resell) retargeted onto the MPFB2 people through Unity's Humanoid system. Both skeletons get an explicit
+    /// bone map (CMU uses Daz style names, MPFB Unreal style ones) and a T pose reference, because Humanoid treats the rest
+    /// pose as zero: MPFB rests in an A pose, so without it every arm would come out 45 degrees off.
+    /// </summary>
+    public static class CharacterAnimation
+    {
+        public const string ClipDir = "Assets/Art/Animations/CMU";
+
+        static readonly Dictionary<string, string> CmuMap = new Dictionary<string, string>
+        {
+            { "Hips", "hip" }, { "Spine", "abdomen" }, { "Chest", "chest" }, { "Neck", "neck" }, { "Head", "head" },
+            { "LeftShoulder", "lCollar" }, { "LeftUpperArm", "lShldr" }, { "LeftLowerArm", "lForeArm" }, { "LeftHand", "lHand" },
+            { "RightShoulder", "rCollar" }, { "RightUpperArm", "rShldr" }, { "RightLowerArm", "rForeArm" }, { "RightHand", "rHand" },
+            { "LeftUpperLeg", "lThigh" }, { "LeftLowerLeg", "lShin" }, { "LeftFoot", "lFoot" },
+            { "RightUpperLeg", "rThigh" }, { "RightLowerLeg", "rShin" }, { "RightFoot", "rFoot" },
+            { "LeftEye", "leftEye" }, { "RightEye", "rightEye" },
+            { "Left Thumb Proximal", "lThumb1" }, { "Left Thumb Intermediate", "lThumb2" },
+            { "Left Index Proximal", "lIndex1" }, { "Left Index Intermediate", "lIndex2" },
+            { "Left Middle Proximal", "lMid1" }, { "Left Middle Intermediate", "lMid2" },
+            { "Left Ring Proximal", "lRing1" }, { "Left Ring Intermediate", "lRing2" },
+            { "Left Little Proximal", "lPinky1" }, { "Left Little Intermediate", "lPinky2" },
+            { "Right Thumb Proximal", "rThumb1" }, { "Right Thumb Intermediate", "rThumb2" },
+            { "Right Index Proximal", "rIndex1" }, { "Right Index Intermediate", "rIndex2" },
+            { "Right Middle Proximal", "rMid1" }, { "Right Middle Intermediate", "rMid2" },
+            { "Right Ring Proximal", "rRing1" }, { "Right Ring Intermediate", "rRing2" },
+            { "Right Little Proximal", "rPinky1" }, { "Right Little Intermediate", "rPinky2" },
+        };
+
+        static Dictionary<string, string> MpfbMap()
+        {
+            var m = new Dictionary<string, string>
+            {
+                { "Hips", "pelvis" }, { "Spine", "spine_01" }, { "Chest", "spine_02" }, { "UpperChest", "spine_03" }, { "Neck", "neck_01" }, { "Head", "head" },
+            };
+            foreach (var (side, s) in new[] { ("Left", "l"), ("Right", "r") })
+            {
+                m[side + "Shoulder"] = "clavicle_" + s; m[side + "UpperArm"] = "upperarm_" + s; m[side + "LowerArm"] = "lowerarm_" + s; m[side + "Hand"] = "hand_" + s;
+                m[side + "UpperLeg"] = "thigh_" + s; m[side + "LowerLeg"] = "calf_" + s; m[side + "Foot"] = "foot_" + s; m[side + "Toes"] = "ball_" + s;
+                foreach (var (finger, f) in new[] { ("Thumb", "thumb"), ("Index", "index"), ("Middle", "middle"), ("Ring", "ring"), ("Little", "pinky") })
+                {
+                    m[$"{side} {finger} Proximal"] = $"{f}_01_{s}"; m[$"{side} {finger} Intermediate"] = $"{f}_02_{s}"; m[$"{side} {finger} Distal"] = $"{f}_03_{s}";
+                }
+            }
+            return m;
+        }
+
+        /// <summary>Makes a model Humanoid with the given bone map and a T pose (arms level, straight) as its reference.</summary>
+        public static bool MakeHumanoid(string path, Dictionary<string, string> map, out string report)
+        {
+            var imp = (ModelImporter)AssetImporter.GetAtPath(path);
+            imp.animationType = ModelImporterAnimationType.Human;
+            imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            imp.SaveAndReimport();                          // first pass fills in the skeleton list
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            var inst = Object.Instantiate(prefab);
+            var bones = new Dictionary<string, Transform>();
+            foreach (var t in inst.GetComponentsInChildren<Transform>(true)) bones[t.name] = t;
+            TPose(inst.transform, bones, map);
+
+            var desc = imp.humanDescription;
+            var human = new List<HumanBone>();
+            foreach (var kv in map)
+                if (bones.ContainsKey(kv.Value)) human.Add(new HumanBone { humanName = kv.Key, boneName = kv.Value, limit = new HumanLimit { useDefaultValues = true } });
+            desc.human = human.ToArray();
+            var skel = new List<SkeletonBone>();
+            foreach (var t in inst.GetComponentsInChildren<Transform>(true))
+            {
+                string name = t == inst.transform ? prefab.name : t.name;
+                skel.Add(new SkeletonBone { name = name, position = t.localPosition, rotation = t.localRotation, scale = t.localScale });
+            }
+            desc.skeleton = skel.ToArray();
+            Object.DestroyImmediate(inst);
+            imp.humanDescription = desc;
+            imp.SaveAndReimport();
+
+            Avatar avatar = null;
+            foreach (var o in AssetDatabase.LoadAllAssetsAtPath(path)) if (o is Avatar a) avatar = a;
+            report = avatar ? $"{path}: avatar valid={avatar.isValid} human={avatar.isHuman} bones={human.Count}" : $"{path}: no avatar";
+            return avatar && avatar.isValid && avatar.isHuman;
+        }
+
+        /// <summary>
+        /// Upper arms and forearms level and pointing straight out sideways, palms down, like Unity's "Enforce T-Pose". The
+        /// body's own axes are used, not the root's: the CMU files' root is turned 270 degrees about X by the Z up conversion,
+        /// so its "forward" points up.
+        /// </summary>
+        static void TPose(Transform root, Dictionary<string, Transform> bones, Dictionary<string, string> map)
+        {
+            Transform B(string human) => map.TryGetValue(human, out var n) && bones.TryGetValue(n, out var t) ? t : null;
+            var hips = B("Hips"); var head = B("Head"); var lArm = B("LeftUpperArm"); var rArm = B("RightUpperArm");
+            if (!hips || !head || !lArm || !rArm) return;
+            var up = (head.position - hips.position).normalized;
+            var right = Vector3.ProjectOnPlane(rArm.position - lArm.position, up).normalized;   // towards the character's right
+            var forward = Vector3.Cross(right, up);
+            foreach (var (side, sign) in new[] { ("Left", -1f), ("Right", 1f) })
+            {
+                if (!map.TryGetValue(side + "UpperArm", out var ua) || !bones.TryGetValue(ua, out var upper)) continue;
+                if (!map.TryGetValue(side + "LowerArm", out var la) || !bones.TryGetValue(la, out var lower)) continue;
+                if (!map.TryGetValue(side + "Hand", out var ha) || !bones.TryGetValue(ha, out var hand)) continue;
+                var outward = right * sign;
+                upper.rotation = Quaternion.FromToRotation(lower.position - upper.position, outward) * upper.rotation;
+                lower.rotation = Quaternion.FromToRotation(hand.position - lower.position, outward) * lower.rotation;
+                // and the roll: palms down, thumbs forward. With the arm rolled 90 degrees every elbow bend of the recording
+                // swings up instead of forward (a relaxed seated arm ended up in the air)
+                if (map.TryGetValue(side + " Thumb Proximal", out var th) && bones.TryGetValue(th, out var thumb))
+                {
+                    var axis = outward.normalized;
+                    var t = Vector3.ProjectOnPlane(thumb.position - hand.position, axis);
+                    var want = Vector3.ProjectOnPlane(forward, axis);
+                    if (t.sqrMagnitude > 1e-8f && want.sqrMagnitude > 1e-8f)
+                        upper.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(t, want, axis), axis) * upper.rotation;
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------- the clips and the controller
+
+        public const string ControllerPath = "Assets/Resources/Animation/People.controller";
+
+        /// <summary>
+        /// Which part of each CMU recording is used (seconds, the files are 30 fps), found by charting hip height and how
+        /// much the joints move over time: calm stretches for holds, one full stride for the walk (the left thigh leads at
+        /// 1.2 s and again at 2.33 s). Frame 0 of every recording is a reference pose and is never used.
+        /// </summary>
+        static readonly (string clip, float from, float to)[] Segments =
+        {
+            ("stand", 0.1f, 2.9f), ("walk", 1.2f, 2.33f), ("sit", 6.0f, 10.4f), ("wave", 0.1f, 3.0f),
+            ("crouch", 0.4f, 1.6f), ("happy", 1.0f, 4.0f), ("eat", 0.1f, 8.4f), ("cook", 0.1f, 5.4f), ("read", 2.0f, 6.9f),
+            ("exercise", 2.0f, 8.0f), ("work", 0.3f, 7.0f), ("wash", 1.0f, 10.0f), ("swim", 1.0f, 6.3f), ("drink", 1.0f, 9.0f),
+            ("keys", 0.3f, 5.6f), ("dance", 7.5f, 18.5f), ("talk", 3.0f, 13.5f),
+        };
+
+        /// <summary>
+        /// Every CharacterRig.Pose and the clip it plays (poses without a recording of their own borrow the closest one). Lying
+        /// uses the calm standing clip: UseSpot.RootFor already tips the whole figure onto its back, so a standing hold becomes
+        /// lying face up with the arms at the sides (a floor lying recording would be turned over twice).
+        /// </summary>
+        public static readonly (string pose, string clip)[] PoseClips =
+        {
+            ("Stand", "stand"), ("Walk", "walk"), ("Sit", "sit"), ("Lie", "stand"), ("Wave", "wave"), ("Crouch", "crouch"),
+            ("Sleep", "stand"), ("Groom", "stand"), ("Happy", "happy"), ("Eat", "eat"), ("Cook", "cook"), ("Read", "read"),
+            ("Exercise", "exercise"), ("Work", "work"), ("Wash", "wash"), ("Swim", "swim"), ("Drink", "drink"),
+            ("Guitar", "keys"), ("Keys", "keys"), ("Dance", "dance"), ("Talk", "talk"),
+        };
+
+        static void ConfigureClip(string path)
+        {
+            string key = System.IO.Path.GetFileName(path).Split('_')[0];
+            var seg = System.Array.Find(Segments, s => s.clip == key);
+            if (seg.clip == null) return;
+            var imp = (ModelImporter)AssetImporter.GetAtPath(path);
+            var clip = new ModelImporterClipAnimation
+            {
+                name = key, takeName = imp.defaultClipAnimations.Length > 0 ? imp.defaultClipAnimations[0].takeName : key,
+                firstFrame = seg.from * 30f, lastFrame = seg.to * 30f,
+                loopTime = true, loopPose = key == "walk",
+                // the body faces the character's forward, stays centred over it, and keeps its real height (sitting, lying)
+                lockRootRotation = true, keepOriginalOrientation = false,
+                lockRootHeightY = true, keepOriginalPositionY = true, heightFromFeet = false,
+                lockRootPositionXZ = true, keepOriginalPositionXZ = false,
+            };
+            imp.clipAnimations = new[] { clip };
+            imp.SaveAndReimport();
+        }
+
+        static AnimationClip LoadClip(string key)
+        {
+            foreach (var guid in AssetDatabase.FindAssets(key + "_cmu t:Model", new[] { ClipDir }))
+                foreach (var o in AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GUIDToAssetPath(guid)))
+                    if (o is AnimationClip c && c.name == key) return c;
+            return null;
+        }
+
+        /// <summary>One state per pose, reached from anywhere when the "pose" parameter changes, with a short cross fade.</summary>
+        static void BuildController()
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(ControllerPath));
+            AssetDatabase.DeleteAsset(ControllerPath);
+            var ctrl = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
+            ctrl.AddParameter("pose", AnimatorControllerParameterType.Int);
+            ctrl.AddParameter("walkSpeed", AnimatorControllerParameterType.Float);
+            var sm = ctrl.layers[0].stateMachine;
+            var poseNames = System.Enum.GetNames(typeof(CharacterRig.Pose));
+            for (int i = 0; i < poseNames.Length; i++)
+            {
+                var pc = System.Array.Find(PoseClips, x => x.pose == poseNames[i]);
+                var clip = LoadClip(pc.clip ?? "stand");
+                var st = sm.AddState(poseNames[i], new Vector3(300f, 60f * i, 0f));
+                st.motion = clip;
+                if (poseNames[i] == "Walk") { st.speedParameterActive = true; st.speedParameter = "walkSpeed"; }
+                if (i == 0) sm.defaultState = st;
+                var tr = sm.AddAnyStateTransition(st);
+                tr.AddCondition(UnityEditor.Animations.AnimatorConditionMode.Equals, i, "pose");
+                tr.duration = 0.25f; tr.hasExitTime = false; tr.canTransitionToSelf = false;
+            }
+            var layers = ctrl.layers;
+            layers[0].iKPass = true;        // CharacterRig.OnAnimatorIK plants the feet and fits the pelvis to seats
+            ctrl.layers = layers;
+            AssetDatabase.SaveAssets();
+        }
+
+        [MenuItem("Dearlife/Set up character animation")]
+        public static void SetUp()
+        {
+            var log = new System.Text.StringBuilder();
+            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { ClipDir }))
+            {
+                string p = AssetDatabase.GUIDToAssetPath(guid);
+                MakeHumanoid(p, CmuMap, out var r); log.AppendLine(r);
+                ConfigureClip(p);
+            }
+            BuildController();
+            foreach (var guid in AssetDatabase.FindAssets("mpfb t:Model", new[] { "Assets/Art/Models/Characters" }))
+            {
+                string p = AssetDatabase.GUIDToAssetPath(guid);
+                MakeHumanoid(p, MpfbMap(), out var r); log.AppendLine(r);
+            }
+            Debug.Log("Dearlife: character animation set up.\n" + log);
+        }
+    }
+}

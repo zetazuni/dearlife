@@ -161,7 +161,9 @@ namespace Dearlife.EditorTools
                 imp.importCameras = false;
                 imp.importLights = false;
                 imp.isReadable = true;
-                imp.animationType = ModelImporterAnimationType.Generic;   // keeps the skin: bones stay ordinary transforms that CharacterRig drives
+                // keeps the skin: bones stay ordinary transforms that CharacterRig drives. The MPFB2 people are Humanoid instead
+                // (motion capture retargeting, see CharacterAnimation), so they are left as they are.
+                if (!System.IO.Path.GetFileName(path).StartsWith("mpfb")) imp.animationType = ModelImporterAnimationType.Generic;
                 imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
                 string json = path.Replace(".fbx", ".materials.json");
                 if (!System.IO.File.Exists(json)) { imp.SaveAndReimport(); continue; }

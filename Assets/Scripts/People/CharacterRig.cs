@@ -34,6 +34,11 @@ namespace Dearlife
         }
 
         readonly Dictionary<string, Joint> j = new Dictionary<string, Joint>();
+
+        // realistic (MPFB2) people play motion capture through a Humanoid Animator instead (docs/CHARACTER_PLAN.md, phase 2)
+        Animator anim;
+        bool animated;
+        const float WalkClipSpeed = 1.35f;   // metres a second the CMU walk covers at normal playback
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
 
@@ -125,7 +130,20 @@ namespace Dearlife
                     upInParent = t.parent ? Quaternion.Inverse(t.parent.rotation) * transform.up : Vector3.up,
                 };
             }
-            if (kind == "mpfb") LowerArms();
+            if (kind == "mpfb")
+            {
+                LowerArms();
+                anim = GetComponent<Animator>();
+                if (anim && anim.avatar && anim.avatar.isHuman)
+                {
+                    if (!anim.runtimeAnimatorController) anim.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("Animation/People");
+                    anim.applyRootMotion = false;
+                    anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                    animated = anim.runtimeAnimatorController != null;
+                    var foot = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
+                    if (foot) ankleHeight = Mathf.Max(0.03f, foot.position.y - transform.position.y);   // still at rest here
+                }
+            }
             if (!pet)
             {
                 // where the hands and the chest are, so things can be put in them whatever the pose
@@ -322,6 +340,14 @@ namespace Dearlife
             phase += moved / Mathf.Max(transform.lossyScale.y, 0.01f) * (pet ? 7.5f : 4.3f);
             amp = Mathf.Clamp01(speedSmooth / (pet ? 0.9f : 1.2f)) * 0.5f + 0.5f;
             if (pose == Pose.Walk && speedSmooth < 0.05f) amp = 0.35f;
+            if (animated)
+            {
+                // standing still with a walk order would march on the spot: stand instead
+                var p = pose == Pose.Walk && speedSmooth < 0.05f ? Pose.Stand : pose;
+                anim.SetInteger("pose", (int)p);
+                anim.SetFloat("walkSpeed", Mathf.Clamp(speedSmooth / (WalkClipSpeed * Mathf.Max(transform.lossyScale.y, 0.01f)), 0.4f, 1.8f));
+                return;
+            }
             foreach (var jt in j.Values) { jt.tgt = 0f; jt.liftTgt = 0f; jt.yawTgt = 0f; }
             if (pet) PetTargets(); else PersonTargets();
 
@@ -340,6 +366,86 @@ namespace Dearlife
                 if (Mathf.Abs(jt.lift) > 1e-4f) jt.t.position += transform.up * (jt.lift * transform.lossyScale.y);   // world metres, whatever unit the imported skeleton uses
             }
         }
+
+        // ---- fitting motion capture to our furniture
+
+        Vector3 seatOffset;          // body offset (in the figure's space) that puts the pelvis on the seat, learnt frame by frame
+        UseSpot offsetFor;
+        float ankleHeight = -1f;     // foot bone above the sole, measured at rest
+
+        bool OnSeat => animated && seat && (pose == Pose.Sit || pose == Pose.Lie || pose == Pose.Sleep);
+
+        /// <summary>
+        /// Motion capture does not know our furniture. In the IK pass the body is moved so the pelvis lands on the seat point
+        /// (the offset is learnt from the previous frames), then each foot is planted on the floor, or on the foot ring of a bar
+        /// stool, with the knees bending to suit the seat height (a beanbag, a bar stool).
+        /// </summary>
+        void OnAnimatorIK(int layer)
+        {
+            if (!OnSeat) return;
+            if (offsetFor != seat) { seatOffset = Vector3.zero; offsetFor = seat; kneeKnown = false; }
+            anim.bodyPosition += transform.TransformVector(seatOffset);
+            if (pose != Pose.Sit) return;
+            if (ankleHeight < 0f) ankleHeight = 0.075f * transform.lossyScale.y;
+            float footY = seat.FloorY + seat.footY + ankleHeight;
+            var goals = new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot };
+            for (int i = 0; i < 2; i++)
+            {
+                var goal = goals[i];
+                var p = anim.GetIKPosition(goal);
+                // under the knee (last frame's, the pose is steady), the shin leaning by the seat's shin angle: a straight
+                // down drop from a foot that the recording stretched forward is out of the leg's reach
+                if (kneeKnown)
+                {
+                    var knee = transform.TransformPoint(kneeLocal[i]);
+                    var fwd0 = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+                    p = new Vector3(knee.x, footY, knee.z) + fwd0 * (Mathf.Tan(seat.shinAngle * Mathf.Deg2Rad) * Mathf.Max(0f, knee.y - footY));
+                }
+                anim.SetIKPosition(goal, new Vector3(p.x, footY, p.z));
+                anim.SetIKPositionWeight(goal, 1f);
+                // flat on the floor, pointing where the knee points
+                var fwd = Vector3.ProjectOnPlane(anim.GetIKRotation(goal) * Vector3.forward, Vector3.up);
+                if (fwd.sqrMagnitude > 1e-4f) { anim.SetIKRotation(goal, Quaternion.LookRotation(fwd, Vector3.up)); anim.SetIKRotationWeight(goal, 0.7f); }
+            }
+        }
+
+        /// <summary>Whatever is left after the IK pass is corrected exactly, and fed back into the offset for the next frame.</summary>
+        void LateUpdate()
+        {
+            if (!OnSeat) return;
+            var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
+            if (!hips) return;
+            var err = seat.transform.position - hips.position;
+            seatOffset += transform.InverseTransformVector(err);
+            hips.position += err;
+            var kl = anim.GetBoneTransform(HumanBodyBones.LeftLowerLeg); var kr = anim.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+            if (kl && kr) { kneeLocal[0] = transform.InverseTransformPoint(kl.position); kneeLocal[1] = transform.InverseTransformPoint(kr.position); kneeKnown = true; }
+
+            // lying on a lounger or in a hammock: the torso rises with the backrest and the thighs with the ends, like the
+            // code posing did (seat.raise, seat.legRaise), bending at the spine and the hips towards straight up
+            if (pose != Pose.Sit)
+            {
+                var spine = anim.GetBoneTransform(HumanBodyBones.Spine); var head = anim.GetBoneTransform(HumanBodyBones.Head);
+                if (spine && head && seat.raise > 0.5f) Lift(spine, head.position - spine.position, seat.raise);
+                if (seat.legRaise > 0.5f)
+                    foreach (var (thigh, shin) in new[] { (HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg), (HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg) })
+                    {
+                        var t = anim.GetBoneTransform(thigh); var s = anim.GetBoneTransform(shin);
+                        if (t && s) Lift(t, s.position - t.position, seat.legRaise);
+                    }
+            }
+        }
+
+        /// <summary>Turns a bone (and all below it) so the direction it points rises towards vertical by the given angle.</summary>
+        static void Lift(Transform bone, Vector3 along, float degrees)
+        {
+            var axis = Vector3.Cross(along, Vector3.up);
+            if (axis.sqrMagnitude < 1e-6f) return;
+            bone.rotation = Quaternion.AngleAxis(degrees, axis.normalized) * bone.rotation;
+        }
+
+        readonly Vector3[] kneeLocal = new Vector3[2];
+        bool kneeKnown;
 
         void PersonTargets()
         {
