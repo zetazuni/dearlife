@@ -44,6 +44,10 @@ namespace Dearlife
                 case "hammock": Spot(go, "hammock", lie, new Vector3(0f, 0.85f, 0.2f), 0f, new Vector3(1.3f, 0f, 0f), raise: 14f, legRaise: 12f, knee: -14f); break;
                 // in the bath: leaning back against the end away from the tap, legs stretched out under the foam
                 case "bathtub": Spot(go, "bath", lie, new Vector3(0.12f, 0.24f, 0f), -90f, new Vector3(0f, 0f, 0.95f), raise: 52f, legRaise: 2f, knee: 10f); break;
+                // the wall hung toilet: sitting on the seat, facing out into the room
+                case "toilet": Spot(go, "toilet", sit, new Vector3(0f, 0.44f, 0.06f), 0f, new Vector3(0f, 0f, 0.75f), 2f, 6f); break;
+                // the spin bike: on the saddle over the pedals, feet on them
+                case "spinbike": Spot(go, "spin bike", sit, new Vector3(0f, 0.9f, -0.22f), 0f, new Vector3(0.75f, 0f, -0.1f), -10f, -12f, 0.32f); break;
             }
         }
     }

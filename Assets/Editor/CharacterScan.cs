@@ -27,6 +27,7 @@ namespace Dearlife.EditorTools
                                           // pressing together in a pose (arm on torso, belly on thigh), reported as contact        // seconds for the pose to blend in before measuring
 
         static readonly string[] Poses = { "Stand", "Walk", "Sit", "Crouch", "Exercise", "Wave" };
+        static readonly string[] SwimPoses = { "Stand", "Walk", "Swim" };
         static readonly Dictionary<string, int> Layer = new Dictionary<string, int>
         {
             { "feet", 0 }, { "bottom", 1 }, { "top", 2 }, { "outfit", 2 }, { "head", 3 }
@@ -59,7 +60,8 @@ namespace Dearlife.EditorTools
             bodies.Add(("long narrow face", new Dictionary<string, float> { { "gender", 1f }, { "faceLength", 1f }, { "faceWidth", -1f }, { "jaw", -1f }, { "brows", 1f }, { "eyeSize", 1f } }));
             foreach (var o in Wardrobe.Catalogue.outfits)
                 foreach (var (name, sliders) in bodies)
-                    foreach (var p in Poses)
+                    // swimwear is only worn for a swim: it is checked standing, walking and swimming
+                    foreach (var p in o.name.StartsWith("swim") ? SwimPoses : Poses)
                         cases.Add(new Case { outfit = o.name, body = name, pose = p, sliders = sliders });
             index = -1;
             ownerCache.Clear();

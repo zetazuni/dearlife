@@ -22,6 +22,7 @@ namespace Dearlife
         public Pose pose = Pose.Stand;
         [System.NonSerialized] public UseSpot seat;   // the piece being sat or lain on: the pose follows its shape
         public float walkSpeed = 1f;       // metres per second, drives the stride
+        [System.NonSerialized] public float inPlaceSpeed;   // walking without moving (a treadmill): the stride speed to show
 
         class Joint
         {
@@ -306,9 +307,10 @@ namespace Dearlife
             if (animated)
             {
                 // standing still with a walk order would march on the spot: stand instead
-                var p = pose == Pose.Walk && speedSmooth < 0.05f ? Pose.Stand : pose;
+                float shown = inPlaceSpeed > 0f ? inPlaceSpeed : speedSmooth;
+                var p = pose == Pose.Walk && shown < 0.05f ? Pose.Stand : pose;
                 anim.SetInteger("pose", (int)p);
-                anim.SetFloat("walkSpeed", Mathf.Clamp(speedSmooth / (WalkClipSpeed * Mathf.Max(transform.lossyScale.y, 0.01f)), 0.4f, 1.8f));
+                anim.SetFloat("walkSpeed", Mathf.Clamp(shown / (WalkClipSpeed * Mathf.Max(transform.lossyScale.y, 0.01f)), 0.4f, 1.8f));
                 return;
             }
             foreach (var jt in j.Values) { jt.tgt = 0f; jt.liftTgt = 0f; jt.yawTgt = 0f; }

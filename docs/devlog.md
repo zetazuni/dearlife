@@ -691,3 +691,40 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - **Chats**: people used to always chat with the first person in the house; with more people they now pick whoever is
   free, the closest friend and nearest first, with some chance.
 
+## Session 53: more clothes, and a full recheck of every interaction (2026-09-29) · v0.46.0
+
+- **Seven new garments**, made from the body's surface by `tools/blender_mpfb_body.py` like the tunic: a fitted shirt
+  and slim slacks (formal), a blazer with a V opening on a new `outer` layer (outerwear), a tank top with straps and
+  shorts (sporty), and a one piece swimsuit and swim shorts (swimwear). The swimsuit's leg openings are slid onto a
+  smooth leg line, like the hijab's face opening, so they do not follow the body's quads in steps.
+- **In the creator** the Clothes tab offers four everyday looks (T-shirt and jeans, tunic and trousers, shirt and
+  slacks, tank top and shorts), a blazer over the T-shirt, shirt or tank top, the hijab and shoes, and swimwear (a
+  swimsuit, swim shorts or stay dressed) with a preview. People change into their swimwear for a swim and back after.
+- **Layering only where pieces are worn together**: fitting every bottom inside every top squeezed the trousers out
+  through the tunic; each bottom is now fitted only inside its own top, the blazer only over the tops it goes with,
+  pyjamas only with pyjamas and swimwear with nothing.
+- **Clipping scan**: 676 of 684 pass (7 outfits, 19 bodies; swimwear is checked standing, walking and swimming, the
+  poses it is worn in). Left: the slacks show up to 13 mm through the shirt's front hem when crouching on some bodies,
+  and the swimsuit's leg edge on the heaviest body is 1 mm over the limit.
+- **Every interaction rechecked** with a new tool, **Dearlife > Check interactions**: one person is sent to every
+  thing to do on every kind of item (68 in all, upstairs too), and the report notes whether they got there, the pose,
+  where they ended up and whether it finished, with a picture of each. What it found and what changed:
+  - Items on a counter, on a desk or on a wall (the coffee machine, the 3D printer, the chalkboard and whiteboard)
+    had no place to stand: they are now used from the floor below them.
+  - An item whose nearest side was cut off could not be used at all: every side is tried in turn now (the workbench),
+    and the pool is reached from anywhere round its edge.
+  - Meals and takeaway at the dining table or the kitchen island are eaten sitting on a chair or stool beside it, with
+    a plate of food or a takeaway box on the table; desk work (work, freelance, plan a lesson, sketch) is done sitting
+    at the desk, and office chairs swivel round to face it.
+  - The toilet is sat on (it was used standing a metre in front of it).
+  - The treadmill is walked on, on its belt; the spin bike is ridden (it was jumping jacks beside both).
+  - "Sit by the fire" sat in mid air: it is now "Warm up by the fire", crouching; the laundry and filing crouch at the
+    machine or drawer instead of typing in the air.
+  - **The upstairs rooms could not be walked into.** People got up the stairs to the landing but no further: a potted
+    plant in the middle of the tiny landing and a wardrobe half across the engineer's room door closed both doors, and
+    in the engineer's room the robot arm, the beanbag, the bed and a plant walled off the middle of the room and the
+    door to the gym. The plant on the landing is gone, the wardrobe, robot arm, beanbag and the other plant moved (in
+    the house layout too); every item in the house is now reachable on foot from the ground floor (checked by path for
+    all 70). The bathroom mirror no longer offers "Wash up" (the vanity under it does).
+  - Watching TV from a seat that faces no TV stays offered as "(no TV)", as before.
+

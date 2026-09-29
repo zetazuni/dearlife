@@ -34,10 +34,24 @@ MADE_WEAR = (("tunic", "top", (0.46, 0.55, 0.50), "top", "tunic"),
              ("trousers", "bottom", (0.20, 0.22, 0.30), "bottom", "wide"),
              ("hijab", "head", (0.62, 0.48, 0.50), "hijab", "hijab"),
              ("pyjama_top", "top", (0.78, 0.74, 0.86), "top", "loose"),
-             ("pyjama_bottoms", "bottom", (0.78, 0.74, 0.86), "bottom", "loose"))
+             ("pyjama_bottoms", "bottom", (0.78, 0.74, 0.86), "bottom", "loose_bottom"),
+             # formal: a fitted shirt and slim trousers; outerwear: a blazer over any top (v0.46.0)
+             ("shirt", "top", (0.93, 0.93, 0.93), "fitted_top", "fitted"),
+             ("slacks", "bottom", (0.16, 0.17, 0.2), "bottom", "slim"),
+             ("blazer", "outer", (0.18, 0.2, 0.26), "blazer", "outer"),
+             # sporty
+             ("tanktop", "top", (0.75, 0.42, 0.4), "tank", "fitted"),
+             ("shorts", "bottom", (0.2, 0.22, 0.28), "shorts", "loose_bottom"),
+             # swimwear
+             ("swimsuit", "outfit", (0.12, 0.3, 0.45), "swimsuit", "tight"),
+             ("swimshorts", "bottom", (0.15, 0.35, 0.5), "swimshorts", "loose_bottom"))
 OUTFITS = {"casual": ["casual", "shoes", "hair_long"],
            "modest": ["tunic", "trousers", "hijab", "shoes"],
-           "sleep": ["pyjama_top", "pyjama_bottoms", "hair_long"]}
+           "sleep": ["pyjama_top", "pyjama_bottoms", "hair_long"],
+           "formal": ["shirt", "slacks", "blazer", "shoes", "hair_short"],
+           "sporty": ["tanktop", "shorts", "shoes", "hair_long"],
+           "swim": ["swimsuit", "hair_long"],
+           "swim_shorts": ["swimshorts", "hair_short"]}
 HIDES_HAIR = {"hijab"}
 
 # MakeHuman's age slider: 0.1875 is 11 years, 0.5 is 25, 1.0 is 90. Adults only (rule 8 decisions): 18 to 60.
@@ -263,6 +277,64 @@ def region(kind, co, no, bone):
         # the legs bend (a hem lower there folds into the crease, under the trousers)
         hem = 0.86 + 0.06 * min(1.0, max(0.0, (-co.y - 0.02) / 0.06))
         return (bone == "pelvis" or bone.startswith("thigh")) and z >= hem
+    if kind == "fitted_top":     # a shirt: like the top, with a straight hem at the hips
+        if bone.startswith("lowerarm") and any((co - Vector(w)).length < 0.04 for w in WRISTS):
+            return False
+        if co.y < -0.02 and z > 1.36 and (bone in ("neck_01", "spine_03") or bone.startswith("clavicle")):
+            return False
+        if bone.startswith("spine") or arm:
+            return True
+        if bone == "neck_01":
+            return z < 1.40
+        return (bone == "pelvis" or bone.startswith("thigh")) and z >= 0.88
+    if kind == "tank":           # no sleeves, two straps over the shoulders, a scooped neck, wide arm holes
+        ax = abs(co.x)
+        if bone.startswith(("upperarm", "lowerarm")):
+            return False
+        if z > 1.30 and not (0.07 <= ax <= 0.115):
+            return False             # only the straps go up over the shoulders
+        if bone.startswith("spine_03") and ax > 0.125 and z > 1.14:
+            return False             # the arm holes
+        if co.y < -0.02 and z > 1.24 and ax < 0.07:
+            return False             # the scoop at the front
+        if bone.startswith("spine") or bone.startswith("clavicle"):
+            return True
+        return (bone == "pelvis" or bone.startswith("thigh")) and z >= 0.90
+    if kind == "blazer":         # hip length with long sleeves and a V opening at the front over the shirt
+        if bone.startswith("lowerarm") and any((co - Vector(w)).length < 0.045 for w in WRISTS):
+            return False
+        if co.y < -0.02 and z > 1.10 and abs(co.x) < 0.012 + (z - 1.10) * 0.3:
+            return False             # the V
+        if co.y < -0.02 and z > 1.36:
+            return False
+        if bone.startswith("spine") or arm:
+            return True
+        if bone == "neck_01":
+            return co.y > -0.02 and z < 1.41
+        return (bone == "pelvis" or bone.startswith("thigh")) and z >= 0.80
+    if kind == "shorts":         # waist to above the knee
+        if bone == "pelvis" or bone.startswith(("thigh", "calf")):
+            return 0.56 <= z <= 0.98
+        return bone == "spine_01" and z <= 0.98
+    if kind == "swimshorts":     # waist to mid thigh
+        if bone == "pelvis" or bone.startswith("thigh"):
+            return 0.62 <= z <= 0.97
+        return bone == "spine_01" and z <= 0.97
+    if kind == "swimsuit":       # a one piece: straps, a scooped neck and back, high cut legs on a smooth line
+        ax = abs(co.x)
+        if bone.startswith(("upperarm", "lowerarm", "calf", "foot")):
+            return False
+        if z > 1.28 and not (0.06 <= ax <= 0.10):
+            return False
+        if bone.startswith("spine_03") and ax > 0.12 and z > 1.13:
+            return False
+        if co.y < -0.02 and z > 1.21 and ax < 0.06:
+            return False             # the scoop at the front
+        if co.y >= -0.02 and z > 1.17 and ax < 0.06:
+            return False             # and at the back
+        if bone == "pelvis" or bone.startswith("thigh"):
+            return z >= swim_leg(ax)
+        return bone.startswith("spine") or bone.startswith("clavicle")
     if kind == "bottom":         # waist to just above the ankle bone
         if bone == "pelvis" or bone.startswith(("thigh", "calf")):
             return 0.115 <= z <= 0.98
@@ -282,13 +354,19 @@ def region(kind, co, no, bone):
 FACE_OVAL = (0.064, 1.525, 0.090)   # half width, centre height, half height of the hijab's face opening
 
 
+def swim_leg(ax):
+    """The swimsuit's leg line: low between the legs, rising over the hips (ax is the distance from the middle)."""
+    return 0.79 + 0.10 * min(1.0, max(0.0, (ax - 0.03) / 0.08))
+
+
 def face_oval(co):
     w, zc, h = FACE_OVAL
     return (co[0] / w) ** 2 + ((co[2] - zc) / h) ** 2
 
 
 # (tension passes, share of the offset the fabric always keeps from the skin)
-SMOOTHING = {"tunic": (100, 0.7), "loose": (100, 0.7), "wide": (60, 0.7), "loose_bottom": (60, 0.7), "hijab": (120, 0.6)}
+SMOOTHING = {"tunic": (100, 0.7), "loose": (100, 0.7), "wide": (60, 0.7), "loose_bottom": (60, 0.7), "hijab": (120, 0.6),
+             "fitted": (80, 0.75), "outer": (100, 0.75), "slim": (60, 0.75), "tight": (30, 0.85)}
 
 
 def offset(style, co, no, bone):
@@ -301,9 +379,21 @@ def offset(style, co, no, bone):
         return base
     if style in ("tunic", "loose"):     # the hem, over the hips and outside the trousers' waist
         return 0.020 if style == "tunic" else 0.024
-    if style in ("wide", "loose_bottom"):
+    if style == "fitted":
+        if bone.startswith("thigh") or bone == "pelvis":
+            return 0.019
+        if bone.startswith("spine") and z < 1.02:          # easing out towards the hem, over a waistband
+            return 0.007 + 0.010 * min(1.0, (1.02 - z) / 0.1)
+        return 0.007 + (0.003 if bone.startswith("lowerarm") else 0.0)
+    if style == "outer":             # a blazer has room for a tunic or a shirt under it
+        if bone.startswith("thigh") or bone == "pelvis":
+            return 0.036
+        return (0.022 + (0.004 if bone.startswith("lowerarm") else 0.0)) if bone.startswith(("upperarm", "lowerarm")) else 0.028
+    if style == "tight":
+        return 0.0035 if z > 0.92 else 0.0035 + 0.009 * min(1.0, (0.92 - z) / 0.08)   # more room over the hip creases
+    if style in ("wide", "loose_bottom", "slim"):
         t = min(1.0, max(0.0, (0.95 - z) / 0.85))
-        off = (0.010 + 0.030 * t) if style == "wide" else (0.012 + 0.016 * t)
+        off = (0.010 + 0.030 * t) if style == "wide" else (0.012 + 0.016 * t) if style == "loose_bottom" else (0.008 + 0.010 * t)
         # the inner thighs nearly touch: keep the fabric there close, or the two legs would meet
         if z > 0.55 and co.x * no.x < 0 and abs(no.x) > 0.3:
             off = min(off, 0.008)
@@ -376,6 +466,12 @@ def make_garment(human, gid, colour, kind, style, bones):
         a, b = e.vertices
         if inside[a] != inside[b]:
             covered[a] = covered[b] = False
+    if style == "tight":  # the leg edge is later slid down onto the leg line: the skin above that line is under the fabric
+        dom_b = dom
+        for v in human.data.vertices:
+            b = dom_b[v.index]
+            if (b == "pelvis" or b.startswith("thigh")) and 0.7 < v.co.z < 1.0 and v.co.z >= swim_leg(abs(v.co.x)) + 0.005:
+                covered[v.index] = True
     if kind == "hijab":   # the face edge is later slid onto the true oval: keep one more ring of skin round the face
         edge = [not c for c in covered]
         for e in human.data.edges:
@@ -426,16 +522,17 @@ def make_garment(human, gid, colour, kind, style, bones):
     # the cleft of the seat under trousers. They become a membrane stretched over them (the body under is hidden).
     flat = np.zeros(n, dtype=bool)
     snap = np.zeros((n, 3))
-    groups = {"hijab": ("ears",), "tunic": ("nipple", "nippleTip"), "loose": ("nipple", "nippleTip")}.get(style, ())
+    groups = {"hijab": ("ears",), "tunic": ("nipple", "nippleTip"), "loose": ("nipple", "nippleTip"), "fitted": ("nipple", "nippleTip"),
+              "outer": ("nipple", "nippleTip"), "tight": ("nipple", "nippleTip")}.get(style, ())
     gids = {g.vertex_groups[x].index for x in groups if x in g.vertex_groups}
     for v in me.vertices:
         flat[v.index] = any(x.group in gids and x.weight > 0.1 for x in v.groups)
-        if style in ("wide", "loose_bottom") and abs(v.co.x) < 0.05 and 0.70 < v.co.z < 0.87:
+        if style in ("wide", "loose_bottom", "slim", "tight") and abs(v.co.x) < 0.05 and 0.70 < v.co.z < 0.87:
             flat[v.index] = True
-        if style in ("tunic", "loose") and abs(v.co.x) < 0.05 and v.co.y > 0.02 and v.co.z < 0.95:
+        if style in ("tunic", "loose", "fitted", "outer", "tight") and abs(v.co.x) < 0.05 and v.co.y > 0.02 and v.co.z < 0.95:
             flat[v.index] = True     # the top of the seat's cleft, bridged like the trousers under it
     if flat.any():
-        for _ in range(2 if style in ("wide", "loose_bottom") else 5):   # and a little around them
+        for _ in range(2 if style in ("wide", "loose_bottom", "slim", "tight") else 5):   # and a little around them
             grow = flat.copy()
             grow[ev[:, 1][flat[ev[:, 0]]]] = True
             grow[ev[:, 0][flat[ev[:, 1]]]] = True
@@ -451,6 +548,11 @@ def make_garment(human, gid, colour, kind, style, bones):
                     k = 1.0 / f ** 0.5
                     w, zc, h = FACE_OVAL
                     snap[v.index] = (v.co.x * k - v.co.x, 0.0, (zc + (v.co.z - zc) * k) - v.co.z)
+    if style == "tight":
+        # the leg openings follow the body's quads in steps: slide their edge onto the smooth leg line
+        for v in me.vertices:
+            if on_border[v.index] and v.co.z < 1.0:
+                snap[v.index] = (0.0, 0.0, min(0.01, max(-0.035, swim_leg(abs(v.co.x)) + 0.002 - v.co.z)))
     gdom = dominant_bones(g, bones)
     basis = np.array([v.co[:] for v in me.vertices])
     bn = tri_normals(basis, tris)
@@ -496,11 +598,37 @@ def make_garment(human, gid, colour, kind, style, bones):
     return g, covered
 
 
-LAYER = {"feet": 0, "bottom": 1, "top": 2, "outfit": 2, "head": 3}
+LAYER = {"feet": 0, "bottom": 1, "top": 2, "outfit": 2, "outer": 2.5, "head": 3}
 
 
 def clash(a, b):
     return {a, b} in ({"outfit", "top"}, {"outfit", "bottom"})
+
+
+# each bottom is worn with its own top (the creator's everyday looks); the blazer, the hijab and shoes go with any of them
+TOP_FOR = {"trousers": {"tunic"}, "slacks": {"shirt"}, "shorts": {"tanktop"}, "pyjama_bottoms": {"pyjama_top"}}
+TOPS = {"tunic", "shirt", "tanktop", "pyjama_top"}
+
+
+# the blazer goes over the T-shirt, the shirt or the tank top (over a long tunic it would hang wrong), and their bottoms
+UNDER_BLAZER = {"casual", "shirt", "tanktop", "slacks", "shorts", "shoes"}
+
+
+def worn_together(inner, outer):
+    if inner in TOP_FOR and outer in TOPS:
+        return outer in TOP_FOR[inner]
+    if outer == "blazer":
+        return inner in UNDER_BLAZER
+    return True
+
+
+def wear_group(gid):
+    """Pieces are only fitted inside pieces they can be worn with: pyjamas with pyjamas, swimwear with nothing."""
+    if gid.startswith("pyjama"):
+        return "sleep"
+    if gid.startswith("swim"):
+        return "swim"
+    return "day"
 
 
 def despike(o, limit=0.01):
@@ -835,16 +963,18 @@ def run():
             fit_over_skin(o, human, cov)
         wear.append((gid, slot, o, cov))
     for gid, slot, colour, kind, style in MADE_WEAR:
-        g, cov = make_garment(human, gid, colour, kind, "loose_bottom" if (style == "loose" and kind == "bottom") else style, bones)
+        g, cov = make_garment(human, gid, colour, kind, style, bones)
         wear.append((gid, slot, g, cov))
     # inner layers stay inside outer ones in every body shape: the tunic under the hijab, trousers under the tunic's hem,
     # shoes under a trouser hem. Outermost first, so a piece already tucked in is where the next one is fitted to.
     order = sorted(((a, b) for a in wear for b in wear
-                    if a[1] in LAYER and b[1] in LAYER and LAYER[a[1]] < LAYER[b[1]] and not clash(a[1], b[1])),
+                    if a[1] in LAYER and b[1] in LAYER and LAYER[a[1]] < LAYER[b[1]] and not clash(a[1], b[1])
+                    and wear_group(a[0]) == wear_group(b[0]) != "swim" and worn_together(a[0], b[0])),
                    key=lambda ab: -LAYER[ab[0][1]])
     for a, b in order:
         # a trouser waist sits well inside a top's hem: bending at the hips folds the hem into the crease
-        layer_fit(a[2], b[2], margin=0.018 if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
+        # (under a close fitting shirt or tank top, a little more: they sit near the skin)
+        layer_fit(a[2], b[2], margin=(0.026 if b[0] in ("shirt", "tanktop") else 0.018) if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
     bits = {}
     for gid, _, _, cov in wear:
         if cov and any(cov):

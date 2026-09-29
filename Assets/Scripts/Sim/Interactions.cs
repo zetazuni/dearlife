@@ -12,6 +12,7 @@ namespace Dearlife
         public CharacterRig.Pose pose = CharacterRig.Pose.Stand;
         public bool seat;                                  // uses a seat or bed of the object (its UseSpot)
         public bool needsTv;                               // the seat must face a TV
+        public bool sitNear;                               // done sitting on a chair beside the object when there is one (a meal, desk work)
         public int cost;
         public bool job;                                   // pays money while working
         public Skill? skill; public float xp;
@@ -47,15 +48,15 @@ namespace Dearlife
             // ---- eating and drinking
             Def("snack", "Grab a snack", 6f, CharacterRig.Pose.Eat, "fridge").Fill(Need.Hunger, 28f).Moodlet("Nice snack", 6f);
             Def("cook", "Cook a meal", 22f, CharacterRig.Pose.Cook, "kitchenrun", "kitchenisland", "fridge").Fill(Need.Hunger, 75f).Skilled(Skill.Cooking, 14f).Moodlet("Tasty home cooking", 16f).Costs(20);
-            Def("takeaway", "Order takeaway", 8f, CharacterRig.Pose.Eat, "fridge", "diningtable", "kitchenisland").Fill(Need.Hunger, 62f).Costs(35).Moodlet("Takeaway treat", 8f);
+            Def("takeaway", "Order takeaway", 8f, CharacterRig.Pose.Eat, "fridge", "diningtable", "kitchenisland").Near().Fill(Need.Hunger, 62f).Costs(35).Moodlet("Takeaway treat", 8f);
             Def("coffee", "Make coffee", 7f, CharacterRig.Pose.Drink, "espresso", "kitchenrun").Fill(Need.Energy, 16f).Fill(Need.Fun, 6f).Moodlet("Coffee buzz", 8f);
-            Def("meal", "Have a meal", 14f, CharacterRig.Pose.Eat, "diningtable", "longdining").Fill(Need.Hunger, 55f).Fill(Need.Social, 6f).Costs(15).Moodlet("Tasty meal", 12f);
+            Def("meal", "Have a meal", 14f, CharacterRig.Pose.Eat, "diningtable", "longdining").Near().Fill(Need.Hunger, 55f).Fill(Need.Social, 6f).Costs(15).Moodlet("Tasty meal", 12f);
             Def("grill", "Grill some food", 20f, CharacterRig.Pose.Cook, "bbq", "bbqcounter").Fill(Need.Hunger, 65f).Fill(Need.Fun, 12f).Skilled(Skill.Cooking, 12f).Costs(25).Moodlet("Barbecue feast", 14f);
             // ---- bathroom
-            Def("toilet", "Use the toilet", 8f, P, "toilet").Fill(Need.Bladder, 100f);
+            Def("toilet", "Use the toilet", 8f, CharacterRig.Pose.Sit, "toilet").Seated().Fill(Need.Bladder, 100f);
             Def("shower", "Take a shower", 24f, CharacterRig.Pose.Wash, "shower").Fill(Need.Hygiene, 100f).Fill(Need.Energy, 4f).Moodlet("Fresh and clean", 10f);
             Def("bath", "Take a bath", 30f, CharacterRig.Pose.Lie, "bathtub").Seated().Fill(Need.Hygiene, 100f).Fill(Need.Fun, 14f).Fill(Need.Energy, 8f).Moodlet("Lovely soak", 14f).wish = "shower";
-            Def("washface", "Wash up", 5f, CharacterRig.Pose.Wash, "vanity", "bathmirror").Fill(Need.Hygiene, 25f);
+            Def("washface", "Wash up", 5f, CharacterRig.Pose.Wash, "vanity").Fill(Need.Hygiene, 25f);
             // ---- rest
             Def("sleep", "Sleep", 40f, CharacterRig.Pose.Lie, "platformbed", "platformbed_e").Seated().Fill(Need.Energy, 100f).Fill(Need.Bladder, -12f).Moodlet("Slept like a log", 14f);
             Def("nap", "Take a nap", 16f, CharacterRig.Pose.Lie, "platformbed", "platformbed_e", "lounger", "hammock").Seated().Fill(Need.Energy, 32f).Moodlet("Refreshing nap", 6f).wish = "sleep";
@@ -65,25 +66,26 @@ namespace Dearlife
             Def("chairsit", "Sit down", 12f, CharacterRig.Pose.Sit, "diningchair", "barstool", "officechair").Seated().Fill(Need.Energy, 6f);
             // ---- fun
             Def("read", "Read a book", 18f, CharacterRig.Pose.Read, "bookcase").Fill(Need.Fun, 34f).Skilled(Skill.Logic, 10f).Moodlet("Lost in a story", 10f);
-            Def("workout", "Work out", 20f, CharacterRig.Pose.Exercise, "treadmill", "weightbench", "spinbike", "punchbag", "yogamat", "dumbbells").Fill(Need.Fun, 14f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -18f).Skilled(Skill.Fitness, 16f).Moodlet("Endorphins", 12f);
+            Def("cycle", "Ride the spin bike", 20f, CharacterRig.Pose.Sit, "spinbike").Seated().Fill(Need.Fun, 14f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -18f).Skilled(Skill.Fitness, 16f).Moodlet("Endorphins", 12f).wish = "workout";
+            Def("workout", "Work out", 20f, CharacterRig.Pose.Exercise, "treadmill", "weightbench", "punchbag", "yogamat", "dumbbells").Fill(Need.Fun, 14f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -18f).Skilled(Skill.Fitness, 16f).Moodlet("Endorphins", 12f);
             Def("stargaze", "Look at the stars", 16f, CharacterRig.Pose.Read, "telescope").Fill(Need.Fun, 30f).Skilled(Skill.Creativity, 8f).Moodlet("Starstruck", 10f);
             Def("guitar", "Play the guitar", 32f, CharacterRig.Pose.Guitar, "guitar").Fill(Need.Fun, 52f).Fill(Need.Social, 6f).Skilled(Skill.Creativity, 16f).Moodlet("Made some music", 12f);
             Def("synth", "Play the synth", 32f, CharacterRig.Pose.Keys, "synth").Fill(Need.Fun, 52f).Fill(Need.Social, 6f).Skilled(Skill.Creativity, 16f).Skilled(Skill.Logic, 4f).Moodlet("Made some music", 12f);
             Def("tinker", "Tinker with a project", 20f, CharacterRig.Pose.Work, "printer3d", "robotarm", "workbench").Fill(Need.Fun, 24f).Skilled(Skill.Logic, 12f).Skilled(Skill.Creativity, 6f);
             Def("draw", "Draw a plan", 16f, CharacterRig.Pose.Work, "whiteboard", "chalkboard").Fill(Need.Fun, 22f).Skilled(Skill.Creativity, 14f);
-            Def("fire", "Sit by the fire", 18f, CharacterRig.Pose.Sit, "firepit").Fill(Need.Fun, 22f).Fill(Need.Social, 6f).Moodlet("Cosy fire", 8f).wish = "sunbathe";
+            Def("fire", "Warm up by the fire", 18f, CharacterRig.Pose.Crouch, "firepit").Fill(Need.Fun, 22f).Fill(Need.Social, 6f).Moodlet("Cosy fire", 8f).wish = "sunbathe";
             Def("coin", "Toss a coin", 4f, CharacterRig.Pose.Happy, "fountain").Fill(Need.Fun, 10f).Costs(1).Moodlet("Made a wish", 6f);
             Def("mail", "Check the mail", 5f, P, "mailbox").Fill(Need.Fun, 6f);
             Def("swim", "Go for a swim", 24f, CharacterRig.Pose.Swim, "pool").Fill(Need.Fun, 45f).Fill(Need.Hygiene, 12f).Fill(Need.Energy, -8f).Skilled(Skill.Fitness, 14f).Moodlet("Splashing about", 12f);
             // ---- work
-            Def("work", "Work", 36f, CharacterRig.Pose.Work, "officedesk", "teacherdesk").AsJob().Fill(Need.Fun, -10f).Skilled(Skill.Logic, 8f).Fill(Need.Energy, -12f);
-            Def("freelance", "Freelance on the computer", 24f, CharacterRig.Pose.Work, "officedesk").AsJob(0.6f).Skilled(Skill.Logic, 12f).Fill(Need.Energy, -8f);
-            Def("lesson", "Plan a lesson", 24f, CharacterRig.Pose.Work, "teacherdesk").AsJob(0.6f).Skilled(Skill.Charisma, 10f).Fill(Need.Energy, -8f);
+            Def("work", "Work", 36f, CharacterRig.Pose.Work, "officedesk", "teacherdesk").Near().AsJob().Fill(Need.Fun, -10f).Skilled(Skill.Logic, 8f).Fill(Need.Energy, -12f);
+            Def("freelance", "Freelance on the computer", 24f, CharacterRig.Pose.Work, "officedesk").Near().AsJob(0.6f).Skilled(Skill.Logic, 12f).Fill(Need.Energy, -8f);
+            Def("lesson", "Plan a lesson", 24f, CharacterRig.Pose.Work, "teacherdesk").Near().AsJob(0.6f).Skilled(Skill.Charisma, 10f).Fill(Need.Energy, -8f);
             Def("cookjob", "Cook for customers", 26f, CharacterRig.Pose.Cook, "kitchenrun", "kitchenisland", "bbqcounter").AsJob(0.9f).Skilled(Skill.Cooking, 12f).Fill(Need.Energy, -10f).Fill(Need.Fun, -6f);
-            Def("sketchjob", "Sketch a commission", 26f, CharacterRig.Pose.Work, "officedesk", "teacherdesk").AsJob(0.8f).Skilled(Skill.Creativity, 12f).Fill(Need.Energy, -8f);
-            Def("trainjob", "Train for pay", 22f, CharacterRig.Pose.Exercise, "treadmill", "weightbench", "spinbike").AsJob(0.9f).Skilled(Skill.Fitness, 12f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -8f);
-            Def("files", "Sort the files", 12f, CharacterRig.Pose.Work, "filecabinet").Skilled(Skill.Logic, 6f).Fill(Need.Fun, -4f);
-            Def("laundry", "Do the laundry", 10f, CharacterRig.Pose.Work, "washer", "dryer").Fill(Need.Fun, -4f).Moodlet("Fresh laundry", 5f);
+            Def("sketchjob", "Sketch a commission", 26f, CharacterRig.Pose.Work, "officedesk", "teacherdesk").Near().AsJob(0.8f).Skilled(Skill.Creativity, 12f).Fill(Need.Energy, -8f);
+            Def("trainjob", "Train for pay", 22f, CharacterRig.Pose.Exercise, "treadmill", "weightbench").AsJob(0.9f).Skilled(Skill.Fitness, 12f).Fill(Need.Energy, -14f).Fill(Need.Hygiene, -8f);
+            Def("files", "Sort the files", 12f, CharacterRig.Pose.Crouch, "filecabinet").Skilled(Skill.Logic, 6f).Fill(Need.Fun, -4f);
+            Def("laundry", "Do the laundry", 10f, CharacterRig.Pose.Crouch, "washer", "dryer").Fill(Need.Fun, -4f).Moodlet("Fresh laundry", 5f);
         }
 
         // small builder helpers on the last def
@@ -91,6 +93,7 @@ namespace Dearlife
         static InteractionDef Costs(this InteractionDef d, int c) { d.cost = c; return d; }
         static InteractionDef Seated(this InteractionDef d) { d.seat = true; return d; }
         static InteractionDef TvOnly(this InteractionDef d) { d.needsTv = true; return d; }
+        static InteractionDef Near(this InteractionDef d) { d.sitNear = true; return d; }
         static InteractionDef AsJob(this InteractionDef d, float pay = 1f) { d.job = true; d.moodValue = 6f; d.xp = Mathf.Max(d.xp, 6f); d.category = pay.ToString("0.0"); return d; }
         static InteractionDef Moodlet(this InteractionDef d, string t, float v) { d.moodlet = t; d.moodValue = v; return d; }
 
@@ -151,29 +154,61 @@ namespace Dearlife
         /// <summary>A free spot to stand at, in front first, then round the object; null when it is walled in.</summary>
         public bool StandPoint(Vector3 from, out Vector3 point)
         {
-            point = default;
-            if (hasCustomStand) { point = customStand; return true; }
+            var all = StandPoints(from);
+            point = all.Count > 0 ? all[0] : default;
+            return all.Count > 0;
+        }
+
+        /// <summary>Every spot to stand at, the best first: a side that turns out to be cut off (a path that does not get there) is skipped for the next.</summary>
+        public List<Vector3> StandPoints(Vector3 from)
+        {
+            var list = new List<Vector3>();
+            var filterP = new NavMeshQueryFilter { agentTypeID = DearlifeNav.AgentType, areaMask = ~(1 << DearlifeNav.StairsArea) };
+            if (hasCustomStand)
+            {
+                list.Add(customStand);
+                if (poolHalf.x > 0f)
+                {
+                    // round the pool's edge, nearest first
+                    var ring = new List<(Vector3 p, float d)>();
+                    for (int k = 0; k < 16; k++)
+                    {
+                        float a = k * 22.5f * Mathf.Deg2Rad;
+                        var p = customFace + new Vector3(Mathf.Cos(a) * (poolHalf.x + 0.9f), 0f, Mathf.Sin(a) * (poolHalf.y + 0.9f));
+                        p.y = customStand.y;
+                        if (NavMesh.SamplePosition(p, out var h, 0.8f, filterP)) ring.Add((h.position, (h.position - from).sqrMagnitude));
+                    }
+                    ring.Sort((x, y) => x.d.CompareTo(y.d));
+                    foreach (var r in ring) list.Add(r.p);
+                }
+                return list;
+            }
+            var found = new List<(Vector3 p, float d)>();
             var filter0 = new NavMeshQueryFilter { agentTypeID = DearlifeNav.AgentType, areaMask = ~(1 << DearlifeNav.StairsArea) };
             var stall = GetComponent<ShowerStall>();
-            if (stall && NavMesh.SamplePosition(stall.Outside, out var sh, 0.4f, filter0)) { point = sh.position; return true; }   // in front of the door
+            if (stall && NavMesh.SamplePosition(stall.Outside, out var sh, 0.4f, filter0)) { list.Add(sh.position); return list; }   // in front of the door
             var f = GetComponent<Furniture>();
             var lb = f ? f.LocalBounds : new Bounds(Vector3.zero, Vector3.one);
             var filter = new NavMeshQueryFilter { agentTypeID = DearlifeNav.AgentType, areaMask = ~(1 << DearlifeNav.StairsArea) };
-            Vector3 best = default; float bestD = float.MaxValue; bool ok = false;
+            // a thing above the floor (a coffee machine on the counter, a printer on a desk, a board on the wall) is used from
+            // the floor below it
+            bool onTop = (f && f.small) || (NavMesh.SamplePosition(transform.position, out var below, 2.2f, filter) && transform.position.y - below.position.y > 0.3f);
             for (int k = 0; k < 8; k++)
             {
                 float a = k * 45f;
                 var dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;                 // local: front first
                 var worldDir = transform.rotation * dir;
-                float reach = Mathf.Abs(dir.x) * lb.extents.x + Mathf.Abs(dir.z) * lb.extents.z + 0.55f;
+                float reach = Mathf.Abs(dir.x) * lb.extents.x + Mathf.Abs(dir.z) * lb.extents.z + (onTop ? 0.75f : 0.55f);
                 var p = transform.TransformPoint(lb.center) + worldDir * reach;
-                p.y = transform.position.y;
-                if (!NavMesh.SamplePosition(p, out var hit, 0.4f, filter) || Mathf.Abs(hit.position.y - transform.position.y) > 0.5f) continue;
-                float d = (hit.position - from).sqrMagnitude + k * 0.5f;                  // near, and front preferred
-                if (d < bestD) { bestD = d; best = hit.position; ok = true; }
+                p.y = transform.position.y - (onTop ? 0.9f : 0f);      // look for the floor, not the height of the thing
+                if (!NavMesh.SamplePosition(p, out var hit, onTop ? 1.1f : 0.4f, filter)) continue;
+                float dy = transform.position.y - hit.position.y;
+                if (onTop ? (dy < -0.1f || dy > 1.9f) : Mathf.Abs(dy) > 0.5f) continue;
+                found.Add((hit.position, (hit.position - from).sqrMagnitude + k * 0.5f));  // near, and front preferred
             }
-            point = best;
-            return ok;
+            found.Sort((x, y) => x.d.CompareTo(y.d));
+            foreach (var fp in found) list.Add(fp.p);
+            return list;
         }
     }
 }

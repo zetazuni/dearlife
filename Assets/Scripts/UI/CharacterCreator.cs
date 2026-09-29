@@ -22,7 +22,7 @@ namespace Dearlife
         int sel;
         readonly List<GameObject> previews = new List<GameObject>();
         readonly List<float> turn = new List<float>();
-        bool faceView, sleepPreview;
+        bool faceView, sleepPreview, swimPreview;
         float scroll;
         string warning = "";
         float warnUntil;
@@ -80,7 +80,7 @@ namespace Dearlife
 
         void ShapeChanged() { var l = CurLook; if (l) { l.data = Cur; l.ApplyShape(); } }
         void TintsChanged() { var l = CurLook; if (l) { l.data = Cur; l.ApplyTints(); } }
-        void ClothesChanged() { var l = CurLook; if (l) { l.data = Cur; l.ApplyTints(); l.Dress(sleepPreview); } }
+        void ClothesChanged() { var l = CurLook; if (l) { l.data = Cur; l.ApplyTints(); if (swimPreview) l.DressForSwim(true); else l.Dress(sleepPreview); } }
 
         // ------------------------------------------------------------ every frame: camera and turntable
 
@@ -140,7 +140,7 @@ namespace Dearlife
                 var r = new Rect(x + i * (cw + 8f), y, cw, 44f);
                 if (i < house.members.Count)
                 {
-                    if (Ui.CardButton(r, i == sel)) { sel = i; sleepPreview = false; scroll = 0f; }
+                    if (Ui.CardButton(r, i == sel)) { sel = i; sleepPreview = false; swimPreview = false; scroll = 0f; }
                     string n = house.members[i].name;
                     Ui.Label(new Rect(r.x, r.y, r.width, r.height), string.IsNullOrEmpty(n) ? "(no name)" : n, 13f, Ui.Ink, TextAnchor.MiddleCenter);
                 }
@@ -193,7 +193,7 @@ namespace Dearlife
                 case Tab.Face: return PersonData.FaceSliders.Length * 52f + 10f;
                 case Tab.Look: return 330f;
                 case Tab.Details: return 900f;
-                case Tab.Clothes: return 560f;
+                case Tab.Clothes: return 1000f;
                 default: return 420f + (house.members.Count - 1) * 100f + ((PersonData.Presets().Count + 2) / 3) * 34f + 40f;
             }
         }
@@ -325,11 +325,34 @@ namespace Dearlife
 
         void SetEveryday(params string[] items)
         {
-            bool hijab = Has("hijab"), shoes = Has("shoes");
+            bool hijab = Has("hijab"), shoes = Has("shoes"), blazer = Has("blazer");
             Cur.everyday = new List<string>(items);
             if (hijab) Cur.everyday.Add("hijab");
             if (shoes) Cur.everyday.Add("shoes");
+            if (blazer && items[0] != "tunic") Cur.everyday.Add("blazer");     // a blazer does not go over the long tunic
             ClothesChanged();
+        }
+
+        // the everyday looks on offer: (label, the pieces, the pieces that can be coloured)
+        static readonly (string label, string[] items, string[] colour)[] Looks =
+        {
+            ("T-shirt and jeans", new[] { "casual" }, new string[0]),
+            ("Tunic and trousers", new[] { "tunic", "trousers" }, new[] { "tunic", "trousers" }),
+            ("Shirt and slacks", new[] { "shirt", "slacks" }, new[] { "shirt", "slacks" }),
+            ("Tank top and shorts", new[] { "tanktop", "shorts" }, new[] { "tanktop", "shorts" }),
+        };
+
+        static readonly Dictionary<string, string> PieceNames = new Dictionary<string, string>
+        {
+            { "tunic", "Tunic colour" }, { "trousers", "Trousers colour" }, { "shirt", "Shirt colour" }, { "slacks", "Slacks colour" },
+            { "tanktop", "Tank top colour" }, { "shorts", "Shorts colour" }, { "blazer", "Blazer colour" }, { "hijab", "Hijab colour" },
+            { "swimsuit", "Swimsuit colour" }, { "swimshorts", "Swim shorts colour" },
+        };
+
+        int CurLookIndex()
+        {
+            for (int i = Looks.Length - 1; i >= 0; i--) if (Has(Looks[i].items[0])) return i;
+            return 0;
         }
 
         void Toggle(string id)
@@ -354,20 +377,45 @@ namespace Dearlife
         void DrawClothes(float w, ref float y)
         {
             Ui.Label(new Rect(4f, y, w, 18f), "Everyday", 15f, Ui.Ink); y += 26f;
-            bool casual = Has("casual");
-            if (Ui.Pill(new Rect(4f, y, 170f, 34f), "T-shirt and jeans", casual, 12f)) SetEveryday("casual");
-            if (Ui.Pill(new Rect(182f, y, 170f, 34f), "Tunic and trousers", !casual, 12f)) SetEveryday("tunic", "trousers");
-            y += 44f;
+            int look = CurLookIndex();
+            for (int i = 0; i < Looks.Length; i++)
+                if (Ui.Pill(new Rect(4f + (i % 2) * 178f, y + (i / 2) * 42f, 170f, 34f), Looks[i].label, look == i, 12f)) SetEveryday(Looks[i].items);
+            y += 86f;
             if (Ui.Pill(new Rect(4f, y, 110f, 34f), "Hijab", Has("hijab"), 12f)) Toggle("hijab");
             if (Ui.Pill(new Rect(122f, y, 110f, 34f), "Shoes", Has("shoes"), 12f)) Toggle("shoes");
+            if (Looks[look].items[0] != "tunic" && Ui.Pill(new Rect(240f, y, 110f, 34f), "Blazer", Has("blazer"), 12f)) Toggle("blazer");
             y += 48f;
-            if (!casual) { ColourRow(w, ref y, "Tunic colour", "tunic"); ColourRow(w, ref y, "Trousers colour", "trousers"); }
-            if (Has("hijab")) ColourRow(w, ref y, "Hijab colour", "hijab");
+            foreach (var id in Looks[look].colour) ColourRow(w, ref y, PieceNames[id], id);
+            if (Has("blazer")) ColourRow(w, ref y, PieceNames["blazer"], "blazer");
+            if (Has("hijab")) ColourRow(w, ref y, PieceNames["hijab"], "hijab");
+            y += 6f;
+
+            Ui.Label(new Rect(4f, y, w, 18f), "Swimwear", 15f, Ui.Ink); y += 26f;
+            string sw = Cur.swim != null && Cur.swim.Count > 0 ? Cur.swim[0] : "";
+            string[] swIds = { "swimsuit", "swimshorts", "" };
+            string[] swNames = { "Swimsuit", "Swim shorts", "Stay dressed" };
+            for (int i = 0; i < 3; i++)
+                if (Ui.Pill(new Rect(4f + i * 118f, y, 112f, 34f), swNames[i], sw == swIds[i], 12f))
+                {
+                    Cur.swim = swIds[i] == "" ? new List<string>() : new List<string> { swIds[i] };
+                    ClothesChanged();
+                }
+            y += 46f;
+            if (sw != "")
+            {
+                if (Ui.Chip(new Rect(w - 150f, y - 4f, 146f, 26f), swimPreview ? "Show everyday" : "Show swimwear", swimPreview))
+                {
+                    swimPreview = !swimPreview; sleepPreview = false;
+                    ClothesChanged();
+                }
+                y += 28f;
+                ColourRow(w, ref y, PieceNames[sw], sw);
+            }
             y += 6f;
             Ui.Label(new Rect(4f, y, w, 18f), "Sleepwear", 15f, Ui.Ink);
             if (Ui.Chip(new Rect(w - 150f, y - 4f, 146f, 26f), sleepPreview ? "Show everyday" : "Show sleepwear", sleepPreview))
             {
-                sleepPreview = !sleepPreview;
+                sleepPreview = !sleepPreview; swimPreview = false;
                 if (CurLook) CurLook.Dress(sleepPreview);
             }
             y += 28f;
@@ -450,7 +498,7 @@ namespace Dearlife
             var p = PersonData.FromCode(GUIUtility.systemCopyBuffer);
             if (p == null) { Warn("No person code to paste (copy one first)."); return; }
             house.members[sel] = p;
-            sleepPreview = false;
+            sleepPreview = false; swimPreview = false;
             Rebuild();
         }
 
@@ -460,7 +508,7 @@ namespace Dearlife
             if (h == null) { Warn("No household code to paste (copy one first)."); return; }
             house = h;
             turn.Clear();
-            sel = 0; sleepPreview = false;
+            sel = 0; sleepPreview = false; swimPreview = false;
             Rebuild();
         }
 
@@ -475,7 +523,7 @@ namespace Dearlife
             house.members.Add(PersonData.Random(rnd, names));
             turn.Add(0f);
             sel = house.members.Count - 1;
-            sleepPreview = false;
+            sleepPreview = false; swimPreview = false;
             Rebuild();
         }
 
@@ -492,7 +540,7 @@ namespace Dearlife
         {
             var names = new List<string>(); for (int i = 0; i < house.members.Count; i++) if (i != sel) names.Add(house.members[i].name);
             house.members[sel] = PersonData.Random(rnd, names);
-            sleepPreview = false;
+            sleepPreview = false; swimPreview = false;
             Rebuild();
         }
 

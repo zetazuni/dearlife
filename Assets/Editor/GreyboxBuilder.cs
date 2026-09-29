@@ -1452,8 +1452,7 @@ namespace Dearlife.EditorTools
             ("planter", 0.75f, 0.8f, 0f, 0),
             ("planter", 16.75f, 5f, 0f, 0),
             ("planter", 7.3f, 7.2f, 0f, 1),
-            ("planter", 21.3f, 2.6f, 0f, 1),
-            ("planter", 15f, 0.7f, 0f, 1),
+            ("planter", 21.65f, 7.6f, 0f, 1),
             // upper floor, Teacher's Room (x 0 to 8)
             ("platformbed", 5f, 1.17f, 0f, 1),
             ("nightstand", 3.9f, 0.22f, 0f, 1),
@@ -1474,12 +1473,12 @@ namespace Dearlife.EditorTools
             // Engineer's Room (x 16 to 22)
             ("platformbed_e", 20.2f, 1.17f, 0f, 1),
             ("nightstand", 18.9f, 0.22f, 0f, 1),
-            ("wardrobe", 17.1f, 0.32f, 0f, 1),
+            ("wardrobe", 17.65f, 0.32f, 0f, 1),      // clear of the door from the landing (v0.46.0)
             ("ebench", 16.45f, 5f, 90f, 1),
             ("officechair", 17.3f, 5f, 270f, 1),
-            ("robotarm", 18.7f, 3.2f, 0f, 1),
+            ("robotarm", 16.5f, 7.35f, 90f, 1),      // in the corner: in the middle it walled off half the room (v0.46.0)
             ("printer3d", 21f, 6.8f, 0f, 1),
-            ("beanbag", 20.4f, 4.6f, 20f, 1),
+            ("beanbag", 19.3f, 6.9f, 160f, 1),
             ("geomrug", 19.6f, 3.9f, 0f, 1),
             // Gym (x 22 to 30)
             ("treadmill", 23.3f, 0.93f, 0f, 1),
@@ -1607,9 +1606,8 @@ namespace Dearlife.EditorTools
             Pr("pachira_aquatica_01", "_d", 7.3f, UpFloor + 0.38f, 7.2f, 0f, 1f, PropPlacer.Body.Static, 0f, 0.5f),
             Pr("potted_plant_01", null, 8.6f, UpFloor, 7.3f, 30f, 1.35f, PropPlacer.Body.Static, 0f, 0.55f),
             Pr("modern_arm_chair_01", null, 12.5f, UpFloor, 6.5f, 200f, 1f, PropPlacer.Body.Dynamic, 18f),
-            Pr("pachira_aquatica_01", "_c", 21.3f, UpFloor + 0.38f, 2.6f, 60f, 1.35f, PropPlacer.Body.Static, 0f, 0.5f),
+            Pr("pachira_aquatica_01", "_c", 21.65f, UpFloor + 0.38f, 7.6f, 60f, 1.35f, PropPlacer.Body.Static, 0f, 0.5f),
             Pr("potted_plant_01", null, 29.3f, UpFloor, 7.2f, 0f, 1.35f, PropPlacer.Body.Static, 0f, 0.55f),
-            Pr("pachira_aquatica_01", "_a", 15f, UpFloor + 0.38f, 0.7f, 120f, 1.3f, PropPlacer.Body.Static, 0f, 0.5f),
         };
 
         /// <summary>Real trees and shrubs for the garden (garden ground sits at -SLAB).</summary>

@@ -122,11 +122,24 @@ namespace Dearlife
         public void Dress(bool sleepwear)
         {
             inSleepwear = sleepwear;
+            Wear(sleepwear ? data?.sleep : data?.everyday, sleepwear);
+        }
+
+        /// <summary>Swimwear for the pool (someone who chose none swims in what they have on), or back to everyday clothes.</summary>
+        public void DressForSwim(bool on)
+        {
+            if (data == null) return;
+            if (on && data.swim != null && data.swim.Count > 0) Wear(data.swim, true);
+            else if (!on) Dress(false);
+        }
+
+        void Wear(List<string> list, bool noHijab)
+        {
             var w = GetComponent<Wardrobe>();
-            if (!w || data == null) return;
-            var items = new List<string>(sleepwear ? data.sleep : data.everyday);
+            if (!w || data == null || list == null) return;
+            var items = new List<string>(list);
             if (!string.IsNullOrEmpty(data.hair)) items.Add(data.hair);
-            if (sleepwear) items.Remove("hijab");
+            if (noHijab) items.Remove("hijab");
             w.Wear(items);
         }
     }

@@ -20,6 +20,7 @@ namespace Dearlife
         public Color hairColour = new Color(0.12f, 0.08f, 0.06f);
         public List<string> everyday = new List<string> { "casual", "shoes" };
         public List<string> sleep = new List<string> { "pyjama_top", "pyjama_bottoms" };
+        public List<string> swim;                                 // null or empty: swims in their everyday clothes
         public List<Tint> colours = new List<Tint>();
         public List<string> traits = new List<string>();
         public string job = "";
@@ -256,9 +257,19 @@ namespace Dearlife
             bool modest = woman && r.NextDouble() < 0.5;
             p.everyday = modest ? new List<string> { "tunic", "trousers", "hijab", "shoes" } : r.NextDouble() < 0.5
                 ? new List<string> { "casual", "shoes" } : new List<string> { "tunic", "trousers", "shoes" };
+            if (!modest)
+            {
+                double style = r.NextDouble();
+                if (style < 0.2) p.everyday = new List<string> { "shirt", "slacks", "shoes" };
+                else if (style < 0.3) p.everyday = new List<string> { "shirt", "slacks", "blazer", "shoes" };
+                else if (style < 0.42) p.everyday = new List<string> { "tanktop", "shorts", "shoes" };
+            }
             p.sleep = new List<string> { "pyjama_top", "pyjama_bottoms" };
-            foreach (var id in new[] { "tunic", "trousers", "hijab", "pyjama_top", "pyjama_bottoms" })
+            p.swim = modest ? new List<string>() : new List<string> { woman ? "swimsuit" : "swimshorts" };
+            foreach (var id in new[] { "tunic", "trousers", "hijab", "pyjama_top", "pyjama_bottoms", "slacks", "blazer", "shorts", "swimsuit", "swimshorts" })
                 p.SetColour(id, FabricColours[r.Next(FabricColours.Length)].c);
+            p.SetColour("shirt", r.NextDouble() < 0.5 ? FabricColours[8].c : FabricColours[r.Next(FabricColours.Length)].c);   // shirts are often white
+            p.SetColour("tanktop", FabricColours[r.Next(FabricColours.Length)].c);
             var used = new HashSet<string>(taken ?? new string[0]);
             var pool = new List<string>(); foreach (var n in woman ? WomenNames : MenNames) if (!used.Contains(n)) pool.Add(n);
             p.name = pool.Count > 0 ? pool[r.Next(pool.Count)] : "Friend";

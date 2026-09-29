@@ -53,6 +53,48 @@
    "slot": "bottom",
    "bit": 6,
    "hidesHair": false
+  },
+  {
+   "id": "shirt",
+   "slot": "top",
+   "bit": 7,
+   "hidesHair": false
+  },
+  {
+   "id": "slacks",
+   "slot": "bottom",
+   "bit": 8,
+   "hidesHair": false
+  },
+  {
+   "id": "blazer",
+   "slot": "outer",
+   "bit": 9,
+   "hidesHair": false
+  },
+  {
+   "id": "tanktop",
+   "slot": "top",
+   "bit": 10,
+   "hidesHair": false
+  },
+  {
+   "id": "shorts",
+   "slot": "bottom",
+   "bit": 11,
+   "hidesHair": false
+  },
+  {
+   "id": "swimsuit",
+   "slot": "outfit",
+   "bit": 12,
+   "hidesHair": false
+  },
+  {
+   "id": "swimshorts",
+   "slot": "bottom",
+   "bit": 13,
+   "hidesHair": false
   }
  ],
  "outfits": [
@@ -79,6 +121,39 @@
     "pyjama_top",
     "pyjama_bottoms",
     "hair_long"
+   ]
+  },
+  {
+   "name": "formal",
+   "items": [
+    "shirt",
+    "slacks",
+    "blazer",
+    "shoes",
+    "hair_short"
+   ]
+  },
+  {
+   "name": "sporty",
+   "items": [
+    "tanktop",
+    "shorts",
+    "shoes",
+    "hair_long"
+   ]
+  },
+  {
+   "name": "swim",
+   "items": [
+    "swimsuit",
+    "hair_long"
+   ]
+  },
+  {
+   "name": "swim_shorts",
+   "items": [
+    "swimshorts",
+    "hair_short"
    ]
   }
  ]

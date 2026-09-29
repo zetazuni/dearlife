@@ -48,10 +48,13 @@ namespace Dearlife.EditorTools
         {
             if (part.StartsWith("cut_")) { Hair(mat, baseMap, false); return true; }
             var weave = AssetDatabase.LoadAssetAtPath<Texture2D>(MakeWeaveMap());
-            mat.SetFloat("_Smoothness", part.StartsWith("shoes") ? 0.45f : 0.22f);
+            bool swim = part.Contains("swim");
+            mat.SetFloat("_Smoothness", part.StartsWith("shoes") ? 0.45f : swim ? 0.42f : 0.22f);
             mat.SetFloat("_Metallic", 0f);
             mat.SetTexture("_DetailMap", weave);
-            mat.SetTextureScale("_DetailMap", new Vector2(60f, 60f));   // body UVs span about 1.7 m: a fine weave
+            // body UVs span about 1.7 m: a fine weave (finer still for a shirt and swimwear, coarser for a wool blazer)
+            float tiling = part.Contains("blazer") ? 44f : part.Contains("shirt") || swim ? 90f : 60f;
+            mat.SetTextureScale("_DetailMap", new Vector2(tiling, tiling));
             mat.SetFloat("_DetailAlbedoScale", 0.6f);
             mat.SetFloat("_DetailNormalScale", 0.7f);
             mat.SetFloat("_DetailSmoothnessScale", 0.5f);

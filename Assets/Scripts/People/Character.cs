@@ -90,7 +90,8 @@ namespace Dearlife
 
         public int Queued => orders.Count;
         public bool OnOrder => onOrder;
-        public bool CanChat => mode == Mode.Idle || mode == Mode.Walk || mode == Mode.ChatWalk || mode == Mode.PetWalk;
+        // someone doing what the player told them is not pulled into a chat on the way
+        public bool CanChat => !onOrder && (mode == Mode.Idle || mode == Mode.Walk || mode == Mode.ChatWalk || mode == Mode.PetWalk);
 
         public string Activity
         {
@@ -577,13 +578,108 @@ namespace Dearlife
                 afterSeat = () => BeginInteraction(it, d);
                 return true;
             }
-            if (!it.StandPoint(transform.position, out var p) || !GoTo(p, 0.8f)) return false;
+            if (d.sitNear && SitNear(it, d)) return true;
+            bool going = false;
+            foreach (var p in it.StandPoints(transform.position))
+                if (GoTo(p, 0.8f)) { going = true; break; }
+            if (!going) return false;
             mode = Mode.Walk;
             arrive = () => BeginInteraction(it, d);
             return true;
         }
 
+        /// <summary>
+        /// A meal at the table or work at a desk: a free chair beside it, facing it (an office chair is turned round to
+        /// face the desk, it swivels). False when there is none, and then it is done standing.
+        /// </summary>
+        bool SitNear(Interactable it, InteractionDef d)
+        {
+            var f = it.GetComponent<Furniture>();
+            var lb = f ? f.LocalBounds : new Bounds(Vector3.zero, Vector3.one);
+            UseSpot best = null; float bestD = float.MaxValue;
+            foreach (var sp in UseSpot.All)
+            {
+                if (sp == null || !sp.isActiveAndEnabled || sp.pose != CharacterRig.Pose.Sit || (sp.occupant != null && sp.occupant != this)) continue;
+                if (sp.label != "dining chair" && sp.label != "office chair" && sp.label != "bar stool") continue;
+                var local = it.transform.InverseTransformPoint(sp.transform.position);
+                // how far outside the table or desk the seat is (0 when over it)
+                float dx = Mathf.Max(0f, Mathf.Abs(local.x - lb.center.x) - lb.extents.x), dz = Mathf.Max(0f, Mathf.Abs(local.z - lb.center.z) - lb.extents.z);
+                if (Mathf.Abs(sp.transform.position.y - it.transform.position.y) > 1.2f || Mathf.Sqrt(dx * dx + dz * dz) > 0.75f) continue;
+                bool swivel = sp.label == "office chair";
+                var toItem = it.Centre - sp.transform.position; toItem.y = 0f;
+                if (!swivel && Vector3.Dot(SpotForward(sp), toItem.normalized) < 0.3f) continue;   // a chair facing away is not used
+                float dd = (sp.transform.position - transform.position).sqrMagnitude;
+                if (dd < bestD) { bestD = dd; best = sp; }
+            }
+            if (best == null) return false;
+            if (best.label == "office chair" && best.transform.parent)
+            {
+                // turn the chair round to face the desk
+                var chair = best.transform.parent;
+                var toDesk = it.Centre - best.transform.position; toDesk.y = 0f;
+                if (toDesk.sqrMagnitude > 0.01f)
+                {
+                    float want = Quaternion.LookRotation(toDesk).eulerAngles.y - best.yaw;
+                    var pivot = best.transform.position;
+                    chair.rotation = Quaternion.Euler(0f, want, 0f);
+                    chair.position += pivot - best.transform.position;
+                }
+            }
+            if (!GoToApproach(best)) return false;
+            spot = best; spot.occupant = this; mode = Mode.ToSpot; holdSeat = true;
+            afterSeat = () => BeginInteraction(it, d);
+            return true;
+        }
+
+        static Vector3 SpotForward(UseSpot s) => Quaternion.Euler(0f, (s.transform.parent ? s.transform.parent.eulerAngles.y : 0f) + s.yaw, 0f) * Vector3.forward;
+
         AudioSource actSound;
+        bool onBelt;             // walking on the treadmill
+        GameObject plate;        // the meal on the table in front of someone eating there
+
+        /// <summary>A plate of food (or a takeaway box) on the table in front of the chair.</summary>
+        void TablePlate(Interactable it, InteractionDef d)
+        {
+            if (d.id != "meal" && d.id != "takeaway") return;
+            var fwd = SpotForward(spot);
+            var at = spot.transform.position + fwd * 0.42f;
+            // the table top under that point
+            float top = it.transform.position.y + 0.76f;
+            foreach (var h in Physics.RaycastAll(at + Vector3.up * 1.5f, Vector3.down, 2.5f))
+                if (h.transform.IsChildOf(it.transform)) { top = Mathf.Max(top - 1f, h.point.y); break; }
+            plate = new GameObject(d.id == "meal" ? "Plate" : "Takeaway box");
+            plate.transform.position = new Vector3(at.x, top, at.z);
+            plate.transform.rotation = Quaternion.LookRotation(-fwd);
+            if (d.id == "meal")
+            {
+                Prop(plate.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.006f, 0f), new Vector3(0.26f, 0.006f, 0.26f), new Color(0.95f, 0.95f, 0.93f), 0.8f);
+                Prop(plate.transform, PrimitiveType.Sphere, new Vector3(-0.03f, 0.03f, 0.01f), new Vector3(0.12f, 0.05f, 0.1f), new Color(0.93f, 0.9f, 0.8f), 0.3f);   // rice
+                Prop(plate.transform, PrimitiveType.Sphere, new Vector3(0.05f, 0.028f, -0.02f), new Vector3(0.08f, 0.045f, 0.07f), new Color(0.62f, 0.3f, 0.12f), 0.5f);   // curry
+                Prop(plate.transform, PrimitiveType.Cube, new Vector3(0.15f, 0.004f, 0f), new Vector3(0.012f, 0.004f, 0.18f), new Color(0.75f, 0.76f, 0.78f), 0.8f);   // spoon
+            }
+            else
+            {
+                Prop(plate.transform, PrimitiveType.Cube, new Vector3(0f, 0.035f, 0f), new Vector3(0.2f, 0.07f, 0.14f), new Color(0.72f, 0.55f, 0.36f), 0.2f);
+                Prop(plate.transform, PrimitiveType.Cube, new Vector3(0f, 0.071f, 0f), new Vector3(0.21f, 0.004f, 0.15f), new Color(0.6f, 0.2f, 0.15f), 0.3f);
+            }
+        }
+
+        static readonly Dictionary<Color, Material> propMats = new Dictionary<Color, Material>();
+
+        static void Prop(Transform parent, PrimitiveType type, Vector3 pos, Vector3 size, Color c, float smooth)
+        {
+            var g = GameObject.CreatePrimitive(type);
+            Destroy(g.GetComponent<Collider>());
+            g.transform.SetParent(parent, false);
+            g.transform.localPosition = pos; g.transform.localScale = size;
+            if (!propMats.TryGetValue(c, out var m) || !m)
+            {
+                m = new Material(Shader.Find("HDRP/Lit")) { name = "Table prop" };
+                m.SetColor("_BaseColor", c); m.SetFloat("_Smoothness", smooth);
+                propMats[c] = m;
+            }
+            g.GetComponent<Renderer>().sharedMaterial = m;
+        }
         readonly List<Transform> liftedGuitar = new List<Transform>();
 
         /// <summary>A book for reading, a mug for coffee, weights for working out, and the guitar itself lifted off its stand.</summary>
@@ -634,13 +730,27 @@ namespace Dearlife
             if (d.id == "bath" && it.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(true);
             if ((d.id == "sleep" || d.id == "nap") && GetComponent<PersonLook>() is PersonLook look && look) look.Dress(true);   // into pyjamas
             if (d.needsTv && spot != null) { var tv = TvScreen.Facing(spot); if (tv != null && !tv.on) tv.SetOn(true, true); }
-            if (d.seat) { timer = d.seconds; return; }                    // seated: TickUsing runs it
+            if (d.sitNear && spot != null && mode == Mode.Using) TablePlate(it, d);
+            if (d.seat || (d.sitNear && spot != null && mode == Mode.Using)) { timer = d.seconds; return; }   // seated: TickUsing runs it
             mode = Mode.Interacting; timer = d.seconds; blend = 0f;
             fromPos = transform.position; fromRot = transform.rotation;
             rig.pose = d.pose; rig.walkSpeed = 0f;
             HoldForInteraction(it, d);
             if (agent.enabled && agent.isOnNavMesh) agent.ResetPath();
-            if (d.pose == CharacterRig.Pose.Swim) { standPos = transform.position; agent.enabled = false; GameAudio.Play(GameAudio.Sfx.Splash); }
+            if (it && it.id == "treadmill")
+            {
+                // on the belt, walking without getting anywhere
+                standPos = transform.position; agent.enabled = false;
+                transform.SetPositionAndRotation(it.transform.TransformPoint(new Vector3(0f, 0.17f, -0.1f)), it.transform.rotation);
+                rig.Release();
+                rig.pose = CharacterRig.Pose.Walk; rig.inPlaceSpeed = 1.3f;
+                onBelt = true;
+            }
+            if (d.pose == CharacterRig.Pose.Swim)
+            {
+                standPos = transform.position; agent.enabled = false; GameAudio.Play(GameAudio.Sfx.Splash);
+                if (GetComponent<PersonLook>() is PersonLook sl && sl) sl.DressForSwim(true);   // into swimwear
+            }
             if (d.id == "shower" && it && it.GetComponent<ShowerStall>() is ShowerStall st && st)
             {
                 shower = st; showerStep = 0; showerT = 0f; showerRunning = false;
@@ -760,15 +870,15 @@ namespace Dearlife
                 float e = Mathf.SmoothStep(0f, 1f, blend);
                 transform.SetPositionAndRotation(Vector3.Lerp(fromPos, root, e), Quaternion.Slerp(fromRot, rot, e));
             }
-            else
+            else if (!onBelt)
             {
                 var d = centre - transform.position; d.y = 0f;
                 if (d.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(d), Time.deltaTime * 6f);
             }
             if (timer <= 0f)
             {
-                bool swim = active.pose == CharacterRig.Pose.Swim;
-                var stand = activeIt && activeIt.hasCustomStand ? activeIt.customStand : transform.position;
+                bool swim = active.pose == CharacterRig.Pose.Swim || onBelt;
+                var stand = activeIt && activeIt.hasCustomStand ? activeIt.customStand : onBelt ? standPos : transform.position;
                 FinishInteraction(true);
                 if (swim)
                 {
@@ -786,6 +896,13 @@ namespace Dearlife
             ReleaseHeld();
             if (d.id == "bath" && activeIt && activeIt.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(false);
             if ((d.id == "sleep" || d.id == "nap") && GetComponent<PersonLook>() is PersonLook look && look) look.Dress(false);
+            if (d.pose == CharacterRig.Pose.Swim && GetComponent<PersonLook>() is PersonLook sl && sl) sl.DressForSwim(false);
+            if (plate) { Destroy(plate); plate = null; }
+            if (onBelt)
+            {
+                onBelt = false; rig.inPlaceSpeed = 0f;
+                if (mode != Mode.Rising) { transform.position = standPos; agent.enabled = true; agent.Warp(standPos); }
+            }
             EndShower();
             if (activeIt) activeIt.user = null;
             activeIt = null;
@@ -914,7 +1031,7 @@ namespace Dearlife
         bool TryChat()
         {
             var o = OtherPerson();
-            if (o == null || o.mode == Mode.Waiting || o.mode == Mode.Sitting || o.mode == Mode.Using || o.mode == Mode.Rising || o.mode == Mode.Chatting || o.mode == Mode.ChatWalk || o.mode == Mode.Interacting) return false;   // busy: not pulled into a chat
+            if (o == null || o.onOrder || o.mode == Mode.Waiting || o.mode == Mode.Sitting || o.mode == Mode.Using || o.mode == Mode.Rising || o.mode == Mode.Chatting || o.mode == Mode.ChatWalk || o.mode == Mode.Interacting) return false;   // busy: not pulled into a chat
             if (!GoTo(o.transform.position, 1.6f)) return false;
             partner = o; mode = Mode.ChatWalk;
             return true;

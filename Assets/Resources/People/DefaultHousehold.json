@@ -150,7 +150,8 @@
     "Cheerful",
     "Neat"
    ],
-   "job": "Teacher"
+   "job": "Teacher",
+   "swim": []
   },
   {
    "name": "Danial",
@@ -300,7 +301,10 @@
     "Foodie",
     "Handy"
    ],
-   "job": "Engineer"
+   "job": "Engineer",
+   "swim": [
+    "swimshorts"
+   ]
   }
  ],
  "bonds": [
