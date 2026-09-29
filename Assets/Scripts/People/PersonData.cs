@@ -5,8 +5,8 @@ namespace Dearlife
 {
     /// <summary>
     /// One person made in the character creator (phase 4 of docs/CHARACTER_PLAN.md), small enough to keep in a save:
-    /// name, body and face sliders, skin tone, hair style and colour, everyday and sleep clothes with their colours,
-    /// traits and career. <see cref="PersonLook"/> puts it on a person.
+    /// name, body and face sliders, skin tone, hair style and colour, eye colour, makeup, freckles, beard and tattoos,
+    /// everyday and sleep clothes with their colours, traits and career. <see cref="PersonLook"/> puts it on a person.
     /// </summary>
     [System.Serializable]
     public class PersonData
@@ -23,6 +23,19 @@ namespace Dearlife
         public List<Tint> colours = new List<Tint>();
         public List<string> traits = new List<string>();
         public string job = "";
+
+        // details (the creator's Details tab): drawn onto the skin by PersonLook, see tools/blender_skin_layers.py
+        public Color eyeColour = new Color(0f, 0f, 0f, 0f);     // clear: the natural brown of the eye texture
+        public Color lipColour = new Color(0.62f, 0.14f, 0.2f);
+        [Range(0f, 1f)] public float lipstick;
+        public Color blushColour = new Color(0.95f, 0.55f, 0.55f);
+        [Range(0f, 1f)] public float blush;
+        public Color shadowColour = new Color(0.45f, 0.32f, 0.28f);
+        [Range(0f, 1f)] public float eyeshadow;
+        [Range(0f, 1f)] public float liner;
+        [Range(0f, 1f)] public float freckles;
+        public string beard = "";                                 // "", stubble, goatee or full
+        public List<string> tattoos = new List<string>();         // band, rose, star
 
         public float Slider(string n)
         {
@@ -53,6 +66,75 @@ namespace Dearlife
         }
 
         public PersonData Copy() => JsonUtility.FromJson<PersonData>(JsonUtility.ToJson(this));
+
+        // ------------------------------------------------------------ sharing
+
+        const string PersonPrefix = "DLP1:", HousePrefix = "DLH1:";
+
+        /// <summary>A short code for this person that can be pasted into anyone's creator (the JSON, zipped, in base 64).</summary>
+        public string ToCode() => PersonPrefix + Zip(JsonUtility.ToJson(this));
+
+        public static PersonData FromCode(string code)
+        {
+            code = (code ?? "").Trim();
+            if (!code.StartsWith(PersonPrefix)) return null;
+            try { var p = JsonUtility.FromJson<PersonData>(Unzip(code.Substring(PersonPrefix.Length))); return p != null && p.sliders.Count > 0 ? p : null; }
+            catch { return null; }
+        }
+
+        public static string HouseholdCode(HouseholdData h) => HousePrefix + Zip(JsonUtility.ToJson(h));
+
+        public static HouseholdData HouseholdFromCode(string code)
+        {
+            code = (code ?? "").Trim();
+            if (!code.StartsWith(HousePrefix)) return null;
+            try { var h = JsonUtility.FromJson<HouseholdData>(Unzip(code.Substring(HousePrefix.Length))); return h != null && h.members.Count > 0 && h.members.Count <= HouseholdData.MaxMembers ? h : null; }
+            catch { return null; }
+        }
+
+        static string Zip(string s)
+        {
+            var raw = System.Text.Encoding.UTF8.GetBytes(s);
+            using (var ms = new System.IO.MemoryStream())
+            {
+                using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Optimal)) gz.Write(raw, 0, raw.Length);
+                return System.Convert.ToBase64String(ms.ToArray());
+            }
+        }
+
+        static string Unzip(string b64)
+        {
+            var bytes = System.Convert.FromBase64String(b64);
+            using (var ms = new System.IO.MemoryStream(bytes))
+            using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionMode.Decompress))
+            using (var rd = new System.IO.StreamReader(gz, System.Text.Encoding.UTF8)) return rd.ReadToEnd();
+        }
+
+        /// <summary>Presets saved on this computer (one file per person), for the creator's preset list.</summary>
+        public static string PresetDir => System.IO.Path.Combine(Application.persistentDataPath, "Presets");
+
+        public void SavePreset()
+        {
+            System.IO.Directory.CreateDirectory(PresetDir);
+            string safe = string.IsNullOrEmpty(name) ? "Person" : string.Concat(name.Split(System.IO.Path.GetInvalidFileNameChars()));
+            System.IO.File.WriteAllText(System.IO.Path.Combine(PresetDir, safe + ".txt"), ToCode());
+            presetCache = null;
+        }
+
+        static List<(string name, string path)> presetCache;
+        static float presetTime = -10f;
+
+        public static List<(string name, string path)> Presets()
+        {
+            // listed at most every two seconds (the creator asks every frame)
+            if (presetCache != null && Time.unscaledTime - presetTime < 2f) return presetCache;
+            presetTime = Time.unscaledTime;
+            var list = presetCache = new List<(string name, string path)>();
+            if (!System.IO.Directory.Exists(PresetDir)) return list;
+            foreach (var f in System.IO.Directory.GetFiles(PresetDir, "*.txt")) list.Add((System.IO.Path.GetFileNameWithoutExtension(f), f));
+            list.Sort((x, y) => string.Compare(x.name, y.name, System.StringComparison.OrdinalIgnoreCase));
+            return list;
+        }
 
         // ------------------------------------------------------------ choices offered by the creator
 
@@ -118,6 +200,33 @@ namespace Dearlife
             ("Blonde", new Color(0.72f, 0.57f, 0.36f)), ("Grey", new Color(0.6f, 0.6f, 0.58f)),
         };
 
+        public static readonly (string name, Color c)[] EyeColours =
+        {
+            ("Brown", new Color(0f, 0f, 0f, 0f)), ("Dark brown", new Color(0.13f, 0.075f, 0.045f)), ("Hazel", new Color(0.36f, 0.25f, 0.1f)),
+            ("Amber", new Color(0.55f, 0.33f, 0.08f)), ("Green", new Color(0.2f, 0.33f, 0.16f)), ("Blue", new Color(0.18f, 0.33f, 0.55f)),
+            ("Grey", new Color(0.38f, 0.41f, 0.44f)),
+        };
+
+        public static readonly (string name, Color c)[] LipColours =
+        {
+            ("Nude", new Color(0.66f, 0.38f, 0.33f)), ("Rose", new Color(0.72f, 0.3f, 0.36f)), ("Berry", new Color(0.45f, 0.08f, 0.18f)),
+            ("Red", new Color(0.66f, 0.06f, 0.08f)), ("Coral", new Color(0.86f, 0.36f, 0.3f)), ("Plum", new Color(0.36f, 0.12f, 0.2f)),
+        };
+
+        public static readonly (string name, Color c)[] BlushColours =
+        {
+            ("Pink", new Color(0.95f, 0.55f, 0.58f)), ("Peach", new Color(0.98f, 0.62f, 0.45f)), ("Rose", new Color(0.85f, 0.45f, 0.45f)),
+        };
+
+        public static readonly (string name, Color c)[] ShadowColours =
+        {
+            ("Brown", new Color(0.4f, 0.27f, 0.2f)), ("Taupe", new Color(0.45f, 0.38f, 0.34f)), ("Gold", new Color(0.72f, 0.56f, 0.3f)),
+            ("Plum", new Color(0.4f, 0.24f, 0.36f)), ("Smoky", new Color(0.16f, 0.15f, 0.16f)),
+        };
+
+        public static readonly (string id, string name)[] Beards = { ("", "None"), ("stubble", "Stubble"), ("goatee", "Goatee"), ("full", "Full beard") };
+        public static readonly (string id, string name)[] Tattoos = { ("band", "Forearm band"), ("rose", "Shoulder rose"), ("star", "Wrist star") };
+
         public static readonly (string name, Color c)[] FabricColours =
         {
             ("Sage", new Color(0.46f, 0.55f, 0.5f)), ("Navy", new Color(0.16f, 0.2f, 0.34f)), ("Rose", new Color(0.72f, 0.46f, 0.5f)),
@@ -156,6 +265,19 @@ namespace Dearlife
             var traits = new List<string>(Traits);
             for (int i = 0; i < 3; i++) { int k = r.Next(traits.Count); p.traits.Add(traits[k]); traits.RemoveAt(k); }
             p.job = Jobs[1 + r.Next(Jobs.Length - 1)];
+            // details: mostly brown eyes, now and then some makeup, a beard or freckles
+            double e = r.NextDouble();
+            p.eyeColour = e < 0.45 ? EyeColours[0].c : e < 0.75 ? EyeColours[1].c : EyeColours[2 + r.Next(EyeColours.Length - 2)].c;
+            if (woman && r.NextDouble() < 0.6)
+            {
+                p.lipColour = LipColours[r.Next(LipColours.Length)].c; p.lipstick = R(0.25f, 0.7f);
+                p.blushColour = BlushColours[r.Next(BlushColours.Length)].c; p.blush = R(0f, 0.5f);
+                p.shadowColour = ShadowColours[r.Next(ShadowColours.Length)].c; p.eyeshadow = R(0f, 0.5f);
+                p.liner = r.NextDouble() < 0.5 ? R(0.4f, 0.9f) : 0f;
+            }
+            if (!woman && r.NextDouble() < 0.5) p.beard = Beards[1 + r.Next(Beards.Length - 1)].id;
+            if (r.NextDouble() < 0.15) p.freckles = R(0.3f, 0.8f);
+            if (r.NextDouble() < 0.1) p.tattoos.Add(Tattoos[r.Next(Tattoos.Length)].id);
             return p;
         }
     }
@@ -169,6 +291,42 @@ namespace Dearlife
         public const string KeyBase = "dearlife.household";
 
         public List<PersonData> members = new List<PersonData>();
+        public List<Bond> bonds = new List<Bond>();
+
+        /// <summary>How two members of the household are related (by their places in the list).</summary>
+        [System.Serializable] public class Bond { public int a, b; public string kind; }
+
+        /// <summary>The relationships the creator offers, and how close the two start out.</summary>
+        public static readonly (string kind, float friendship)[] Kinds =
+        {
+            ("Housemates", 45f), ("Friends", 62f), ("Partners", 82f), ("Married", 88f), ("Siblings", 68f), ("Family", 72f),
+        };
+
+        public string KindOf(int i, int j)
+        {
+            foreach (var bd in bonds) if ((bd.a == i && bd.b == j) || (bd.a == j && bd.b == i)) return bd.kind;
+            return "Housemates";
+        }
+
+        public void SetKind(int i, int j, string kind)
+        {
+            bonds.RemoveAll(bd => (bd.a == i && bd.b == j) || (bd.a == j && bd.b == i));
+            if (kind != "Housemates") bonds.Add(new Bond { a = i, b = j, kind = kind });
+        }
+
+        public static float StartFriendship(string kind)
+        {
+            foreach (var k in Kinds) if (k.kind == kind) return k.friendship;
+            return 45f;
+        }
+
+        /// <summary>Someone left the household in the creator: the relationships of the people after them move up one place.</summary>
+        public void RemoveMember(int index)
+        {
+            members.RemoveAt(index);
+            bonds.RemoveAll(bd => bd.a == index || bd.b == index);
+            foreach (var bd in bonds) { if (bd.a > index) bd.a--; if (bd.b > index) bd.b--; }
+        }
 
         public static HouseholdData Load()
         {

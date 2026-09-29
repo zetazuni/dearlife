@@ -668,3 +668,26 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - Tested in Play mode on an empty slot: Bedah walked to the bowl and ate, napped curled up in the bed, kept Aina
   company; the dog sniffed about, slept, scratched and played with Bedah.
 
+## Session 52: creator details, relationships and sharing (2026-09-29) · v0.45.0
+
+- **A Details tab in the creator**: eye colour (seven, from the natural brown to blue and grey), lipstick, blush and
+  eyeshadow (a colour and an amount each), eyeliner with a small wing, freckles, facial hair (stubble, a goatee with a
+  moustache, or a full beard, all in the hair colour) and three tattoos (a geometric band round the left forearm, a rose
+  on the right shoulder, a small star inside the left wrist). Random people get some of these now and then.
+- **How it is drawn**: `tools/blender_skin_layers.py` bakes masks on the MPFB2 body's UV layout by giving every texel its
+  3D position and painting rules round landmarks (the eyes, the teeth, the arm bones), so lipstick follows the lips the
+  skin texture already has and a beard stops under the jaw. At run time `PersonLook` blends the person's own colours
+  onto their own copy of the skin texture on the graphics card (`Hidden/Dearlife/SkinLayers`), quick enough for every
+  step of a slider. Found on the way: MakeHuman's inside of the mouth shares 3D positions with the lips, so the masks
+  skip its deep red UV islands.
+- **The scalp follows the hair colour.** The skin texture has short dark hair painted over the scalp, which showed as a
+  dark band under blonde or grey hair; it is now masked and tinted with the person's hair colour.
+- **Eye colour** recolours the iris texture into the person's own eye material, keeping its fibres.
+- **Relationships**: on the About tab each person can be married to, partners with, a sibling or family of, a friend or
+  just a housemate of each of the others. It sets how close they start and shows in their status. Aina and Danial are
+  married. Partners chatting get "Time with my spouse" (or partner) instead of a plain nice chat.
+- **Sharing**: Copy person or Copy household puts a short code on the clipboard (about 1 KB, the JSON zipped), Paste
+  brings it into anyone's creator, and Save preset keeps people on this computer as a list to pick from.
+- **Chats**: people used to always chat with the first person in the house; with more people they now pick whoever is
+  free, the closest friend and nearest first, with some chance.
+

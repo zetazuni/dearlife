@@ -243,6 +243,8 @@ namespace Dearlife
             {
                 if (kv.Key == who.displayName) continue;
                 Ui.Label(new Rect(rx, ry, 90f, 18f), kv.Key, 12f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                if (sim.relation.TryGetValue(kv.Key, out var rel) && rel != "Housemates")
+                    Ui.Label(new Rect(rx + 92f, ry - 11f, 140f, 12f), rel, 10f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.Bold);
                 Ui.Bar(new Rect(rx + 92f, ry + 4f, 140f, 10f), kv.Value / 100f, NeedColours[4]);
                 Ui.Label(new Rect(rx + 240f, ry, 60f, 18f), Mathf.RoundToInt(kv.Value).ToString(), 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
                 ry += 22f;

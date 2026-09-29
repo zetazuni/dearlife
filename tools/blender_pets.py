@@ -19,9 +19,10 @@ from mathutils import Matrix
 TOOLS = r"S:\Dearlife by Zetazuni\tools"
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
-import importlib, blender_rig
-importlib.reload(blender_rig)
+import importlib, blender_rig, blender_texel
+importlib.reload(blender_rig); importlib.reload(blender_texel)
 from blender_rig import export_character, clear_scene, OUT
+from blender_texel import texel_positions, box_blur
 
 SRC = r"S:\Tools\pets"
 
@@ -107,47 +108,6 @@ def world_bone(arm, name):
 
 
 # ---------------------------------------------------------------- the calico coat
-
-def texel_positions(mesh, size):
-    """For every texel covered by the mesh's UV layout: the 3D rest position there (NaN where nothing is)."""
-    me = mesh.data
-    me.calc_loop_triangles()
-    uv = me.uv_layers.active.data
-    P = np.full((size, size, 3), np.nan, np.float32)
-    co = np.array([v.co[:] for v in me.vertices], np.float32)
-    for t in me.loop_triangles:
-        uvs = np.array([uv[l].uv[:] for l in t.loops], np.float32) * size
-        ps = co[list(t.vertices)]
-        x0, y0 = np.floor(uvs.min(0) - 1).astype(int)
-        x1, y1 = np.ceil(uvs.max(0) + 1).astype(int)
-        x0, y0 = max(x0, 0), max(y0, 0)
-        x1, y1 = min(x1, size - 1), min(y1, size - 1)
-        if x1 < x0 or y1 < y0:
-            continue
-        xs, ys = np.meshgrid(np.arange(x0, x1 + 1) + 0.5, np.arange(y0, y1 + 1) + 0.5)
-        a, b, c = uvs
-        d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
-        if abs(d) < 1e-9:
-            continue
-        w0 = ((b[1] - c[1]) * (xs - c[0]) + (c[0] - b[0]) * (ys - c[1])) / d
-        w1 = ((c[1] - a[1]) * (xs - c[0]) + (a[0] - c[0]) * (ys - c[1])) / d
-        w2 = 1 - w0 - w1
-        inside = (w0 >= -0.03) & (w1 >= -0.03) & (w2 >= -0.03)   # a little over the edge, so seams do not show
-        if not inside.any():
-            continue
-        pos = w0[..., None] * ps[0] + w1[..., None] * ps[1] + w2[..., None] * ps[2]
-        sub = P[y0:y1 + 1, x0:x1 + 1]
-        empty = np.isnan(sub[..., 0]) & inside
-        sub[empty] = pos[empty]
-    return P
-
-
-def box_blur(a, r):
-    k = 2 * r + 1
-    p = np.pad(a, ((r + 1, r), (r + 1, r)), mode='edge')
-    c = p.cumsum(0).cumsum(1)
-    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) / (k * k)
-
 
 def calico(arm, mesh, image, out_name):
     size = image.size[0]

@@ -31,7 +31,42 @@ namespace Dearlife.EditorTools
             go.AddComponent<PersonLook>();
             PrefabUtility.SaveAsPrefabAsset(go, Path);
             Object.DestroyImmediate(go);
+            MakeSkinLayers();
             Debug.Log("Dearlife: made " + Path);
+        }
+
+        const string LayersMat = "Assets/Resources/People/SkinLayers.mat";
+
+        /// <summary>
+        /// The material PersonLook draws the creator's details with (Hidden/Dearlife/SkinLayers), holding the three masks
+        /// from tools/blender_skin_layers.py. It lives in Resources, which also keeps the shader in a built game.
+        /// </summary>
+        [MenuItem("Dearlife/Make skin layers material")]
+        public static void MakeSkinLayers()
+        {
+            var shader = Shader.Find("Hidden/Dearlife/SkinLayers");
+            if (!shader) { Debug.LogWarning("Dearlife: Hidden/Dearlife/SkinLayers is missing."); return; }
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(LayersMat);
+            if (!mat) { mat = new Material(shader); AssetDatabase.CreateAsset(mat, LayersMat); }
+            mat.shader = shader;
+            string[] props = { "_LayersA", "_LayersB", "_LayersC" };
+            string[] files = { "skin_layers_a", "skin_layers_b", "skin_layers_c" };
+            for (int i = 0; i < 3; i++)
+            {
+                string tp = $"{CharacterLook.TexDir}/{files[i]}.png";
+                var ti = AssetImporter.GetAtPath(tp) as TextureImporter;
+                if (!ti) { Debug.LogWarning("Dearlife: " + tp + " not found (run tools/blender_skin_layers.py)."); continue; }
+                if (ti.sRGBTexture || ti.textureCompression != TextureImporterCompression.CompressedHQ)
+                {
+                    ti.sRGBTexture = false;                                   // masks, not colours
+                    ti.textureCompression = TextureImporterCompression.CompressedHQ;
+                    ti.mipmapEnabled = false;                                 // only read at full size by the blit
+                    ti.SaveAndReimport();
+                }
+                mat.SetTexture(props[i], AssetDatabase.LoadAssetAtPath<Texture2D>(tp));
+            }
+            EditorUtility.SetDirty(mat);
+            AssetDatabase.SaveAssets();
         }
     }
 }

@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SkinLayers
+  m_Shader: {fileID: 4800000, guid: 2139a41630f23c44698e4c4102b48e77, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _LayersA:
+        m_Texture: {fileID: 2800000, guid: 08d3de7804f8df74ea7da42596597a11, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LayersB:
+        m_Texture: {fileID: 2800000, guid: 293652c5442551544bd08b55724f1cb8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LayersC:
+        m_Texture: {fileID: 2800000, guid: 4fc11d53f923fd74287b0e549c1bc8ac, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats: []
+    m_Colors:
+    - _Beard: {r: 0.049999982, g: 0.04, b: 0.03, a: 1}
+    - _BeardStyle: {r: 0, g: 0, b: 0, a: 0}
+    - _Blush: {r: 0.9, g: 0.5, b: 0.5, a: 0}
+    - _Freckles: {r: 0.62, g: 0.45, b: 0.34999996, a: 0}
+    - _Ink: {r: 0.059999965, g: 0.079999976, b: 0.10999996, a: 1}
+    - _Iris: {r: 0.29999998, g: 0.19999996, b: 0.09999997, a: 1}
+    - _Liner: {r: 0.02, g: 0.02, b: 0.02, a: 0}
+    - _Lip: {r: 0.6, g: 0.09999997, b: 0.14999998, a: 0}
+    - _Shadow: {r: 0.39999998, g: 0.29999998, b: 0.29999998, a: 0}
+    - _Skin: {r: 1, g: 1, b: 1, a: 1}
+    - _Tattoo: {r: 0, g: 0, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

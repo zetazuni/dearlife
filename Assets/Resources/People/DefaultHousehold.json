@@ -302,5 +302,12 @@
    ],
    "job": "Engineer"
   }
+ ],
+ "bonds": [
+  {
+   "a": 0,
+   "b": 1,
+   "kind": "Married"
+  }
  ]
 }

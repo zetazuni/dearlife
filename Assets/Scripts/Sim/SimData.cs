@@ -39,6 +39,7 @@ namespace Dearlife
         public readonly List<Moodlet> moodlets = new List<Moodlet>();
         public readonly List<Wish> wishes = new List<Wish>();
         public readonly Dictionary<string, float> friendship = new Dictionary<string, float>();
+        public readonly Dictionary<string, string> relation = new Dictionary<string, string>();   // Married, Siblings... (from the creator)
         public string job = "";          // the career (see Careers), or empty
         public readonly Dictionary<string, float> careerXp = new Dictionary<string, float>();
         /// <summary>Seconds worked in the current career.</summary>
@@ -79,13 +80,25 @@ namespace Dearlife
         }
 
         /// <summary>A person made in the character creator: their own name, traits and career, fond of the rest of the household.</summary>
-        public void SetupPerson(PersonData p, IEnumerable<string> household)
+        public void SetupPerson(PersonData p, IEnumerable<string> household, HouseholdData h = null)
         {
             displayName = p.name; isPet = false;
             traits.Clear(); traits.AddRange(p.traits);
             job = p.job ?? "";
             NewWish(); NewWish(); NewWish(); LoadCareer();
             foreach (var n in household) friendship[n] = 65f;
+            if (h != null)
+            {
+                // how they are related, set in the creator, decides how close they start
+                int me = h.members.IndexOf(p);
+                for (int i = 0; i < h.members.Count && me >= 0; i++)
+                {
+                    if (i == me) continue;
+                    string kind = h.KindOf(me, i);
+                    friendship[h.members[i].name] = HouseholdData.StartFriendship(kind);
+                    relation[h.members[i].name] = kind;
+                }
+            }
             friendship["Bedah"] = 45f;
             friendship[p.name] = 100f;
         }

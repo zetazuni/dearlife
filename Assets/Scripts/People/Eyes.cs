@@ -23,6 +23,10 @@ namespace Dearlife
         const float CorneaTipZ = CorneaCentreZ + CorneaRadius;
 
         static Mesh ball;
+        static Material recolour;
+        Color iris = new Color(0f, 0f, 0f, 0f);    // clear: the eye material's own (brown) iris
+        Material own;
+        RenderTexture irisRT;
         readonly Transform[] eyes = new Transform[2];
         Transform head;
         SkinnedMeshRenderer source;
@@ -54,6 +58,46 @@ namespace Dearlife
                 eyes[i] = g.transform;
             }
             Refit();
+            ApplyIris();
+        }
+
+        /// <summary>The eye colour (clear keeps the natural brown). The iris texture is recoloured into this person's own copy.</summary>
+        public void SetIris(Color c)
+        {
+            iris = c;
+            if (built) ApplyIris();
+        }
+
+        const string IrisTexture = "Texture2D_D8BF6575";
+
+        void ApplyIris()
+        {
+            Material use = eyeMaterial;
+            if (iris.a > 0.01f)
+            {
+                if (!recolour) recolour = Resources.Load<Material>("People/SkinLayers");
+                var src = eyeMaterial.GetTexture(IrisTexture);
+                if (recolour && src)
+                {
+                    if (!own) own = new Material(eyeMaterial) { name = eyeMaterial.name + " (own)" };
+                    if (!irisRT)
+                    {
+                        irisRT = new RenderTexture(src.width, src.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { useMipMap = true, autoGenerateMips = true };
+                        irisRT.Create();
+                    }
+                    recolour.SetColor("_Iris", iris);
+                    Graphics.Blit(src, irisRT, recolour, 1);
+                    own.SetTexture(IrisTexture, irisRT);
+                    use = own;
+                }
+            }
+            foreach (var e in eyes) if (e) e.GetComponent<MeshRenderer>().sharedMaterial = use;
+        }
+
+        void OnDestroy()
+        {
+            if (irisRT) { irisRT.Release(); Destroy(irisRT); }
+            if (own) Destroy(own);
         }
 
         /// <summary>Puts the eyeballs where MakeHuman's (shape keyed) eyes are now, at their size.</summary>

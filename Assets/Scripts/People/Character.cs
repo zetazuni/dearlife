@@ -897,10 +897,18 @@ namespace Dearlife
 
         // ---------- talking and petting ----------
 
+        /// <summary>Someone else to talk to: the closest friend first, among those who are free (not always the same person).</summary>
         Character OtherPerson()
         {
-            foreach (var c in All) if (c != this && !c.isPet) return c;
-            return null;
+            Character best = null; float bestScore = float.MinValue;
+            foreach (var c in All)
+            {
+                if (c == this || c.isPet || !c.CanChat) continue;
+                float f = sim && sim.friendship.TryGetValue(c.displayName, out var v) ? v : 40f;
+                float score = f + Random.Range(0f, 40f) - Vector3.Distance(transform.position, c.transform.position) * 1.5f;
+                if (score > bestScore) { bestScore = score; best = c; }
+            }
+            return best;
         }
 
         bool TryChat()
@@ -960,7 +968,10 @@ namespace Dearlife
                 if (partner && sim && partner.sim)
                 {
                     sim.Give(Need.Social, 38f); sim.Give(Need.Fun, 8f); sim.Befriend(partner.displayName, 6f);
-                    sim.AddMoodlet("Nice chat", 10f, 300f); sim.Report("chat");
+                    sim.relation.TryGetValue(partner.displayName, out var rel);
+                    if (rel == "Married" || rel == "Partners") sim.AddMoodlet("Time with my " + (rel == "Married" ? "spouse" : "partner"), 14f, 360f);
+                    else sim.AddMoodlet("Nice chat", 10f, 300f);
+                    sim.Report("chat");
                     if (Selected()) Household.Toast($"{displayName} had a nice chat with {partner.displayName}.");
                 }
                 partner = null; SetIdle(Random.Range(1f, 3f));

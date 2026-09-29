@@ -57,17 +57,61 @@ namespace Dearlife
             shape.Apply();
         }
 
-        /// <summary>Skin tone, hair, brow and lash colour, and the colours of the clothes.</summary>
+        static Material layers;
+        RenderTexture skinRT;
+        Texture skinBase;
+
+        /// <summary>
+        /// The skin with this person's details drawn on (Hidden/Dearlife/SkinLayers, masks from
+        /// tools/blender_skin_layers.py): the tone, makeup, freckles, beard and tattoos. Done on the graphics card into a
+        /// texture of its own, so it is quick enough for every step of a slider in the creator.
+        /// </summary>
+        void ComposeSkin(Material m)
+        {
+            if (!layers) layers = Resources.Load<Material>("People/SkinLayers");
+            if (!layers || !m.HasProperty("_Base_Map")) { if (m.HasProperty("_Color")) m.SetColor("_Color", SkinTint(data.skin)); return; }
+            if (!skinBase) skinBase = m.GetTexture("_Base_Map");
+            if (!skinBase) return;
+            if (!skinRT)
+            {
+                skinRT = new RenderTexture(skinBase.width, skinBase.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
+                { useMipMap = true, autoGenerateMips = true, anisoLevel = 4, wrapMode = TextureWrapMode.Clamp, name = name + " skin" };
+                skinRT.Create();
+            }
+            layers.SetColor("_Skin", SkinTint(data.skin));
+            layers.SetColor("_Lip", A(data.lipColour, data.lipstick));
+            layers.SetColor("_Blush", A(data.blushColour, data.blush));
+            layers.SetColor("_Shadow", A(data.shadowColour, data.eyeshadow));
+            layers.SetColor("_Liner", A(new Color(0.02f, 0.018f, 0.018f), data.liner));
+            layers.SetColor("_Freckles", A(new Color(0.62f, 0.45f, 0.35f), data.freckles));
+            layers.SetColor("_Beard", data.hairColour * 0.9f);
+            layers.SetVector("_BeardStyle", new Vector4(data.beard == "full" ? 1f : 0f, data.beard == "goatee" ? 1f : 0f, data.beard == "stubble" ? 0.75f : 0f, 0f));
+            layers.SetVector("_Tattoo", new Vector4(data.tattoos.Contains("band") ? 1f : 0f, data.tattoos.Contains("rose") ? 1f : 0f, data.tattoos.Contains("star") ? 1f : 0f, 0f));
+            Graphics.Blit(skinBase, skinRT, layers, 0);
+            m.SetTexture("_Base_Map", skinRT);
+            m.SetColor("_Color", Color.white);    // the tone is in the texture now
+        }
+
+        static Color A(Color c, float a) { c.a = a; return c; }
+
+        void OnDestroy()
+        {
+            if (skinRT) { skinRT.Release(); Destroy(skinRT); }
+        }
+
+        /// <summary>Skin tone and details, eye colour, hair, brow and lash colour, and the colours of the clothes.</summary>
         public void ApplyTints()
         {
             if (data == null) return;
             foreach (var r in GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
                 if (r.name.EndsWith("_body"))
-                    foreach (var m in Own(r)) { if (m.HasProperty("_Color")) m.SetColor("_Color", SkinTint(data.skin)); }
+                    foreach (var m in Own(r)) ComposeSkin(m);
                 else if (r.name.Contains("eyebrow") || r.name.Contains("eyelash"))
                     foreach (var m in Own(r)) { if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", HairTint(data.hairColour * 0.8f)); }
             }
+            var eyes = GetComponent<Eyes>();
+            if (eyes) eyes.SetIris(data.eyeColour);
             var w = GetComponent<Wardrobe>();
             if (!w) return;
             foreach (var t in data.colours) w.SetColour(t.id, t.colour);

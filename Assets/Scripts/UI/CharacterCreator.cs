@@ -16,7 +16,7 @@ namespace Dearlife
         public static bool IsOpen { get; private set; }
         static CharacterCreator instance;
 
-        enum Tab { Body, Face, Look, Clothes, About }
+        enum Tab { Body, Face, Look, Details, Clothes, About }
         Tab tab = Tab.Body;
         HouseholdData house;
         int sel;
@@ -155,10 +155,10 @@ namespace Dearlife
             y += house.members.Count > 1 ? 26f : 0f;
 
             // tabs
-            string[] tabs = { "Body", "Face", "Skin & hair", "Clothes", "About" };
-            float tw = (w - 4 * 6f) / 5f;
+            string[] tabs = { "Body", "Face", "Skin & hair", "Details", "Clothes", "About" };
+            float tw = (w - 5 * 5f) / 6f;
             for (int i = 0; i < tabs.Length; i++)
-                if (Ui.Chip(new Rect(x + i * (tw + 6f), y, tw, 30f), tabs[i], (int)tab == i, 12f)) { tab = (Tab)i; scroll = 0f; faceView = tab == Tab.Face; }
+                if (Ui.Chip(new Rect(x + i * (tw + 5f), y, tw, 30f), tabs[i], (int)tab == i, 11f)) { tab = (Tab)i; scroll = 0f; faceView = tab == Tab.Face || tab == Tab.Details; }
             y += 42f;
 
             var view = new Rect(x - 4f, y, w + 8f, h - y - 110f);
@@ -192,8 +192,9 @@ namespace Dearlife
                 case Tab.Body: return PersonData.BodySliders.Length * 52f + 10f;
                 case Tab.Face: return PersonData.FaceSliders.Length * 52f + 10f;
                 case Tab.Look: return 330f;
+                case Tab.Details: return 900f;
                 case Tab.Clothes: return 560f;
-                default: return 330f;
+                default: return 420f + (house.members.Count - 1) * 100f + ((PersonData.Presets().Count + 2) / 3) * 34f + 40f;
             }
         }
 
@@ -243,9 +244,65 @@ namespace Dearlife
                     y += 60f;
                     break;
                 }
+                case Tab.Details: DrawDetails(w, ref y); break;
                 case Tab.Clothes: DrawClothes(w, ref y); break;
                 case Tab.About: DrawAbout(w, ref y); break;
             }
+        }
+
+        /// <summary>A row of colour swatches; returns the picked colour when one is clicked.</summary>
+        bool SwatchRow(float w, ref float y, (string name, Color c)[] list, Color now, out Color picked, float size = 42f)
+        {
+            picked = now;
+            bool changed = false;
+            for (int i = 0; i < list.Length; i++)
+                if (Swatch(new Rect(4f + i * (size + 6f), y, size, size), list[i].c.a < 0.01f ? new Color(0.36f, 0.22f, 0.12f) : list[i].c, now == list[i].c))
+                { picked = list[i].c; changed = true; }
+            y += size + 8f;
+            return changed;
+        }
+
+        float Amount(float w, ref float y, string label, float v)
+        {
+            Ui.Label(new Rect(4f, y, w, 18f), label, 12f, Ui.Soft);
+            float nv = Ui.Slider(new Rect(0f, y + 16f, w - 8f, 28f), v, 0f, 1f);
+            y += 48f;
+            return nv;
+        }
+
+        void DrawDetails(float w, ref float y)
+        {
+            Ui.Label(new Rect(4f, y, w, 18f), "Eye colour", 15f, Ui.Ink); y += 26f;
+            if (SwatchRow(w, ref y, PersonData.EyeColours, Cur.eyeColour, out var eye)) { Cur.eyeColour = eye; TintsChanged(); }
+
+            Ui.Label(new Rect(4f, y, w, 18f), "Makeup", 15f, Ui.Ink); y += 26f;
+            Ui.Label(new Rect(4f, y, w, 18f), "Lipstick", 13f, Ui.Ink); y += 22f;
+            if (SwatchRow(w, ref y, PersonData.LipColours, Cur.lipColour, out var lip, 36f)) { Cur.lipColour = lip; if (Cur.lipstick < 0.05f) Cur.lipstick = 0.5f; TintsChanged(); }
+            float a = Amount(w, ref y, "How much", Cur.lipstick); if (!Mathf.Approximately(a, Cur.lipstick)) { Cur.lipstick = a; TintsChanged(); }
+            Ui.Label(new Rect(4f, y, w, 18f), "Blush", 13f, Ui.Ink); y += 22f;
+            if (SwatchRow(w, ref y, PersonData.BlushColours, Cur.blushColour, out var bl, 36f)) { Cur.blushColour = bl; if (Cur.blush < 0.05f) Cur.blush = 0.4f; TintsChanged(); }
+            a = Amount(w, ref y, "How much", Cur.blush); if (!Mathf.Approximately(a, Cur.blush)) { Cur.blush = a; TintsChanged(); }
+            Ui.Label(new Rect(4f, y, w, 18f), "Eyeshadow", 13f, Ui.Ink); y += 22f;
+            if (SwatchRow(w, ref y, PersonData.ShadowColours, Cur.shadowColour, out var sh, 36f)) { Cur.shadowColour = sh; if (Cur.eyeshadow < 0.05f) Cur.eyeshadow = 0.45f; TintsChanged(); }
+            a = Amount(w, ref y, "How much", Cur.eyeshadow); if (!Mathf.Approximately(a, Cur.eyeshadow)) { Cur.eyeshadow = a; TintsChanged(); }
+            a = Amount(w, ref y, "Eyeliner", Cur.liner); if (!Mathf.Approximately(a, Cur.liner)) { Cur.liner = a; TintsChanged(); }
+
+            Ui.Label(new Rect(4f, y, w, 18f), "Freckles", 15f, Ui.Ink); y += 22f;
+            a = Amount(w, ref y, "None to many", Cur.freckles); if (!Mathf.Approximately(a, Cur.freckles)) { Cur.freckles = a; TintsChanged(); }
+
+            Ui.Label(new Rect(4f, y, w, 18f), "Facial hair (in the hair colour)", 15f, Ui.Ink); y += 26f;
+            for (int i = 0; i < PersonData.Beards.Length; i++)
+                if (Ui.Pill(new Rect(4f + i * 96f, y, 90f, 32f), PersonData.Beards[i].name, Cur.beard == PersonData.Beards[i].id, 12f)) { Cur.beard = PersonData.Beards[i].id; TintsChanged(); }
+            y += 46f;
+
+            Ui.Label(new Rect(4f, y, w, 18f), "Tattoos", 15f, Ui.Ink); y += 26f;
+            for (int i = 0; i < PersonData.Tattoos.Length; i++)
+            {
+                var t = PersonData.Tattoos[i];
+                bool on = Cur.tattoos.Contains(t.id);
+                if (Ui.Chip(new Rect(4f + i * 124f, y, 118f, 28f), t.name, on)) { if (on) Cur.tattoos.Remove(t.id); else Cur.tattoos.Add(t.id); TintsChanged(); }
+            }
+            y += 40f;
         }
 
         static Color SkinSwatch(float t)
@@ -350,6 +407,61 @@ namespace Dearlife
                 if (Ui.Chip(new Rect(4f + (i % 3) * 124f, y + (i / 3) * 34f, 118f, 28f), j == "" ? "No job" : j, Cur.job == j)) Cur.job = j;
             }
             y += 80f;
+
+            // how this person is related to each of the others
+            for (int o = 0; o < house.members.Count; o++)
+            {
+                if (o == sel) continue;
+                Ui.Label(new Rect(4f, y, w, 18f), "With " + Short(house.members[o].name), 13f, Ui.Ink); y += 24f;
+                string now = house.KindOf(sel, o);
+                for (int k = 0; k < HouseholdData.Kinds.Length; k++)
+                {
+                    string kind = HouseholdData.Kinds[k].kind;
+                    if (Ui.Chip(new Rect(4f + (k % 3) * 124f, y + (k / 3) * 34f, 118f, 28f), kind, now == kind)) house.SetKind(sel, o, kind);
+                }
+                y += 76f;
+            }
+
+            // sharing: a code to copy and paste, and presets kept on this computer
+            Ui.Label(new Rect(4f, y, w, 18f), "Share", 15f, Ui.Ink); y += 26f;
+            if (Ui.Chip(new Rect(4f, y, 118f, 28f), "Copy person")) { GUIUtility.systemCopyBuffer = Cur.ToCode(); Warn("Copied: paste the code in anyone's creator."); }
+            if (Ui.Chip(new Rect(128f, y, 118f, 28f), "Paste person")) PastePerson();
+            if (Ui.Chip(new Rect(252f, y, 118f, 28f), "Save preset")) { Cur.SavePreset(); Warn("Saved " + Short(Cur.name) + " as a preset."); }
+            y += 34f;
+            if (Ui.Chip(new Rect(4f, y, 118f, 28f), "Copy household")) { GUIUtility.systemCopyBuffer = PersonData.HouseholdCode(house); Warn("Copied the whole household."); }
+            if (Ui.Chip(new Rect(128f, y, 118f, 28f), "Paste household")) PasteHousehold();
+            y += 40f;
+            var presets = PersonData.Presets();
+            if (presets.Count > 0)
+            {
+                Ui.Label(new Rect(4f, y, w, 18f), "Presets (click to use for this person)", 12f, Ui.Soft); y += 22f;
+                for (int i = 0; i < presets.Count; i++)
+                    if (Ui.Chip(new Rect(4f + (i % 3) * 124f, y + (i / 3) * 34f, 118f, 28f), presets[i].name))
+                    {
+                        var p = PersonData.FromCode(System.IO.File.ReadAllText(presets[i].path));
+                        if (p != null) { house.members[sel] = p; Rebuild(); } else Warn("That preset could not be read.");
+                    }
+                y += ((presets.Count + 2) / 3) * 34f;
+            }
+        }
+
+        void PastePerson()
+        {
+            var p = PersonData.FromCode(GUIUtility.systemCopyBuffer);
+            if (p == null) { Warn("No person code to paste (copy one first)."); return; }
+            house.members[sel] = p;
+            sleepPreview = false;
+            Rebuild();
+        }
+
+        void PasteHousehold()
+        {
+            var h = PersonData.HouseholdFromCode(GUIUtility.systemCopyBuffer);
+            if (h == null) { Warn("No household code to paste (copy one first)."); return; }
+            house = h;
+            turn.Clear();
+            sel = 0; sleepPreview = false;
+            Rebuild();
         }
 
         void Warn(string s) { warning = s; warnUntil = Time.unscaledTime + 3f; }
@@ -370,7 +482,7 @@ namespace Dearlife
         void RemovePerson()
         {
             if (house.members.Count <= 1) return;
-            house.members.RemoveAt(sel);
+            house.RemoveMember(sel);
             turn.RemoveAt(sel);
             sel = Mathf.Clamp(sel, 0, house.members.Count - 1);
             Rebuild();

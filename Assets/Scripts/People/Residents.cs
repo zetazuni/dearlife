@@ -71,7 +71,7 @@ namespace Dearlife
                 if (!go) continue;
                 if (group) go.transform.SetParent(group.transform, true);
                 var sim = go.GetComponent<Sim>();
-                if (sim) sim.SetupPerson(h.members[i], names);
+                if (sim) sim.SetupPerson(h.members[i], names, h);
                 spawned.Add(go);
             }
         }
