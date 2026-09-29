@@ -95,9 +95,30 @@
    "slot": "bottom",
    "bit": 13,
    "hidesHair": false
+  },
+  {
+   "id": "beard_full",
+   "slot": "face",
+   "bit": -1,
+   "hidesHair": false
+  },
+  {
+   "id": "beard_goatee",
+   "slot": "face",
+   "bit": -1,
+   "hidesHair": false
   }
  ],
  "outfits": [
+  {
+   "name": "bearded",
+   "items": [
+    "casual",
+    "shoes",
+    "hair_short",
+    "beard_full"
+   ]
+  },
   {
    "name": "casual",
    "items": [

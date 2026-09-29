@@ -46,7 +46,7 @@ namespace Dearlife.EditorTools
         /// </summary>
         public static bool UpgradeWear(Material mat, string part, Texture2D baseMap)
         {
-            if (part.StartsWith("cut_")) { Hair(mat, baseMap, false); return true; }
+            if (part.StartsWith("cut_")) { Hair(mat, baseMap, part.StartsWith("cut_beard")); return true; }   // a beard's strands are ours, used as they are
             var weave = AssetDatabase.LoadAssetAtPath<Texture2D>(MakeWeaveMap());
             bool swim = part.Contains("swim");
             mat.SetFloat("_Smoothness", part.StartsWith("shoes") ? 0.45f : swim ? 0.42f : 0.22f);
@@ -60,6 +60,16 @@ namespace Dearlife.EditorTools
             mat.SetFloat("_DetailSmoothnessScale", 0.5f);
             mat.SetFloat("_DoubleSidedEnable", 1f);
             mat.SetFloat("_DoubleSidedNormalMode", 1f);   // mirror: the inside is lit like the outside
+            if (part.Contains("swimsuit") && baseMap)
+            {
+                // the leg openings are an alpha mask (tools/blender_mpfb_body.py, swim_mask): a clean line, not the mesh's steps
+                var ti = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(baseMap));
+                if (ti && (!ti.alphaIsTransparency || ti.sRGBTexture || !ti.isReadable)) { ti.alphaIsTransparency = true; ti.sRGBTexture = false; ti.isReadable = true; ti.SaveAndReimport(); }   // readable: the clipping scan reads it
+                HDMaterial.SetAlphaClipping(mat, true);
+                mat.SetColor("_BaseColor", new Color(0.12f, 0.3f, 0.45f));   // the mask is white: the colour is the tint
+                mat.SetFloat("_AlphaCutoff", 0.5f);
+                mat.SetFloat("_AlphaCutoffShadow", 0.5f);
+            }
             mat.EnableKeyword("_DETAIL_MAP");
             HDMaterial.ValidateMaterial(mat);
             return true;

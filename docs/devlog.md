@@ -728,3 +728,25 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
     all 70). The bathroom mirror no longer offers "Wash up" (the vanity under it does).
   - Watching TV from a seat that faces no TV stays offered as "(no TV)", as before.
 
+## Session 54: polishing the clothes and beards (2026-09-29) · v0.47.0
+
+- **Real beards.** A full beard and a goatee are now 3D hair instead of paint on the skin: six stacked shells over the
+  beard area of the face, each a little further out and down, with short tapering strands in their alpha
+  (`make_beard` in `tools/blender_mpfb_body.py`), on HDRP's hair shader and tinted with the person's hair colour. They
+  follow every body and face slider like the clothes. Stubble stays painted, the painted beard shadow stays under the
+  hair. New outfit "bearded" in `wardrobe.json` so the scan checks them.
+- **A clean swimsuit leg line.** Sliding the edge vertices onto the line left folds; the swimsuit now reaches a little
+  lower, faces wholly below the leg line are removed, the corners left below it are lifted to 3 mm under it, and the
+  openings are cut by an alpha mask painted from its own surface (the body's UV layout overlaps itself round the
+  crotch, so a mask painted from the body was ambiguous there). The edge is exact to a millimetre.
+- **Layering fixes found on the way:** the fit of trouser hems round the shoes ran last and its smoothing undid tucks
+  made earlier (a pyjama waist and the slacks showed through their tops); the hems are now fitted first, a vertex put
+  back out is pulled in again, and a final sweep re-checks every pair. A gusset under the crotch was tried for the
+  swimsuit and dropped: following the tight crease between the legs clipped more than the original line.
+- **Shirt and slacks:** a high-low shirt hem clear of the hip crease, a little more room over the chest, and the slacks
+  bridge the top of the seat like the shirt over them; the slacks no longer show through the shirt.
+- **Clipping scan: 793 of 798 pass (8 outfits, 19 bodies).** It now skips fabric an alpha mask cuts away (it cannot be seen) and treats beards
+  like hair (strands part against the skin, they do not clip like fabric). Left: the one piece swimsuit worn by
+  masculine or older bodies, 0.2 to 5.8 mm over the limit at the crotch (random people only get it on women).
+- Asset library keys (Sketchfab, Poly Pizza) are kept as gitignored text files in the project root.
+

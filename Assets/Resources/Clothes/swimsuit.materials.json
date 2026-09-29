@@ -1,6 +1,6 @@
 {
  "cloth_swimsuit": {
-  "texture": null,
+  "texture": "swimsuit_mask.png",
   "color": [
    0.11999999731779099,
    0.30000001192092896,

@@ -45,7 +45,10 @@ MADE_WEAR = (("tunic", "top", (0.46, 0.55, 0.50), "top", "tunic"),
              # swimwear
              ("swimsuit", "outfit", (0.12, 0.3, 0.45), "swimsuit", "tight"),
              ("swimshorts", "bottom", (0.15, 0.35, 0.5), "swimshorts", "loose_bottom"))
-OUTFITS = {"casual": ["casual", "shoes", "hair_long"],
+# facial hair: stacked shells of short strands over the beard area of the face (goatee: moustache and chin)
+BEARDS = ("beard_full", "beard_goatee")
+OUTFITS = {"bearded": ["casual", "shoes", "hair_short", "beard_full"],
+           "casual": ["casual", "shoes", "hair_long"],
            "modest": ["tunic", "trousers", "hijab", "shoes"],
            "sleep": ["pyjama_top", "pyjama_bottoms", "hair_long"],
            "formal": ["shirt", "slacks", "blazer", "shoes", "hair_short"],
@@ -286,7 +289,8 @@ def region(kind, co, no, bone):
             return True
         if bone == "neck_01":
             return z < 1.40
-        return (bone == "pelvis" or bone.startswith("thigh")) and z >= 0.88
+        hem = 0.86 + 0.06 * min(1.0, max(0.0, (-co.y - 0.02) / 0.06))      # over the seat at the back, up at the front
+        return (bone == "pelvis" or bone.startswith("thigh")) and z >= hem
     if kind == "tank":           # no sleeves, two straps over the shoulders, a scooped neck, wide arm holes
         ax = abs(co.x)
         if bone.startswith(("upperarm", "lowerarm")):
@@ -333,7 +337,7 @@ def region(kind, co, no, bone):
         if co.y >= -0.02 and z > 1.17 and ax < 0.06:
             return False             # and at the back
         if bone == "pelvis" or bone.startswith("thigh"):
-            return z >= swim_leg(ax)
+            return z >= swim_leg(ax) - 0.035      # cut a little low; make_garment lifts the edge onto the exact line
         return bone.startswith("spine") or bone.startswith("clavicle")
     if kind == "bottom":         # waist to just above the ankle bone
         if bone == "pelvis" or bone.startswith(("thigh", "calf")):
@@ -355,8 +359,10 @@ FACE_OVAL = (0.064, 1.525, 0.090)   # half width, centre height, half height of 
 
 
 def swim_leg(ax):
-    """The swimsuit's leg line: low between the legs, rising over the hips (ax is the distance from the middle)."""
-    return 0.79 + 0.10 * min(1.0, max(0.0, (ax - 0.03) / 0.08))
+    """The swimsuit's leg line (ax, the distance from the middle, a number or an array): low between the legs, rising
+    over the hips."""
+    import numpy as np
+    return 0.79 + 0.10 * np.clip((np.asarray(ax, dtype=float) - 0.03) / 0.08, 0.0, 1.0)
 
 
 def face_oval(co):
@@ -384,6 +390,8 @@ def offset(style, co, no, bone):
             return 0.019
         if bone.startswith("spine") and z < 1.02:          # easing out towards the hem, over a waistband
             return 0.007 + 0.010 * min(1.0, (1.02 - z) / 0.1)
+        if co.y < -0.04 and 1.24 < z < 1.40:                 # over the chest, where a crouch pushes it forward
+            return 0.0095
         return 0.007 + (0.003 if bone.startswith("lowerarm") else 0.0)
     if style == "outer":             # a blazer has room for a tunic or a shirt under it
         if bone.startswith("thigh") or bone == "pelvis":
@@ -466,12 +474,11 @@ def make_garment(human, gid, colour, kind, style, bones):
         a, b = e.vertices
         if inside[a] != inside[b]:
             covered[a] = covered[b] = False
-    if style == "tight":  # the leg edge is later slid down onto the leg line: the skin above that line is under the fabric
-        dom_b = dom
+    if style == "tight":  # the fabric ends exactly on the leg line: the skin is hidden above it and shown below it
         for v in human.data.vertices:
-            b = dom_b[v.index]
-            if (b == "pelvis" or b.startswith("thigh")) and 0.7 < v.co.z < 1.0 and v.co.z >= swim_leg(abs(v.co.x)) + 0.005:
-                covered[v.index] = True
+            b = dom[v.index]
+            if (b == "pelvis" or b.startswith("thigh")) and 0.7 < v.co.z < 1.0:
+                covered[v.index] = inside[v.index] and v.co.z >= swim_leg(abs(v.co.x)) + 0.004
     if kind == "hijab":   # the face edge is later slid onto the true oval: keep one more ring of skin round the face
         edge = [not c for c in covered]
         for e in human.data.edges:
@@ -496,6 +503,19 @@ def make_garment(human, gid, colour, kind, style, bones):
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.subdivide(number_cuts=1, smoothness=0.0)   # shape keys and weights are carried to the new vertices
     bpy.ops.object.mode_set(mode='OBJECT')
+    if style == "tight":
+        # the swimsuit is cut a little low and its leg line is an alpha mask: faces wholly below the line go, so only the
+        # row of faces the line crosses is left for the mask to cut
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_mode(type='FACE')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for pl in g.data.polygons:
+            pl.select = all(g.data.vertices[i].co.z < swim_leg(abs(g.data.vertices[i].co.x)) - 0.003 for i in pl.vertices)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.delete(type='FACE')
+        bpy.ops.mesh.select_mode(type='VERT')
+        bpy.ops.object.mode_set(mode='OBJECT')
     me = g.data
     n = len(me.vertices)
     me.calc_loop_triangles()
@@ -529,6 +549,8 @@ def make_garment(human, gid, colour, kind, style, bones):
         flat[v.index] = any(x.group in gids and x.weight > 0.1 for x in v.groups)
         if style in ("wide", "loose_bottom", "slim", "tight") and abs(v.co.x) < 0.05 and 0.70 < v.co.z < 0.87:
             flat[v.index] = True
+        if style in ("slim", "loose_bottom") and abs(v.co.x) < 0.05 and v.co.y > 0.02 and v.co.z < 0.95:
+            flat[v.index] = True     # the top of the seat's cleft, bridged like the shirt over it
         if style in ("tunic", "loose", "fitted", "outer", "tight") and abs(v.co.x) < 0.05 and v.co.y > 0.02 and v.co.z < 0.95:
             flat[v.index] = True     # the top of the seat's cleft, bridged like the trousers under it
     if flat.any():
@@ -549,10 +571,13 @@ def make_garment(human, gid, colour, kind, style, bones):
                     w, zc, h = FACE_OVAL
                     snap[v.index] = (v.co.x * k - v.co.x, 0.0, (zc + (v.co.z - zc) * k) - v.co.z)
     if style == "tight":
-        # the leg openings follow the body's quads in steps: slide their edge onto the smooth leg line
+        # corners of the faces the leg line crosses may still hang well below it: lift just those to 3 mm under the line
+        # (the alpha mask cuts the rest), so no fabric sits deep in the skin below the opening
         for v in me.vertices:
-            if on_border[v.index] and v.co.z < 1.0:
-                snap[v.index] = (0.0, 0.0, min(0.01, max(-0.035, swim_leg(abs(v.co.x)) + 0.002 - v.co.z)))
+            if v.co.z < 1.0:
+                low = swim_leg(abs(v.co.x)) - 0.003
+                if v.co.z < low:
+                    snap[v.index] = (0.0, 0.0, low - v.co.z)
     gdom = dominant_bones(g, bones)
     basis = np.array([v.co[:] for v in me.vertices])
     bn = tri_normals(basis, tris)
@@ -622,12 +647,201 @@ def worn_together(inner, outer):
     return True
 
 
+def beard_marks(human_parts):
+    """Where the eyes and the mouth are on the neutral body (from MakeHuman's eye and teeth meshes)."""
+    import numpy as np
+    eye = next(o for o in human_parts if o.name.endswith("high-poly"))
+    teeth = next(o for o in human_parts if o.name.endswith("teeth_base"))
+    ev = np.array([v.co[:] for v in eye.data.vertices])
+    tv = np.array([v.co[:] for v in teeth.data.vertices])
+    e = ev[ev[:, 0] > 0]
+    ec = (e.min(0) + e.max(0)) / 2
+    mouth = np.array([0.0, tv[:, 1].min(), tv[:, 2].min() * 0.45 + tv[:, 2].max() * 0.55])
+    mw = (tv[:, 0].max() - tv[:, 0].min()) / 2
+    return {"eye": ec, "mouth": mouth, "mw": mw}
+
+
+def _ss(e0, e1, x):
+    t = min(1.0, max(0.0, (x - e0) / (e1 - e0)))
+    return t * t * (3 - 2 * t)
+
+
+def beard_region(which, co, no, m):
+    """Is this body vertex under the beard (the same shapes as the painted beard of tools/blender_skin_layers.py)?"""
+    x, y, z = co
+    ax = abs(x)
+    mouth, mw, ec = m["mouth"], m["mw"], m["eye"]
+    if y > 0.0 or z < 1.38 or z > 1.58:
+        return False
+    # the outside of the face only (the inside of the mouth faces inwards)
+    out = (co[0], co[1] + 0.04, co[2] - 1.5)
+    if no[0] * out[0] + no[1] * out[1] + no[2] * out[2] < 0.0:
+        return False
+    if (x / (mw * 1.12)) ** 2 + ((z - mouth[2]) / 0.0145) ** 2 < 1.0:
+        return False                                            # the lips
+    dz = z - mouth[2]
+    if which == "beard_goatee":
+        must = 0.004 < dz < 0.02 and ax < mw * 1.1 - max(0.0, dz - 0.008) * 1.4 and y < mouth[1] + 0.02
+        sides = mw * 0.8 < ax < mw * 1.15 and -0.03 < dz < 0.008 and y < mouth[1] + 0.025
+        chin = (x / 0.022) ** 2 + ((dz + 0.034) / 0.022) ** 2 < 1 and y < mouth[1] + 0.035
+        return must or sides or chin
+    ear_z, nose_z = ec[2] - 0.012, mouth[2] + 0.024
+    top = nose_z + (ear_z - nose_z) * _ss(0.022, 0.075, ax)
+    jaw_z = 1.425 + _ss(0.03, 0.075, ax) * 0.05
+    return ax < 0.085 and y < 0.01 and jaw_z <= z <= top
+
+
+def beard_strands(n_shells, size=1024, seed=5):
+    """An atlas of n_shells tiles side by side: hair follicles (round dots in alpha), fewer and finer towards the top
+    shell, so the stacked shells read as short tapering hairs. Grey, the hair shader tints it."""
+    import numpy as np
+    rnd = np.random.default_rng(seed)
+    W = size * n_shells
+    img = np.zeros((size, W, 4), np.float32)
+    spacing = 5.0                     # pixels between hairs: a tile is 0.2 m, about 0.2 mm a pixel
+    n = int((size / spacing) ** 2)
+    px = rnd.uniform(0, size, n); py = rnd.uniform(0, size, n)
+    length = rnd.uniform(0.45, 1.0, n)   # how many of the shells each hair reaches
+    shade = rnd.uniform(0.62, 0.82, n)
+    yy, xx = np.mgrid[-3:4, -3:4]
+    for i in range(n_shells):
+        h = (i + 0.5) / n_shells
+        live = length > h
+        r = 1.9 * (1.0 - 0.55 * h)
+        for k in np.nonzero(live)[0]:
+            cx, cy = px[k], py[k]
+            ix, iy = int(cx), int(cy)
+            d = np.sqrt((xx + ix - cx) ** 2 + (yy + iy - cy) ** 2)
+            a = np.clip(r + 0.5 - d, 0, 1)
+            ys = (yy + iy) % size; xs = (xx + ix) % size + i * size
+            img[ys, xs, 3] = np.maximum(img[ys, xs, 3], a)
+            img[ys, xs, 0:3] = np.maximum(img[ys, xs, 0:3], shade[k] * a[..., None])
+    img[..., 0:3] = np.where(img[..., 3:4] > 0, img[..., 0:3] / np.maximum(img[..., 3:4], 1e-3), 0.72)
+    return img
+
+
+def make_beard(human, gid, marks, n_shells=6):
+    """Facial hair as n_shells stacked copies of the beard area of the skin, each a little further out and down (the
+    hair grows downwards), with the strands of beard_strands in its alpha. Carries the body's shape keys and weights."""
+    import numpy as np, bmesh, tempfile
+    inside = [beard_region(gid, v.co, v.normal, marks) for v in human.data.vertices]
+    g = human.copy()
+    g.data = human.data.copy()
+    g.name = gid
+    bpy.context.collection.objects.link(g)
+    for mod in list(g.modifiers):
+        if mod.type != 'ARMATURE':
+            g.modifiers.remove(mod)
+    select_only(g)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for v in g.data.vertices:
+        v.select = not inside[v.index]
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.delete(type='VERT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.subdivide(number_cuts=1, smoothness=0.0)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    me = g.data
+    n = len(me.vertices)
+    me.calc_loop_triangles()
+    tris = np.array([t.vertices[:] for t in me.loop_triangles], dtype=np.int64)
+    # rings in from the edge: the outer shells leave the edge out, so the beard thins off softly
+    ev = np.array([e.vertices[:] for e in me.edges], dtype=np.int64)
+    counts = {}
+    for pl in me.polygons:
+        for ek in pl.edge_keys:
+            counts[ek] = counts.get(ek, 0) + 1
+    ring = np.full(n, 99)
+    for ek, c in counts.items():
+        if c == 1:
+            ring[list(ek)] = 0
+    for r in range(1, 8):
+        prev = ring == r - 1
+        near = np.zeros(n, dtype=bool)
+        near[ev[:, 1][prev[ev[:, 0]]]] = True
+        near[ev[:, 0][prev[ev[:, 1]]]] = True
+        ring[near & (ring == 99)] = r
+    keys = [(kb.name, np.array([d.co[:] for d in kb.data])) for kb in me.shape_keys.key_blocks]
+    basis = keys[0][1]
+    shells = []
+    for i in range(n_shells):
+        d = g.copy(); d.data = g.data.copy(); d.name = f"{gid} shell {i}"
+        bpy.context.collection.objects.link(d)
+        t = 0.0012 + i * 0.0016
+        for name, co in keys:
+            nrm = tri_normals(co, tris)
+            out = co + nrm * t + np.array([0.0, -0.15, -1.0]) * (t * 0.45)   # a little down and forward, like combed hair
+            kb = d.data.shape_keys.key_blocks[name]
+            kb.data.foreach_set("co", out.ravel())
+            if name == keys[0][0]:
+                d.data.vertices.foreach_set("co", out.ravel())
+        uv = d.data.uv_layers.get("UVMap") or d.data.uv_layers.new(name="UVMap")
+        for loop in d.data.loops:
+            p = basis[loop.vertex_index]
+            u = min(0.999, max(0.001, (p[0] + 0.1) / 0.2)); v = min(0.999, max(0.001, (p[2] - 1.38) / 0.2))
+            uv.data[loop.index].uv = ((i + u) / n_shells, v)
+        # the outer shells leave out the faces at the edge
+        bm = bmesh.new(); bm.from_mesh(d.data)
+        bm.verts.ensure_lookup_table()
+        edge_faces = [f for f in bm.faces if min(ring[vv.index] for vv in f.verts) < i // 2]
+        bmesh.ops.delete(bm, geom=edge_faces, context='FACES')
+        bm.to_mesh(d.data); bm.free()
+        shells.append(d)
+    bpy.data.objects.remove(g, do_unlink=True)
+    select_only(shells[0])
+    for d in shells[1:]:
+        d.select_set(True)
+    bpy.context.view_layer.objects.active = shells[0]
+    bpy.ops.object.join()
+    b = bpy.context.view_layer.objects.active
+    b.name = gid
+    for l in list(b.data.uv_layers):
+        if l.name != "UVMap":
+            b.data.uv_layers.remove(l)
+    # the strands texture, on a material the importer gives the hair shader ("cut_" + the piece)
+    img = beard_strands(n_shells)
+    path = os.path.join(tempfile.gettempdir(), "beard_strands.png")
+    im = bpy.data.images.new("beard_strands", img.shape[1], img.shape[0], alpha=True)
+    im.pixels[:] = img[::-1].ravel()
+    im.filepath_raw = path; im.file_format = 'PNG'; im.save()
+    b.data.materials.clear()
+    mat = bpy.data.materials.new(gid); mat.use_nodes = True
+    tex = mat.node_tree.nodes.new('ShaderNodeTexImage'); tex.name = "diffuse"; tex.image = im
+    b.data.materials.append(mat)
+    for pl in b.data.polygons:
+        pl.material_index = 0
+    return b
+
+
+def swim_mask(body, size=2048):
+    """The swimsuit's leg openings as an alpha mask on the body's UV layout (the garment keeps the body's UVs): opaque
+    above the smooth leg line, clear below it. The fabric's own edge lies a little lower, so the line is exact."""
+    import sys, numpy as np
+    tools = os.path.join(PROJECT, "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import importlib, blender_texel
+    importlib.reload(blender_texel)
+    P = blender_texel.texel_positions(body, size, None, "UVMap")
+    x = np.nan_to_num(P[..., 0]); z = np.nan_to_num(P[..., 2], nan=2.0)
+    line = swim_leg(np.abs(x))
+    alpha = np.clip((z - line) / 0.0015 + 0.5, 0, 1)          # a soft 1.5 mm edge
+    alpha[z > 1.0] = 1.0
+    img = np.ones((size, size, 4), np.float32)
+    img[..., 3] = alpha
+    return img
+
+
 def wear_group(gid):
     """Pieces are only fitted inside pieces they can be worn with: pyjamas with pyjamas, swimwear with nothing."""
     if gid.startswith("pyjama"):
         return "sleep"
     if gid.startswith("swim"):
         return "swim"
+    if gid.startswith("beard"):
+        return "beard"
     return "day"
 
 
@@ -791,42 +1005,46 @@ def layer_fit(inner, outer, margin=0.008, move_outer=False):
     n_in, n_out = len(inner.data.vertices), len(outer.data.vertices)
     polys = [tuple(p.vertices) for p in outer.data.polygons]
     moved = 0
-    for kb in inner.data.shape_keys.key_blocks:
-        ok = outer.data.shape_keys.key_blocks.get(kb.name)
-        if ok is None:
-            continue
-        p = np.empty(n_in * 3); kb.data.foreach_get("co", p); p = p.reshape(n_in, 3)
-        q = np.empty(n_out * 3); ok.data.foreach_get("co", q); q = q.reshape(n_out, 3)
-        bvh = BVHTree.FromPolygons([Vector(x) for x in q], polys)
-        push = np.zeros(n_out)
-        for i in range(n_in):
-            loc, nor, idx, d = bvh.find_nearest(Vector(p[i]), 0.03)
-            if loc is None:
-                continue
-            off = Vector(p[i]) - loc
-            along = off.dot(nor)
-            # only where the outer layer lies over this spot, not beside its edge
-            if (off - nor * along).length > abs(along) * 1.5 + 0.01:
-                continue
-            if along > -margin:
-                if move_outer:
-                    for j in polys[idx]:
-                        push[j] = max(push[j], along + margin)
-                else:
-                    p[i] -= np.array(nor) * (along + margin)
-                moved += 1
-        if move_outer:
-            q += tri_normals_poly(q, polys) * push[:, None]
-            ok.data.foreach_set("co", q.ravel())
-            if ok == outer.data.shape_keys.key_blocks[0]:
-                outer.data.vertices.foreach_set("co", q.ravel())
-        else:
-            kb.data.foreach_set("co", p.ravel())
-            if kb == inner.data.shape_keys.key_blocks[0]:
-                inner.data.vertices.foreach_set("co", p.ravel())
-    inner.data.update()
-    outer.data.update()
-    despike(outer if move_outer else inner)
+    # twice: the de-spike after the first pull can put a lone vertex back out through the outer layer
+    for rep in range(1 if move_outer else 2):
+      for kb in inner.data.shape_keys.key_blocks:
+          ok = outer.data.shape_keys.key_blocks.get(kb.name)
+          if ok is None:
+              continue
+          p = np.empty(n_in * 3); kb.data.foreach_get("co", p); p = p.reshape(n_in, 3)
+          q = np.empty(n_out * 3); ok.data.foreach_get("co", q); q = q.reshape(n_out, 3)
+          bvh = BVHTree.FromPolygons([Vector(x) for x in q], polys)
+          push = np.zeros(n_out)
+          for i in range(n_in):
+              loc, nor, idx, d = bvh.find_nearest(Vector(p[i]), 0.03)
+              if loc is None:
+                  continue
+              off = Vector(p[i]) - loc
+              along = off.dot(nor)
+              # only where the outer layer lies over this spot, not beside its edge
+              if (off - nor * along).length > abs(along) * 1.5 + 0.01:
+                  continue
+              # the second pass only fixes what the de-spike put back out through the outer layer
+              if along > (-margin if rep == 0 else 0.0):
+                  if move_outer:
+                      for j in polys[idx]:
+                          push[j] = max(push[j], along + margin)
+                  else:
+                      p[i] -= np.array(nor) * (along + margin)
+                  moved += 1
+          if move_outer:
+              q += tri_normals_poly(q, polys) * push[:, None]
+              ok.data.foreach_set("co", q.ravel())
+              if ok == outer.data.shape_keys.key_blocks[0]:
+                  outer.data.vertices.foreach_set("co", q.ravel())
+          else:
+              kb.data.foreach_set("co", p.ravel())
+              if kb == inner.data.shape_keys.key_blocks[0]:
+                  inner.data.vertices.foreach_set("co", p.ravel())
+      inner.data.update()
+      outer.data.update()
+      if rep == 0:
+          despike(outer if move_outer else inner)
     if not move_outer:
         follow_weights(inner, outer)
     print(f"layer_fit {inner.name} under {outer.name}: {moved} moves")
@@ -965,16 +1183,27 @@ def run():
     for gid, slot, colour, kind, style in MADE_WEAR:
         g, cov = make_garment(human, gid, colour, kind, style, bones)
         wear.append((gid, slot, g, cov))
+        if gid == "swimsuit":
+            # painted from the swimsuit's own surface: the body's UV layout overlaps itself round the crotch
+            global SWIM_MASK
+            SWIM_MASK = swim_mask(g)
+    marks = beard_marks(meshes())
+    for gid in BEARDS:
+        wear.append((gid, "face", make_beard(human, gid, marks), None))
     # inner layers stay inside outer ones in every body shape: the tunic under the hijab, trousers under the tunic's hem,
     # shoes under a trouser hem. Outermost first, so a piece already tucked in is where the next one is fitted to.
     order = sorted(((a, b) for a in wear for b in wear
                     if a[1] in LAYER and b[1] in LAYER and LAYER[a[1]] < LAYER[b[1]] and not clash(a[1], b[1])
-                    and wear_group(a[0]) == wear_group(b[0]) != "swim" and worn_together(a[0], b[0])),
-                   key=lambda ab: -LAYER[ab[0][1]])
+                    and wear_group(a[0]) == wear_group(b[0]) and wear_group(a[0]) not in ("swim", "beard") and worn_together(a[0], b[0])),
+                   key=lambda ab: (ab[0][1] != "feet", -LAYER[ab[0][1]]))   # hems round the shoes first: their de-spike must not undo a tuck made later
     for a, b in order:
         # a trouser waist sits well inside a top's hem: bending at the hips folds the hem into the crease
         # (under a close fitting shirt or tank top, a little more: they sit near the skin)
-        layer_fit(a[2], b[2], margin=(0.026 if b[0] in ("shirt", "tanktop") else 0.018) if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
+        layer_fit(a[2], b[2], margin=(0.03 if b[0] in ("shirt", "tanktop") else 0.018) if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
+    # a last sweep: a later fit's de-spike can put a vertex tucked in earlier back out (a pyjama waist through its top)
+    for a, b in order:
+        if a[1] != "feet":
+            layer_fit(a[2], b[2], margin=(0.03 if b[0] in ("shirt", "tanktop") else 0.018) if a[1] == "bottom" else 0.008)
     bits = {}
     for gid, _, _, cov in wear:
         if cov and any(cov):
@@ -1020,10 +1249,16 @@ def run():
                     continue
                 part = part_of(o)
                 if m.name.startswith("cloth_"):      # ours: a plain fabric colour, CharacterLook adds the weave
-                    info[m.name] = {"texture": None, "color": list(m.diffuse_color[:3])}
+                    tex = None
+                    if m.name == "cloth_swimsuit":   # the leg openings are cut by an alpha mask
+                        tex = "swimsuit_mask.png"
+                        im = bpy.data.images.new("swimsuit_mask", 2048, 2048, alpha=True)
+                        im.pixels[:] = SWIM_MASK.ravel()
+                        im.filepath_raw = os.path.join(folder, tex); im.file_format = 'PNG'; im.save()
+                    info[m.name] = {"texture": tex, "color": list(m.diffuse_color[:3])}
                     continue
                 # hair, brows and lashes are cards with see-through gaps: CharacterLook gives "cut_" materials alpha clipping
-                m.name = ("cut_" + part) if any(part.startswith(p) for p in ("eyebrow", "eyelashes", "hair_")) else part
+                m.name = ("cut_" + part) if any(part.startswith(p) for p in ("eyebrow", "eyelashes", "hair_", "beard_")) else part
                 img = None
                 if m.use_nodes:
                     img = next((n.image for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and "diffuse" in n.name.lower()), None)

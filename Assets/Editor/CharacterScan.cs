@@ -285,6 +285,20 @@ namespace Dearlife.EditorTools
             }
         }
 
+        /// <summary>For a garment with an alpha clipped texture, which vertices lie where the texture is clear.</summary>
+        static bool[] Cutaway(SkinnedMeshRenderer r)
+        {
+            var m = r.sharedMaterial;
+            if (!m || !m.HasProperty("_AlphaCutoffEnable") || m.GetFloat("_AlphaCutoffEnable") < 0.5f) return null;
+            var tex = m.GetTexture("_BaseColorMap") as Texture2D;
+            if (!tex || !tex.isReadable) return null;
+            var uv = r.sharedMesh.uv;
+            var cut = new bool[uv.Length];
+            float at = m.GetFloat("_AlphaCutoff");
+            for (int i = 0; i < uv.Length; i++) cut[i] = tex.GetPixelBilinear(uv[i].x, uv[i].y).a < at;
+            return cut;
+        }
+
         static void Measure(Case c)
         {
             SkinnedMeshRenderer body = null;
@@ -295,7 +309,8 @@ namespace Dearlife.EditorTools
                 else if (r.name.StartsWith("wear_") && r.enabled)
                 {
                     string id = r.name.Substring(5);
-                    foreach (var it in Wardrobe.Catalogue.items) if (it.id == id && it.slot != "hair") wear.Add((id, it.slot, r));
+                    // hair and beards are strands: pressed against the skin they part, they do not clip like fabric
+                    foreach (var it in Wardrobe.Catalogue.items) if (it.id == id && it.slot != "hair" && it.slot != "face") wear.Add((id, it.slot, r));
                 }
             }
             if (!body) return;
@@ -310,11 +325,14 @@ namespace Dearlife.EditorTools
             {
                 var g = surfaces[x.id];
                 var own = bits[x.id];
+                // fabric cut away by an alpha mask (the swimsuit's leg openings) is not there to be seen
+                var cut = Cutaway(x.r);
                 int over = 0, contact = 0; float worst = 0f;
                 string worstWhat = "";
                 Vector3 worstAt = Vector3.zero, worstHit = Vector3.zero;
                 for (int i = 0; i < g.v.Length; i++)
                 {
+                    if (cut != null && cut[i]) continue;
                     bool bad = false, touch = false;
                     // under skin that shows
                     // (fabric facing the skin is a hem folded inwards or a lining: behind the skin it is never seen)

@@ -116,6 +116,7 @@ namespace Dearlife
             if (!w) return;
             foreach (var t in data.colours) w.SetColour(t.id, t.colour);
             if (!string.IsNullOrEmpty(data.hair)) w.SetColour(data.hair, HairTint(data.hairColour));
+            foreach (var b in new[] { "beard_full", "beard_goatee" }) w.SetColour(b, HairTint(data.hairColour * 0.9f));
         }
 
         /// <summary>Everyday clothes, or sleepwear (for bed and naps).</summary>
@@ -139,6 +140,8 @@ namespace Dearlife
             if (!w || data == null || list == null) return;
             var items = new List<string>(list);
             if (!string.IsNullOrEmpty(data.hair)) items.Add(data.hair);
+            // a goatee or a full beard is real hair (over the painted shadow of it on the skin); stubble is only painted
+            if (data.beard == "full" || data.beard == "goatee") items.Add("beard_" + data.beard);
             if (noHijab) items.Remove("hijab");
             w.Wear(items);
         }
