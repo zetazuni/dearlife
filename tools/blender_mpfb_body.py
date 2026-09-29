@@ -148,6 +148,8 @@ def meshes():
 # fills out the hips, seat and bust (MakeHuman's CC0 measurement targets, faded in from the neutral middle).
 FEMININE = {"measure-shoulder-dist-decr": 0.7, "torso-vshape-decr": 0.5, "measure-waist-circ-decr": 0.8,
             "hip-scale-horiz-incr": 0.35, "buttocks-volume-incr": 0.45, "measure-bust-circ-incr": 0.35,
+            # a round bust, not MakeHuman's pointed one, sitting a little higher (v0.48.0)
+            "breast-point-decr": 0.85, "breast-volume-vert-up": 0.3,
             "l-upperarm-shoulder-muscle-decr": 0.4, "r-upperarm-shoulder-muscle-decr": 0.4}
 
 
@@ -351,7 +353,19 @@ def region(kind, co, no, bone):
             return not (co.y < -0.04 and z > 1.44 and (f < 0.75 or (f < 1.0 and no.y < -0.2 and no.z > -0.45)))
         if bone == "neck_01":
             return True
-        return bone.startswith(("spine_03", "clavicle", "upperarm")) and z > 1.25
+        # the drape (v0.48.0): over the shoulders, then flowing down over the chest to a curved hem (lowest in the middle,
+        # rising at the sides so the arms swing clear of it) and a little lower at the back
+        if bone.startswith("upperarm"):
+            return z > 1.30
+        ax = abs(co.x)
+        if ax > 0.19:
+            return z > 1.25
+        hem = (1.10 + 0.16 * (ax / 0.19) ** 2) if co.y < -0.02 else (1.06 + 0.12 * (ax / 0.19) ** 2)
+        # the sides of the ribs under the arms stay clear, like the arms' own openings: a drape there sits beside the
+        # tunic, not over it, and the tunic showed through
+        side = min(1.0, max(0.0, (ax - 0.10) / 0.04)) * min(1.0, max(0.0, 1.0 - (abs(co.y) - 0.04) / 0.05))
+        hem = hem + (1.25 - hem) * side if hem < 1.25 else hem
+        return bone.startswith(("spine", "clavicle")) and z > hem
     return False
 
 
@@ -389,9 +403,10 @@ def offset(style, co, no, bone):
         if bone.startswith("thigh") or bone == "pelvis":
             return 0.019
         if bone.startswith("spine") and z < 1.02:          # easing out towards the hem, over a waistband
-            return 0.007 + 0.010 * min(1.0, (1.02 - z) / 0.1)
-        if co.y < -0.04 and 1.24 < z < 1.40:                 # over the chest, where a crouch pushes it forward
-            return 0.0095
+            seat = 0.006 if (co.y > 0.02 and abs(co.x) < 0.07) else 0.0   # and over the slacks' bridge at the top of the seat
+            return 0.007 + 0.010 * min(1.0, (1.02 - z) / 0.1) + seat
+        if co.y < -0.04 and 1.24 < z < 1.40:                 # over the chest, where bending over (petting) pushes it forward
+            return 0.019
         return 0.007 + (0.003 if bone.startswith("lowerarm") else 0.0)
     if style == "outer":             # a blazer has room for a tunic or a shirt under it
         if bone.startswith("thigh") or bone == "pelvis":
@@ -411,13 +426,56 @@ def offset(style, co, no, bone):
         # a little fullness at the back of the head, where the hair is gathered under the scarf
         bun = 0.014 * math.exp(-((z - 1.56) / 0.05) ** 2) if co.y > 0.0 else 0.0
         # room under the chin and at the throat, where the chin comes down when the head bends forward
-        throat = 0.014 if (co.y < -0.02 and 1.37 < z < 1.47) else 0.0
+        throat = 0.014 * min(1.0, max(0.0, (z - 1.35) / 0.03)) * min(1.0, max(0.0, (1.51 - z) / 0.03)) if co.y < -0.02 else 0.0
         if z > 1.45:
             return 0.016 + bun + throat
         # and at the front of the shoulders, where a raised arm lifts the sleeve under the drape
         front_shoulder = 0.008 if (co.y < -0.04 and abs(co.x) > 0.12 and z < 1.32) else 0.0
-        return 0.016 + bun + throat + front_shoulder + 0.020 * min(1.0, (1.45 - z) / 0.12)
+        # the drape stands off the chest the lower it falls, and falls in soft pleats from under the chin
+        fall = min(1.0, max(0.0, (1.36 - z) / 0.24))
+        pleat = 0.005 * fall * (1.0 + math.sin(math.atan2(co.x, -co.y) * 11.0)) if co.y < 0.0 else 0.0
+        return 0.016 + bun + throat + front_shoulder + 0.020 * min(1.0, (1.45 - z) / 0.12) + 0.014 * fall + pleat
     return 0.01
+
+
+def hang(co, z_top=1.38, z_low=0.95):   # starts under the collarbones, well clear of a short body's chin
+    """The hijab's drape hangs like a curtain instead of following the bust: round the body's upright axis, at each
+    angle across the front, the fabric below the chin is never closer in than it is anywhere above it (down to the
+    fullest point of the bust and then straight down to the hem). Worked on a blurred grid of angle and height so
+    the curtain is smooth; it fades out towards the sides and just under the chin."""
+    import numpy as np
+    co = co.copy()
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+    th = np.arctan2(x, -y)                       # 0 straight ahead
+    r = np.hypot(x, y)
+    nb, dz = 90, 0.01
+    nz = int((z_top - z_low) / dz) + 2
+    sel = (z < z_top) & (z > z_low) & (np.abs(th) < 1.6)
+    ti = ((th + np.pi) / (2 * np.pi) * nb) % nb
+    zi = (z_top - z) / dz
+    grid = np.zeros((nb, nz))
+    np.maximum.at(grid, (ti[sel].astype(int), zi[sel].astype(int)), r[sel])
+    grid = np.maximum(grid, np.maximum(np.roll(grid, 1, 0), np.roll(grid, -1, 0)))
+    grid = np.maximum.accumulate(grid, axis=1)   # top down
+    for _ in range(4):                           # soften: [1 2 1] across angles and heights
+        grid = 0.25 * np.roll(grid, 1, 0) + 0.5 * grid + 0.25 * np.roll(grid, -1, 0)
+        g2 = grid.copy()
+        g2[:, 1:-1] = 0.25 * grid[:, :-2] + 0.5 * grid[:, 1:-1] + 0.25 * grid[:, 2:]
+        grid = g2
+    t0 = np.floor(ti - 0.5).astype(int); ft = ti - 0.5 - t0
+    z0 = np.clip(np.floor(zi - 0.5).astype(int), 0, nz - 2); fz = np.clip(zi - 0.5 - z0, 0.0, 1.0)
+    a, b = t0 % nb, (t0 + 1) % nb
+    R = ((1 - ft) * (1 - fz) * grid[a, z0] + ft * (1 - fz) * grid[b, z0]
+         + (1 - ft) * fz * grid[a, z0 + 1] + ft * fz * grid[b, z0 + 1])
+    w = np.clip((z_top - z) / 0.04, 0.0, 1.0) * np.clip((1.25 - np.abs(th)) / 0.35, 0.0, 1.0) * sel
+    # small points standing proud of the curtain (the nipples) are drawn in to it, by a centimetre at most; the tunic
+    # under the hijab is fitted inside it afterwards and the skin there is hidden
+    inward = 0.01 * np.clip((1.36 - z) / 0.04, 0.0, 1.0)     # only on the chest, never under the chin
+    rn = r + w * np.maximum(R - r, -inward)
+    k = np.where(r > 1e-6, rn / np.maximum(r, 1e-6), 1.0)
+    co[:, 0] *= k
+    co[:, 1] *= k
+    return co
 
 
 def tri_normals(co, tris):
@@ -542,7 +600,7 @@ def make_garment(human, gid, colour, kind, style, bones):
     # the cleft of the seat under trousers. They become a membrane stretched over them (the body under is hidden).
     flat = np.zeros(n, dtype=bool)
     snap = np.zeros((n, 3))
-    groups = {"hijab": ("ears",), "tunic": ("nipple", "nippleTip"), "loose": ("nipple", "nippleTip"), "fitted": ("nipple", "nippleTip"),
+    groups = {"hijab": ("ears", "nipple", "nippleTip"), "tunic": ("nipple", "nippleTip"), "loose": ("nipple", "nippleTip"), "fitted": ("nipple", "nippleTip"),
               "outer": ("nipple", "nippleTip"), "tight": ("nipple", "nippleTip")}.get(style, ())
     gids = {g.vertex_groups[x].index for x in groups if x in g.vertex_groups}
     for v in me.vertices:
@@ -587,7 +645,21 @@ def make_garment(human, gid, colour, kind, style, bones):
         face_edge = np.array([gdom[i] == "head" for i in range(n)]) & (ring < 6)
         offs = np.where(face_edge, offs * (0.15 + 0.85 * ring / 6.0), offs)
     passes, keep = SMOOTHING[style]
+    chin, hpolys = None, None
+    if style == "hijab":
+        # round the chin and throat the tension can slide the fabric sideways into a different part of the skin than
+        # the one it was offset from (the chin of a short body sits close to the drape): there it is pushed out of the
+        # real body surface during the last passes
+        chin = np.nonzero((basis[:, 2] > 1.36) & (basis[:, 1] < -0.04) & (np.abs(basis[:, 0]) < 0.06))[0]
+        hpolys = [tuple(p.vertices) for p in human.data.polygons]
     for kb in me.shape_keys.key_blocks:
+        hbvh = None
+        if chin is not None:
+            from mathutils.bvhtree import BVHTree
+            hk = human.data.shape_keys.key_blocks.get(kb.name)
+            hco = np.empty(len(human.data.vertices) * 3)
+            (hk.data if hk else human.data.vertices).foreach_get("co", hco)
+            hbvh = BVHTree.FromPolygons([Vector(x) for x in hco.reshape(-1, 3)], hpolys)
         skin = np.empty(n * 3)
         kb.data.foreach_get("co", skin)
         skin = skin.reshape(n, 3) + snap
@@ -608,6 +680,15 @@ def make_garment(human, gid, colour, kind, style, bones):
             co = co + 0.5 * move
             s = ((co - skin) * nrm).sum(axis=1)
             co = co + nrm * np.maximum(0.0, lowest - s)[:, None]
+            if hbvh is not None and _ >= passes - 20:
+                for i in chin:
+                    loc, nor, idx, d = hbvh.find_nearest(Vector(co[i]), 0.05)
+                    if loc is not None:
+                        along = (Vector(co[i]) - loc).dot(nor)
+                        if along < 0.006:
+                            co[i] += np.array(nor) * (0.006 - along)
+        if style == "hijab":
+            co = hang(co)
         kb.data.foreach_set("co", co.ravel())
         if kb == me.shape_keys.key_blocks[0]:
             me.vertices.foreach_set("co", co.ravel())
@@ -1199,11 +1280,11 @@ def run():
     for a, b in order:
         # a trouser waist sits well inside a top's hem: bending at the hips folds the hem into the crease
         # (under a close fitting shirt or tank top, a little more: they sit near the skin)
-        layer_fit(a[2], b[2], margin=(0.03 if b[0] in ("shirt", "tanktop") else 0.018) if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
+        layer_fit(a[2], b[2], margin=(0.04 if b[0] == "shirt" else 0.03 if b[0] == "tanktop" else 0.018) if a[1] == "bottom" else 0.008, move_outer=a[1] == "feet")
     # a last sweep: a later fit's de-spike can put a vertex tucked in earlier back out (a pyjama waist through its top)
     for a, b in order:
         if a[1] != "feet":
-            layer_fit(a[2], b[2], margin=(0.03 if b[0] in ("shirt", "tanktop") else 0.018) if a[1] == "bottom" else 0.008)
+            layer_fit(a[2], b[2], margin=(0.04 if b[0] == "shirt" else 0.03 if b[0] == "tanktop" else 0.018) if a[1] == "bottom" else 0.008)
     bits = {}
     for gid, _, _, cov in wear:
         if cov and any(cov):

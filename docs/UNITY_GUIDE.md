@@ -75,6 +75,7 @@ Click inside the Scene view first, then:
 | ...turn it | Hold the left button on it and turn the **mouse wheel**, one degree per notch (no zoom while doing this) | **R** turns 15 degrees (Shift+R the other way) | |
 | ...put it back where it was | Right click | **Esc** | |
 | ...free placement without the 5 cm grid | | Hold **Ctrl** | |
+| ...seat a chair at a table (v0.48) | Drag a dining chair near a dining table, a bar stool near the island or an office chair near a desk: it jumps to the nearest free place and turns to face the table | Hold **Ctrl** to place it freely | |
 | ...reset the whole house | "Reset layout" button (always there, puts furniture and windows back) | | |
 | Time of day | Slider and Morning, Noon, Sunset, Night buttons top right, "Let time run" | | |
 | Open a sliding door | Hover the mouse over it (people and pets open them by walking up) | | |
@@ -88,6 +89,8 @@ Click inside the Scene view first, then:
 ### Decorate mode (v0.9)
 
 Press **M**. Press on a sofa, chair, plant, mug, car or bike and drag it. A green outline means it fits, red means a wall or another piece is in the way (letting go there puts it back at the last free spot). Built in things (kitchen counter, shower, toilet, bath, vanity, lamps hung from the ceiling, the punching bag and everything on walls) cannot be moved. Your layout is saved automatically and is there next time; **Put everything back** resets it.
+
+Chairs snap to tables like in The Sims 4 (v0.48): a dining chair dragged near a dining table jumps to the nearest free place round it (spread evenly along each side, one at each end) and turns to face it; bar stools do the same at the kitchen island and the barbecue counter, office chairs at desks. Hold **Ctrl** while dragging to place it anywhere.
 
 ### Doors and windows (v0.10)
 

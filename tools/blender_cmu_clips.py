@@ -12,7 +12,7 @@ import bpy
 SRC = r"S:\Tools\cmu\fbx"
 OUT = r"S:\Dearlife by Zetazuni\Assets\Art\Animations\CMU"
 CLIPS = {
-    "111_28": "stand", "02_01": "walk", "114_05": "sit", "13_26": "wave", "111_17": "crouch",
+    "111_28": "stand", "105_29": "walk", "105_34": "walkf", "114_05": "sit", "13_26": "wave", "111_17": "crouch",
     "79_69": "happy", "79_12": "eat", "79_13": "cook", "79_80": "read", "79_93": "exercise", "79_85": "work",
     "79_90": "wash", "79_02": "swim", "79_41": "drink", "79_19": "keys", "60_01": "dance", "18_08": "talk",
 }
@@ -42,4 +42,6 @@ def convert(cmu_id, name):
     return (end - start) / FPS
 
 
-print({name: round(convert(k, name), 2) for k, name in CLIPS.items()})
+# ONLY = ["105_29", ...] before exec() converts just those
+_only = globals().get("ONLY")
+print({name: round(convert(k, name), 2) for k, name in CLIPS.items() if not _only or k in _only})

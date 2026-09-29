@@ -133,8 +133,13 @@ namespace Dearlife.EditorTools
         /// </summary>
         static readonly (string clip, float from, float to)[] Segments =
         {
-            ("stand", 0.1f, 2.9f), ("walk", 1.2f, 2.33f), ("sit", 6.0f, 10.4f), ("wave", 0.1f, 3.0f),
-            ("crouch", 0.4f, 1.6f), ("happy", 1.0f, 4.0f), ("eat", 0.1f, 8.4f), ("cook", 0.1f, 5.4f), ("read", 2.0f, 6.9f),
+            // the walks (v0.48.0): one calm stride each, the left foot leading at both ends; "walk" for men (105_29, a
+            // relaxed normal walk), "walkf" for women (105_34, light and narrow, the feet close to one line). The old walk
+            // (02_01) bobbed the hips twice as much and planted the feet wide apart.
+            ("stand", 0.1f, 2.9f), ("walk", 14.833f, 16.233f), ("walkf", 14.333f, 15.533f), ("sit", 6.0f, 10.4f), ("wave", 0.1f, 3.0f),
+            // crouch (petting a pet, the laundry): the still moment of the pick up with the hands held low, 33 cm off the
+            // floor (v0.48.0); the old 0.4 to 1.6 s went down and came back up, so the loop bent over again and again
+            ("crouch", 1.4f, 1.8f), ("happy", 1.0f, 4.0f), ("eat", 0.1f, 8.4f), ("cook", 0.1f, 5.4f), ("read", 2.0f, 6.9f),
             ("exercise", 2.0f, 8.0f), ("work", 0.3f, 7.0f), ("wash", 1.0f, 10.0f), ("swim", 1.0f, 6.3f), ("drink", 1.0f, 9.0f),
             ("keys", 0.3f, 5.6f), ("dance", 7.5f, 18.5f), ("talk", 3.0f, 13.5f),
         };
@@ -162,7 +167,7 @@ namespace Dearlife.EditorTools
             {
                 name = key, takeName = imp.defaultClipAnimations.Length > 0 ? imp.defaultClipAnimations[0].takeName : key,
                 firstFrame = seg.from * 30f, lastFrame = seg.to * 30f,
-                loopTime = true, loopPose = key == "walk",
+                loopTime = true, loopPose = key.StartsWith("walk"),
                 // the body faces the character's forward, stays centred over it, and keeps its real height (sitting, lying)
                 lockRootRotation = true, keepOriginalOrientation = false,
                 lockRootHeightY = true, keepOriginalPositionY = true, heightFromFeet = false,
@@ -188,6 +193,7 @@ namespace Dearlife.EditorTools
             var ctrl = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
             ctrl.AddParameter("pose", AnimatorControllerParameterType.Int);
             ctrl.AddParameter("walkSpeed", AnimatorControllerParameterType.Float);
+            ctrl.AddParameter("feminine", AnimatorControllerParameterType.Float);   // 0 a masculine walk, 1 a feminine one
             var sm = ctrl.layers[0].stateMachine;
             var poseNames = System.Enum.GetNames(typeof(CharacterRig.Pose));
             for (int i = 0; i < poseNames.Length; i++)
@@ -196,6 +202,15 @@ namespace Dearlife.EditorTools
                 var clip = LoadClip(pc.clip ?? "stand");
                 var st = sm.AddState(poseNames[i], new Vector3(300f, 60f * i, 0f));
                 st.motion = clip;
+                if (poseNames[i] == "Walk")
+                {
+                    // the walk is a blend of the two walks by how feminine the body is
+                    var tree = new UnityEditor.Animations.BlendTree { name = "Walk", blendType = UnityEditor.Animations.BlendTreeType.Simple1D, blendParameter = "feminine", useAutomaticThresholds = false };
+                    AssetDatabase.AddObjectToAsset(tree, ctrl);
+                    tree.AddChild(LoadClip("walk"), 0f);
+                    tree.AddChild(LoadClip("walkf"), 1f);
+                    st.motion = tree;
+                }
                 if (poseNames[i] == "Walk") { st.speedParameterActive = true; st.speedParameter = "walkSpeed"; }
                 if (i == 0) sm.defaultState = st;
                 var tr = sm.AddAnyStateTransition(st);

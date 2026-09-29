@@ -41,7 +41,9 @@ namespace Dearlife
         // realistic (MPFB2) people play motion capture through a Humanoid Animator instead (docs/CHARACTER_PLAN.md, phase 2)
         Animator anim;
         bool animated;
-        const float WalkClipSpeed = 1.35f;   // metres a second the CMU walk covers at normal playback
+        // metres a second the CMU walks cover at normal playback: the masculine one (105_29) and the feminine one (105_34)
+        const float WalkClipSpeedM = 0.77f, WalkClipSpeedF = 0.96f;
+        float feminine = -1f;
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
 
@@ -310,7 +312,15 @@ namespace Dearlife
                 float shown = inPlaceSpeed > 0f ? inPlaceSpeed : speedSmooth;
                 var p = pose == Pose.Walk && shown < 0.05f ? Pose.Stand : pose;
                 anim.SetInteger("pose", (int)p);
-                anim.SetFloat("walkSpeed", Mathf.Clamp(shown / (WalkClipSpeed * Mathf.Max(transform.lossyScale.y, 0.01f)), 0.4f, 1.8f));
+                if (feminine < 0f || Time.frameCount % 30 == 0)
+                {
+                    // from the body slider: -1 (feminine end) walks the feminine walk, +1 the masculine one
+                    var shape = GetComponent<BodyShape>();
+                    feminine = shape ? Mathf.Clamp01(0.5f - shape.Get("gender") * 0.75f) : 0.5f;
+                    anim.SetFloat("feminine", feminine);
+                }
+                float clipSpeed = Mathf.Lerp(WalkClipSpeedM, WalkClipSpeedF, feminine);
+                anim.SetFloat("walkSpeed", Mathf.Clamp(shown / (clipSpeed * Mathf.Max(transform.lossyScale.y, 0.01f)), 0.4f, 1.8f));
                 return;
             }
             foreach (var jt in j.Values) { jt.tgt = 0f; jt.liftTgt = 0f; jt.yawTgt = 0f; }
@@ -345,8 +355,38 @@ namespace Dearlife
         /// (the offset is learnt from the previous frames), then each foot is planted on the floor, or on the foot ring of a bar
         /// stool, with the knees bending to suit the seat height (a beanbag, a bar stool).
         /// </summary>
+        float hipAverage = -1f;
+
+        /// <summary>
+        /// Walking (v0.48.0): the recordings are retargeted onto wider MakeHuman hips, which sets the feet further apart
+        /// than the walker placed them, and the hips bob. Each foot is drawn in towards the line under the body (more for a
+        /// feminine body, whose walk puts one foot nearly in front of the other), and the hips' rise and fall is halved
+        /// round their running average. The feet keep their places along the walk and stay planted.
+        /// </summary>
+        void WalkIK()
+        {
+            var fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+            var right = Vector3.Cross(Vector3.up, fwd);
+            var body = anim.bodyPosition;
+            var centre = transform.position;
+            float y = body.y - transform.position.y;
+            hipAverage = hipAverage < 0f ? y : Mathf.Lerp(hipAverage, y, 1f - Mathf.Exp(-Time.deltaTime / 0.45f));
+            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.5f;
+            anim.bodyPosition = body;
+            float pull = Mathf.Lerp(0.2f, 0.45f, feminine < 0f ? 0.5f : feminine);
+            foreach (var goal in new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot })
+            {
+                var p = anim.GetIKPosition(goal);
+                float side = Vector3.Dot(p - centre, right);
+                anim.SetIKPosition(goal, p - right * (side * pull));
+                anim.SetIKPositionWeight(goal, 1f);
+            }
+        }
+
         void OnAnimatorIK(int layer)
         {
+            if (pose == Pose.Walk && speedSmooth > 0.05f && !OnSeat) { WalkIK(); return; }
+            hipAverage = -1f;
             if (!OnSeat) return;
             if (offsetFor != seat) { seatOffset = Vector3.zero; offsetFor = seat; kneeKnown = false; }
             anim.bodyPosition += transform.TransformVector(seatOffset);
@@ -354,17 +394,24 @@ namespace Dearlife
             if (ankleHeight < 0f) ankleHeight = 0.075f * transform.lossyScale.y;
             float footY = seat.FloorY + seat.footY + ankleHeight;
             var goals = new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot };
+            var hints = new[] { AvatarIKHint.LeftKnee, AvatarIKHint.RightKnee };
+            var fwd0 = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
             for (int i = 0; i < 2; i++)
             {
                 var goal = goals[i];
                 var p = anim.GetIKPosition(goal);
-                // under the knee (last frame's, the pose is steady), the shin leaning by the seat's shin angle: a straight
-                // down drop from a foot that the recording stretched forward is out of the leg's reach
+                // the knee straight ahead of its hip joint at the thigh's length (a hair wider than the hips), the foot under
+                // it with the shin leaning by the seat's shin angle. Placing the foot under the last frame's knee fed back
+                // on itself: the legs drifted round and splayed to one side (v0.48.0)
                 if (kneeKnown)
                 {
-                    var knee = transform.TransformPoint(kneeLocal[i]);
-                    var fwd0 = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+                    var hip = kneeLocal[i + 2];
+                    float thigh = Vector3.Distance(hip, kneeLocal[i]);
+                    var kneeL = new Vector3(hip.x * 1.25f, Mathf.Min(hip.y, kneeLocal[i].y), hip.z + thigh * 0.97f);
+                    var knee = transform.TransformPoint(kneeL);
                     p = new Vector3(knee.x, footY, knee.z) + fwd0 * (Mathf.Tan(seat.shinAngle * Mathf.Deg2Rad) * Mathf.Max(0f, knee.y - footY));
+                    anim.SetIKHintPosition(hints[i], knee + fwd0 * 0.3f);
+                    anim.SetIKHintPositionWeight(hints[i], 1f);
                 }
                 anim.SetIKPosition(goal, new Vector3(p.x, footY, p.z));
                 anim.SetIKPositionWeight(goal, 1f);
@@ -384,7 +431,13 @@ namespace Dearlife
             seatOffset += transform.InverseTransformVector(err);
             hips.position += err;
             var kl = anim.GetBoneTransform(HumanBodyBones.LeftLowerLeg); var kr = anim.GetBoneTransform(HumanBodyBones.RightLowerLeg);
-            if (kl && kr) { kneeLocal[0] = transform.InverseTransformPoint(kl.position); kneeLocal[1] = transform.InverseTransformPoint(kr.position); kneeKnown = true; }
+            var hl = anim.GetBoneTransform(HumanBodyBones.LeftUpperLeg); var hr = anim.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+            if (kl && kr && hl && hr)
+            {
+                kneeLocal[0] = transform.InverseTransformPoint(kl.position); kneeLocal[1] = transform.InverseTransformPoint(kr.position);
+                kneeLocal[2] = transform.InverseTransformPoint(hl.position); kneeLocal[3] = transform.InverseTransformPoint(hr.position);
+                kneeKnown = true;
+            }
 
             // lying on a lounger or in a hammock: the torso rises with the backrest and the thighs with the ends, like the
             // code posing did (seat.raise, seat.legRaise), bending at the spine and the hips towards straight up
@@ -409,7 +462,7 @@ namespace Dearlife
             bone.rotation = Quaternion.AngleAxis(degrees, axis.normalized) * bone.rotation;
         }
 
-        readonly Vector3[] kneeLocal = new Vector3[2];
+        readonly Vector3[] kneeLocal = new Vector3[4];   // knees, then hip joints (left, right), last frame
         bool kneeKnown;
 
         void PersonTargets()

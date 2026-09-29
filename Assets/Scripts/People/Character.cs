@@ -304,7 +304,7 @@ namespace Dearlife
             agent.agentTypeID = DearlifeNav.AgentType;
             agent.radius = isPet ? 0.2f : 0.24f;
             agent.height = 1.7f * scale;
-            agent.speed = isPet ? (rig && rig.kind == "dog" ? 1.35f : 0.95f) : 1.3f;
+            agent.speed = isPet ? (rig && rig.kind == "dog" ? 1.35f : 0.95f) : 1.1f;   // a relaxed walk (the walk clips stride at 0.8 to 1 m/s)
             agent.acceleration = 5f;
             agent.angularSpeed = 300f;
             agent.stoppingDistance = 0.1f;

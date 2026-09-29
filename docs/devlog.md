@@ -750,3 +750,34 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   masculine or older bodies, 0.2 to 5.8 mm over the limit at the crotch (random people only get it on women).
 - Asset library keys (Sketchfab, Poly Pizza) are kept as gitignored text files in the project root.
 
+## Session 55: walking, sitting, petting, the hijab and chairs at tables (2026-09-29) · v0.48.0
+
+- **A calmer walk.** The old recording (CMU 02_01) bobbed the hips and planted the feet wide apart, which looked
+  bouncy and straddled, worst on women. Measurements in Play mode (`Assets/Editor/WalkProbe.cs`:
+  hips bob and sideways foot spacing, Logs/walk_probe.txt) picked two calm strides: 105_29 for men and 105_34 (a
+  light, narrow walk) for women, blended by the body's gender through a new `feminine` parameter. On top, walk IK
+  halves the hips' rise and fall round their running average and draws each foot in towards the line under the body
+  (more for a feminine body). Aina: hips bob 4.5 to 2.9 cm, feet 9.6 to 3.5 cm apart. People walk a little slower
+  (1.1 m/s).
+- **Petting without bobbing.** The crouch looped the whole pick up (down and back up), so petting a cat bent over
+  again and again. It now holds the still moment at the bottom (hands 33 cm off the floor).
+- **Sitting at the dining table.** Each foot was put under the previous frame's knee, which fed back on itself: the
+  legs slowly swung round and one splayed out sideways, under or through the table. Now the knee goes straight ahead of
+  its hip joint at the thigh's length (with a knee hint) and the foot under it; legs are symmetric and the knees sit
+  under the table with room to spare. Bar stools and sofas use the same placement.
+- **Chairs snap to tables** in decorate mode, like The Sims 4 (`Assets/Scripts/House/SeatSnap.cs`): a dining chair
+  near a dining table jumps to the nearest free place round it (spread evenly along each side, one at each end) and
+  turns to face it; bar stools at the island and the barbecue counter, office chairs at desks. Ctrl places freely.
+- **A hijab that drapes.** The drape followed the bust. It now falls like a curtain: round the body's upright axis,
+  below the chin the fabric is never closer in than anywhere above it, worked on a blurred grid so it is smooth
+  (`hang`), with soft pleats and a smooth throat (the step in the throat's room made ridges). The drape reaches lower
+  in the middle, on a curved hem, and sweeps up at the sides clear of the arms (the tunic showed through there). Round
+  the chin and throat the fabric is pushed out of the real body surface in the last tension passes: the drape pulled
+  the fabric under a short body's chin into it.
+- **Fitting follow ups:** a little more room in the shirt over the chest (bending over to pet pushes the chest
+  forward) and over the top of the seat, and slacks tucked 4 cm inside a shirt instead of 3.
+- **A rounder bust.** Feminine bodies get less pointed, slightly lifted breasts (`breast-point-decr`,
+  `breast-volume-vert-up`), round under every top.
+- **Clipping scan: 792 of 798 pass.** Left: the one piece swimsuit on masculine or older bodies (as before) and one
+  shirt case in the deep crouch on the strongest body (8 mm).
+

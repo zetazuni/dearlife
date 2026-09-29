@@ -168,7 +168,7 @@ namespace Dearlife
             cam = Camera.main;
             Grab(f, f.transform.position);
             placing = true;
-            Say("Move it where you want it and click. R turns it, Esc puts it back.");
+            Say("Move it where you want it and click. R turns it, chairs snap to tables (Ctrl to place freely), Esc puts it back.");
         }
 
         /// <summary>Move a piece that is already in the house (the pie menu): it follows the mouse until you click.</summary>
@@ -181,7 +181,7 @@ namespace Dearlife
             while (f.attachedTo) f = f.attachedTo;
             Grab(f, f.transform.position);
             placing = true; placingExisting = true; grabbedAt = Time.unscaledTime;
-            Say("Move it where you want it and click. R turns it, Esc puts it back.");
+            Say("Move it where you want it and click. R turns it, chairs snap to tables (Ctrl to place freely), Esc puts it back.");
         }
 
         void PlacingUpdate()
@@ -350,9 +350,13 @@ namespace Dearlife
             if (valid && lastMove != null) Push(lastMove);
         }
 
+        bool snapped;
+        Quaternion freeRot;
+
         void Grab(Furniture f, Vector3 point)
         {
             held = f;
+            snapped = false;
             Selected = f;
             OrbitCamera.Blocked = true;
             startPos = lastValidPos = f.transform.position;
@@ -479,6 +483,14 @@ namespace Dearlife
             z = Mathf.Clamp(z, lotB.yMin, lotB.yMax);
             // the piece's own origin sits on its base, so it rests exactly on the surface
             var target = new Vector3(x, p.y + 0.003f, z);
+            // a chair near a table snaps to a place at it, facing it (Ctrl places it freely)
+            if (!free && SeatSnap.Find(held, new Vector3(x, p.y, z), out var seatPos, out var seatRot))
+            {
+                if (!snapped) { freeRot = held.transform.rotation; snapped = true; }
+                target = seatPos + Vector3.up * 0.003f;
+                held.transform.rotation = seatRot;
+            }
+            else if (snapped) { held.transform.rotation = freeRot; snapped = false; }
             held.transform.position = Vector3.Lerp(held.transform.position, target, 1f - Mathf.Exp(-30f * Time.unscaledDeltaTime));
             MoveRiders();
             valid = IsFree(target);
