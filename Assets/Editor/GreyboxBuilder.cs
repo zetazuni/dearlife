@@ -1440,9 +1440,10 @@ namespace Dearlife.EditorTools
             ("washer", 21.6f, 5.4f, 270f, 0),
             ("dryer", 21.6f, 6.1f, 270f, 0),
             ("basket", 20.8f, 6.9f, 0f, 0),
-            // garage (x 22 to 30): two cars nose to the garden, tools along the back wall
-            ("sedan", 26.2f, 3.05f, 90f, 0),
-            ("mpv", 26.0f, 5.3f, 90f, 0),
+            // garage (x 22 to 30): two cars nose to the garden, tools along the back wall. Since v0.53.0 the two cars Amir
+            // bought and parked there (recorded as the default) in place of the first sedan and MPV
+            ("porsche911", 26.6f, 3.1f, 90f, 0),
+            ("bmwm3", 26.75f, 5.35f, 90f, 0),
             ("evcharger", 25.9f, 0.12f, 0f, 0),
             ("workbench", 28.9f, 0.34f, 0f, 0),
             ("garageshelf", 23.1f, 0.24f, 0f, 0),
@@ -2020,7 +2021,7 @@ namespace Dearlife.EditorTools
         /// The layout Amir left the house in (Assets/Editor/DefaultLayout.json, copied from the saved layout) becomes the starting layout.
         /// Small things that stood on a moved piece are carried along with it.
         /// </summary>
-        static void ApplyDefaultLayout()
+        static void ApplyDefaultLayout(bool forgetSaved = true)
         {
             const string path = "Assets/Editor/DefaultLayout.json";
             if (!System.IO.File.Exists(path)) return;
@@ -2057,7 +2058,7 @@ namespace Dearlife.EditorTools
                 if (string.IsNullOrEmpty(e.host) || !byKey.TryGetValue(e.key, out var f) || !byKey.TryGetValue(e.host, out var h)) continue;
                 f.transform.SetPositionAndRotation(h.transform.TransformPoint(e.pos), Quaternion.Euler(0f, h.transform.eulerAngles.y + e.yaw, 0f));
             }
-            PlayerPrefs.DeleteKey("dearlife.layout");   // the saved one is now the default
+            if (forgetSaved) PlayerPrefs.DeleteKey("dearlife.layout");   // the saved one is now the default
             Debug.Log($"Dearlife: {layout.items.Count} pieces put in the layout Amir left them in.");
         }
 
@@ -2130,6 +2131,64 @@ namespace Dearlife.EditorTools
         /// Puts in any piece of the layout that the saved scene does not have yet (added to the layout after the house was
         /// built), with the same steps as the full build, without rebuilding everything else.
         /// </summary>
+        /// <summary>Our own models are fbx files in Assets/Art/Models, the cars are glb files in its Cars folder.</summary>
+        static GameObject Model(string id)
+        {
+            var m = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{id}.fbx");
+            return m ? m : AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/Cars/{id}.glb");
+        }
+
+        /// <summary>A car that comes with the house: no body of its own (it never moves unless you move it) and two boxes,
+        /// the body and the cabin, instead of an exact collider for each of its hundred parts (see <see cref="Vehicles"/>).</summary>
+        static void ParkCar(GameObject go)
+        {
+            bool first = true; var lb = new Bounds();
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+            {
+                if (!mf.sharedMesh) continue;
+                var b = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    var c = new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
+                    var l = go.transform.InverseTransformPoint(mf.transform.TransformPoint(c));
+                    if (first) { lb = new Bounds(l, Vector3.zero); first = false; } else lb.Encapsulate(l);
+                }
+            }
+            if (first) return;
+            Vehicles.Boxes(lb, out var bc, out var bs, out var cc, out var cs);
+            var body = go.AddComponent<BoxCollider>(); body.center = bc; body.size = bs;
+            var cabin = go.AddComponent<BoxCollider>(); cabin.center = cc; cabin.size = cs;
+        }
+
+        /// <summary>
+        /// The house as it stands in the save slot in use becomes the house every new game starts with (v0.53.0): what was
+        /// moved (the saved layout) is written into Assets/Editor/DefaultLayout.json, which the full build applies, and
+        /// put straight onto the pieces of the open scene. Run it in Edit mode with the Main scene open, then save the scene.
+        /// Things bought or sold are not part of a layout: for those, change the Layout list above and use
+        /// Place missing house furniture.
+        /// </summary>
+        [MenuItem("Dearlife/Record saved layout as the default")]
+        public static void RecordDefault()
+        {
+            if (EditorApplication.isPlaying) { Debug.LogWarning("Dearlife: leave Play mode first."); return; }
+            string key = SaveSystem.Key("dearlife.layout");
+            if (!PlayerPrefs.HasKey(key)) { Debug.LogWarning("Dearlife: this save slot has no moved furniture to record."); return; }
+            var saved = JsonUtility.FromJson<DefLayout>(PlayerPrefs.GetString(key));
+            if (saved == null || saved.items.Count == 0) return;
+            const string path = "Assets/Editor/DefaultLayout.json";
+            var layout = System.IO.File.Exists(path) ? JsonUtility.FromJson<DefLayout>(System.IO.File.ReadAllText(path)) ?? new DefLayout() : new DefLayout();
+            foreach (var e in saved.items)
+            {
+                layout.items.RemoveAll(x => x.key == e.key);
+                layout.items.Add(new DefEntry { key = e.key, pos = e.pos, yaw = e.yaw, host = e.host ?? "" });
+            }
+            System.IO.File.WriteAllText(path, JsonUtility.ToJson(layout, true));
+            AssetDatabase.ImportAsset(path);
+            ApplyDefaultLayout(false);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+            Debug.Log($"Dearlife: {saved.items.Count} pieces recorded as the default layout ({layout.items.Count} in all). Save the scene.");
+        }
+
         [MenuItem("Dearlife/Place missing house furniture")]
         static void PlaceMissing()
         {
@@ -2152,14 +2211,14 @@ namespace Dearlife.EditorTools
                 foreach (var o in Layout) if (o.id == l.id) inLayout++;
                 keyCount.TryGetValue(l.id, out int inScene);
                 if (inScene >= inLayout) continue;
-                var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{l.id}.fbx");
+                var model = Model(l.id);
                 if (!model) continue;
                 var go = (GameObject)PrefabUtility.InstantiatePrefab(model, parent);
                 go.name = l.id;
                 var spec = PhysicsSetup.Spec(l.id);
-                go.transform.position = new Vector3(l.x, (l.floor == 0 ? 0f : UPY) + FLOOR_TOP + spec.dropHeight, l.z);
+                go.transform.position = new Vector3(l.x, (l.floor == 0 ? 0f : UPY) + FLOOR_TOP + (Vehicles.Is(l.id) ? 0.003f : spec.dropHeight), l.z);
                 go.transform.rotation = Quaternion.Euler(0f, l.rot, 0f);
-                PhysicsSetup.MakeSolid(go, spec);
+                if (Vehicles.Is(l.id)) ParkCar(go); else PhysicsSetup.MakeSolid(go, spec);
                 MakeMovable(go, false);      // counts it too
                 AddSpots(go, l.id);
                 Undo.RegisterCreatedObjectUndo(go, "Place missing furniture");
@@ -2192,15 +2251,16 @@ namespace Dearlife.EditorTools
             foreach (var t in Tabletop) all.Add((t.id, t.x, t.y, t.z, t.rot, t.y > 2f ? 1 : 0));
             foreach (var f in all)
             {
-                var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{FurnitureImport.ModelDir}/{f.id}.fbx");
+                var model = Model(f.id);
                 if (!model) { Debug.LogWarning($"Dearlife: model {f.id} not found, skipped."); continue; }
                 var go = (GameObject)PrefabUtility.InstantiatePrefab(model, f.floor == 0 ? ground : upper);
                 go.name = f.id;
                 var spec = PhysicsSetup.Spec(f.id);
-                go.transform.position = new Vector3(f.x, f.y > -900f ? f.y + spec.dropHeight : (f.floor == 0 ? 0f : UPY) + FLOOR_TOP + spec.dropHeight, f.z);
+                float drop = Vehicles.Is(f.id) ? 0.003f : spec.dropHeight;
+                go.transform.position = new Vector3(f.x, f.y > -900f ? f.y + drop : (f.floor == 0 ? 0f : UPY) + FLOOR_TOP + drop, f.z);
                 go.transform.rotation = Quaternion.Euler(0f, f.rot, 0f);
                 if (f.id == "sofa") RemoveSofaCushions(go);
-                PhysicsSetup.MakeSolid(go, spec);
+                if (Vehicles.Is(f.id)) ParkCar(go); else PhysicsSetup.MakeSolid(go, spec);
                 MakeMovable(go, false);
                 AddSpots(go, f.id);
                 if (f.id == "bathmirror" && backWall) backWall.GetComponent<WallCutaway>().attachments.Add(go); // hangs on the back wall

@@ -290,8 +290,30 @@ namespace Dearlife
             }
         }
 
+        NavMeshObstacle blocker;
+
+        /// <summary>
+        /// Someone who has stepped up to a counter has left the walkable floor and switched their agent off, so nobody
+        /// walking past knew they were there. While that lasts they are an obstacle the others walk round (it sits on a
+        /// child object and is only on while the agent is off: an agent would try to get out of the way of its own obstacle).
+        /// </summary>
+        void MakeBlocker()
+        {
+            if (isPet || blocker) return;
+            var go = new GameObject("Stands here");
+            go.transform.SetParent(transform, false);
+            blocker = go.AddComponent<NavMeshObstacle>();
+            blocker.shape = NavMeshObstacleShape.Capsule;
+            blocker.radius = 0.3f / Mathf.Max(transform.lossyScale.x, 0.01f);
+            blocker.height = 1.7f;
+            blocker.center = new Vector3(0f, 0.85f, 0f);
+            blocker.carving = false;
+            blocker.enabled = false;
+        }
+
         void UpdateVisibility()
         {
+            if (blocker && blocker.enabled != (stepped && !agent.enabled)) blocker.enabled = stepped && !agent.enabled;
             // somebody upstairs is not drawn while the upper floor is switched off
             var view = HouseView.Instance;
             bool show = !(transform.position.y > 2.8f && view && view.upperFloor && !view.upperFloor.activeSelf);
@@ -303,7 +325,14 @@ namespace Dearlife
         void Begin()
         {
             agent.agentTypeID = DearlifeNav.AgentType;
-            agent.radius = isPet ? 0.2f : 0.24f;
+            // the room people give each other when they pass (the floor itself is baked with DearlifeNav's radius): wider
+            // than the body alone, so swinging arms do not go through the other person (v0.53.0)
+            agent.radius = isPet ? 0.2f : 0.34f;
+            agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+            // nobody has the same rank: of two people who meet, one keeps going and the other steps round (with equal ranks
+            // both swerved the same way and walked through each other); pets give way to people
+            agent.avoidancePriority = (isPet ? 70 : 30) + (All.IndexOf(this) % 8) * 4;
+            MakeBlocker();
             agent.height = 1.7f * scale;
             agent.speed = isPet ? (rig && rig.kind == "dog" ? 1.35f : 0.95f) : 1.1f;   // a relaxed walk (the walk clips stride at 0.8 to 1 m/s)
             agent.acceleration = 5f;

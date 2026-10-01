@@ -116,6 +116,12 @@ The people are downloaded rigged models that stay on this computer (`Assets/Loca
 ### The people bar (v0.51)
 At the bottom of the screen: the pill shows who you are playing, their mood and what they are doing (click it for the status window, same as **C**), the big round picture is them (click it to find them), the smaller pictures are the rest of the household (click one to play as them). The six round gauges above are their needs: each empties downwards and turns red when it runs low.
 
+### Making the house you arranged the default (v0.53)
+Arrange the house in the game, leave Play mode, and run **Dearlife > Record saved layout as the default** with the Main scene open, then save the scene (Ctrl+S). New games then start with that layout, and Reset layout goes back to it. It records what was moved, not what was bought or sold.
+
+### If the game feels slow (v0.53)
+What costs time is the number of separate objects drawn, not how detailed they are. The game joins the parts of each piece of furniture when the house loads (the Console says how many). To see where a frame's time goes, in Play mode run `Dearlife.EditorTools.Perf.Begin()` and a few seconds later `Perf.Report()` from a script, or use Window > Analysis > Profiler.
+
 ### Checking how people use things (v0.52)
 Enter Play mode on an empty save slot and run **Dearlife > Check interactions**. One person is sent to every thing to do in the house at triple speed; for each one a picture from three sides is saved in `Logs/interaction_check/` and a line in `Logs/interaction_check.txt`. Look through the pictures for hands in the air, bodies through tables and feet through furniture. Unity must be left in front, or set to run at full speed in the background (Edit > Preferences > General > Interaction Mode: No Throttling), or the check crawls. After adding or changing a character run **Dearlife > Import people** again: it measures the outline of the body and clothes that keeps the arms outside them.
 

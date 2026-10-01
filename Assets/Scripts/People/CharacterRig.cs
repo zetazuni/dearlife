@@ -227,18 +227,32 @@ namespace Dearlife
                 }
                 case "dumbbell":
                     if (fr == null || fl == null) { Destroy(holder); return; }
-                    // the two weights ride on the two forearms
+                {
+                    // one pair, one in each hand (v0.53.0): the bar lies across the palm inside the closed fingers, whatever
+                    // the size of the hand or the length of the arm. (They used to hang on the forearms, a hand's length
+                    // from the hands of anyone the offsets were not made for.)
                     Destroy(holder); holder = new GameObject("Held dumbbells");
-                    foreach (var f in new[] { fr, fl })
+                    for (int side = 0; side < 2; side++)
                     {
+                        var f = side == 0 ? fr : fl;
+                        var grip = hands != null ? System.Array.Find(hands, x => x.right == (side == 0)) : null;
                         var h = new GameObject("Dumbbell").transform;
-                        h.SetParent(f.t, false); h.localScale = Vector3.one * Inv(f.t); h.localPosition = f.anchor; h.localRotation = f.frame;
-                        Bit(h, PrimitiveType.Cylinder, Vector3.zero, new Vector3(0.022f, 0.10f, 0.022f), new Color(0.6f, 0.6f, 0.63f), Quaternion.Euler(0f, 0f, 90f), 0.8f, 1f);
-                        foreach (float x in new[] { -0.11f, 0.11f }) Bit(h, PrimitiveType.Cylinder, new Vector3(x, 0f, 0f), new Vector3(0.12f, 0.02f, 0.12f), new Color(0.06f, 0.06f, 0.07f), Quaternion.Euler(0f, 0f, 90f), 0.5f, 0.6f);
+                        if (grip != null)
+                        {
+                            float hs = Inv(grip.hand);
+                            h.SetParent(grip.hand, false);
+                            h.localScale = Vector3.one * hs;
+                            h.localRotation = Quaternion.LookRotation(grip.fingers, grip.palm);      // its bar (x) runs across the hand
+                            h.localPosition = (grip.fingers * 0.075f + grip.palm * 0.032f) * hs;
+                        }
+                        else { h.SetParent(f.t, false); h.localScale = Vector3.one * Inv(f.t); h.localPosition = f.anchor; h.localRotation = f.frame; }
+                        Bit(h, PrimitiveType.Cylinder, Vector3.zero, new Vector3(0.026f, 0.095f, 0.026f), new Color(0.6f, 0.6f, 0.63f), Quaternion.Euler(0f, 0f, 90f), 0.8f, 1f);
+                        foreach (float x in new[] { -0.1f, 0.1f }) Bit(h, PrimitiveType.Cylinder, new Vector3(x, 0f, 0f), new Vector3(0.11f, 0.022f, 0.11f), new Color(0.06f, 0.06f, 0.07f), Quaternion.Euler(0f, 0f, 90f), 0.5f, 0.6f);
                         heldExtra.Add(h.gameObject);
                     }
                     holder.name = "Held dumbbells";
                     break;
+                }
                 case "guitar":
                     if (sp == null || copy == null) { Destroy(holder); return; }
                     Destroy(holder); holder = copy;

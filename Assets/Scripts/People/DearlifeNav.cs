@@ -26,7 +26,9 @@ namespace Dearlife
             Instance = this;
             Ready = false;       // (with domain reload switched off in the editor, this would still be true from the last time)
             var s = NavMesh.CreateSettings();
-            s.agentRadius = 0.24f;
+            // how far the walkable floor keeps from walls and furniture. 0.24 let an arm, a skirt or a coat brush through
+            // the corner of everything on the way (v0.53.0)
+            s.agentRadius = 0.30f;
             s.agentHeight = 1.7f;
             s.agentClimb = 0.4f;
             s.agentSlope = 48f;

@@ -884,3 +884,26 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   through a headboard or the back of a lounger, two people can still stand in the same spot at one counter, and
   things that stand in a bush or behind a desk in the house as built are used from where there is room.
 
+## Session 60: why it was jittery, the cars, the default house, walking, dumbbells (2026-10-01) · v0.53.0
+
+- **Jittery and hard to turn after adding the cars** (Amir, save 1). Copied the save into slot 5 and measured it. The
+  whole house in view took 40 ms a frame (24 fps). Scripts and physics were 3 ms of that; the rest was drawing, and
+  what set it was the number of separate things drawn: 5,544. The two cars added 318 of them (about 2 ms), which is
+  what tipped an already slow frame. Triangles did not matter: hiding two trees of a million triangles each changed
+  nothing.
+  - The parts of each piece of furniture are now joined into a few meshes when the house loads. Same save, same view:
+    19.5 ms a frame (51 fps), 2,829 things drawn. The BMW went from 122 parts to 100 (it has that many different
+    materials), the Porsche from 196 to 54, a flower bed from 1,075 to 8, a bookcase from 138 to 7.
+  - The cars themselves really did jitter: a bought car was a loose 140 kg body on a box collider for each part, it
+    never came to rest and crept (9 cm and most of a degree within seconds of loading). A car is now two boxes and
+    stays where it is parked; turning one in decorate mode is no longer fought by the physics.
+- **The current house is the default** (Amir). The twelve pieces moved in save 1 are in `DefaultLayout.json` and in
+  the scene, and the BMW and the Porsche stand in the garage as the house's own cars in place of the sedan and the
+  MPV. Save 1 was changed to match (its two bought cars became the house's cars, same places, same green and blue),
+  the old data is kept in the backups folder. A new menu item records a layout as the default.
+- **Walking** (Amir: fewer collisions with each other and with things). More room kept from furniture (0.30 m, was
+  0.24), more room given to each other, a different rank for everyone so two people who meet do not both swerve the
+  same way, someone standing at a counter is walked round, and a spot somebody stands on is not chosen.
+- **Dumbbells** (Amir: one pair, in the hands). They hung on the forearms at a fixed distance, so on most bodies they
+  floated beside the hands. One is now held in each hand, the bar across the palm inside the closed fingers.
+

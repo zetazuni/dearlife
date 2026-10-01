@@ -111,6 +111,8 @@ namespace Dearlife
                 l.shadows = LightShadows.None; l.enabled = false;
                 go.AddComponent<TvScreen>();
             }
+            if (Vehicles.Is(id)) Vehicles.Park(f);      // a car stands still, on two boxes
+            MeshMerge.Piece(go);                        // its many parts are drawn as a few
             return f;
         }
     }

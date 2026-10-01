@@ -206,7 +206,16 @@ namespace Dearlife
                 if (onTop ? (dy < -0.1f || dy > 1.9f) : Mathf.Abs(dy) > 0.5f) continue;
                 // near, and the front preferred; something long (a run of counters) is not used from its ends
                 bool wide = lb.extents.x > lb.extents.z * 2f;
-                found.Add((hit.position, (hit.position - from).sqrMagnitude + (k == 0 ? 0f : k == 4 ? 1f : wide ? 30f : k * 0.5f)));
+                // not where somebody else is already standing
+                float taken = 0f;
+                foreach (var c in Character.All)
+                {
+                    if (!c || c.isPet) continue;
+                    var cp = c.transform.position;
+                    if (new Vector2(cp.x - from.x, cp.z - from.z).sqrMagnitude < 0.04f) continue;       // the one who asks
+                    if (new Vector2(cp.x - hit.position.x, cp.z - hit.position.z).sqrMagnitude < 0.5f) taken = 40f;
+                }
+                found.Add((hit.position, (hit.position - from).sqrMagnitude + taken + (k == 0 ? 0f : k == 4 ? 1f : wide ? 30f : k * 0.5f)));
             }
             found.Sort((x, y) => x.d.CompareTo(y.d));
             foreach (var fp in found) list.Add(fp.p);
