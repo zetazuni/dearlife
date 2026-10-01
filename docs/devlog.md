@@ -850,3 +850,37 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   too. The tutorial card moved up clear of the bar.
 - **Found on the way:** the game's depth of field (set for the far play camera) smeared the portraits, and a wall
   could stand between the camera and the face: the portrait camera now sees the person alone, with the effect off.
+
+## Session 59: the claw gone, arms out of the clothes, hands on things (2026-10-01) · v0.52.0
+
+- **The claw** (Amir: all of them still look like they hold a ball). Looked at the hands in his running game: fingers
+  fanned apart and curled, thumb out. Two versions had tried to tame Unity's finger muscles; the cause is that they
+  cannot make a natural hand on these models. The fingers are now set on each model's own bones from its own rest
+  pose: the same curl in degrees on every model, the fan nearly closed, the thumb left alone. Measured on all three:
+  18, 28 and 12 degrees at the three joints of the index finger, a little more for each further finger. They close
+  round a mug or a weight and open to wave.
+- **Arms through the clothes** (Amir: fix the character and outfit clipping). The hands of the magic girl hung inside
+  her skirt, 9 cm inside its outline. The importer now measures each model's outline without the arms, and an arm that
+  would be inside it is swung out from the shoulder by just enough. A hand in front of the chest is moved forward out
+  of it (her coffee mug sat inside her chest).
+- **Interactions** (Amir: improve them and the clipping with items). A new picture tool shows every interaction from
+  three sides, and the check was run several times. What it showed, and what was done:
+  - people stood 60 cm from a counter, turned towards the middle of the room, stirring the air at their chest: they
+    now find the front of the thing, face it squarely, step up to it and put their hands on the worktop;
+  - at a dining table the edge went through the chest and the arms hung under the table: the chair is drawn up to the
+    right distance for that body, the back is upright, the hands are on the table and one goes from the plate to the
+    mouth;
+  - desk work was done half a metre from the desk with the hands in the lap: the office chair rolls in and the hands
+    are on the keyboard;
+  - forearms went through the arms of the armchair: sitting with nothing to do, the hands lie on the thighs;
+  - "crouching" (laundry, a pet) was a stiff bow with straight legs: it is a squat now, hands held to the thing;
+  - sorting files and warming up at the fire are done standing, hands held out; the punch bag is punched, without
+    weights in the hands; a robot arm with no worktop is reached for;
+  - everyone stood with bent knees: the body is raised until the straighter leg is nearly straight;
+  - feet came out of the end of the bath: knees up, a little further back in the tub.
+- **Learnt:** in Unity's IK callback the bones show the clip pose before any correction (a seat, a squat), not last
+  frame's result. Two fixes of this session failed on that before it was found (arms straight up on a bar stool).
+- **Not done:** an outfit cannot be changed (a bath or a shower is taken dressed, hat on), a wide hat still goes
+  through a headboard or the back of a lounger, two people can still stand in the same spot at one counter, and
+  things that stand in a bush or behind a desk in the house as built are used from where there is room.
+

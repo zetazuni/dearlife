@@ -27,8 +27,9 @@ namespace Dearlife.EditorTools
         [MenuItem("Dearlife/Check interactions")]
         static void Start() => Begin(null);
 
-        /// <summary>Checks only the items whose id contains this (for a second look at a few).</summary>
-        public static void Begin(string filter)
+        /// <summary>Checks only the items whose id contains this (for a second look at a few), with the person of this
+        /// name (the first of the household if none).</summary>
+        public static void Begin(string filter, string person = null)
         {
             if (!EditorApplication.isPlaying) { Debug.LogWarning("Dearlife: enter Play mode first (on an empty save slot)."); return; }
             only = filter;
@@ -44,7 +45,8 @@ namespace Dearlife.EditorTools
                 foreach (var d in it.defs) cases.Add(new Case { it = it, d = d });
             }
             cases.Sort((a, b) => string.Compare(a.it.id + a.d.id, b.it.id + b.d.id, System.StringComparison.Ordinal));
-            foreach (var c in Character.All) if (!c.isPet) { who = c; break; }
+            who = null;
+            foreach (var c in Character.All) if (!c.isPet && (person == null ? !who : c.displayName == person)) who = c;
             if (!who) { Debug.LogWarning("Dearlife: nobody to send."); return; }
             shotDir = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "interaction_check");
             Directory.CreateDirectory(shotDir);
@@ -109,8 +111,8 @@ namespace Dearlife.EditorTools
                     Frame(c);
                     if (now >= shotAt)
                     {
-                        string file = Path.Combine(shotDir, $"{index:00}_{c.it.id}_{c.d.id}.png");
-                        ScreenCapture.CaptureScreenshot(file);
+                        // from three sides with a camera of its own: clipping shows from one side and hides from another
+                        Look.Person(who, Path.Combine(shotDir, $"{index:00}_{c.it.id}_{c.d.id}.png"));
                         Measure(c);
                         stage = 4;
                     }

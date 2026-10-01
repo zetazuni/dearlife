@@ -71,7 +71,7 @@ namespace Dearlife.EditorTools
             imp.importCameras = false;
             imp.importLights = false;
             imp.importBlendShapes = false;
-            imp.isReadable = false;
+            imp.isReadable = true;                       // the outline of the body is measured from the mesh below
             imp.meshCompression = ModelImporterMeshCompression.Off;
             imp.importNormals = ModelImporterNormals.Import;
             imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
@@ -89,10 +89,60 @@ namespace Dearlife.EditorTools
             var pm = go.AddComponent<PersonModel>();
             pm.id = person.id; pm.displayName = person.name; pm.feminine = person.feminine; pm.height = person.height; pm.credit = person.credit ?? "";
             go.AddComponent<CharacterRig>().kind = "person";
+            Outline(go, map, pm);
             foreach (var r in go.GetComponentsInChildren<SkinnedMeshRenderer>(true)) r.updateWhenOffscreen = true;
             PrefabUtility.SaveAsPrefabAsset(go, $"{PrefabDir}/{person.id}.prefab");
             Object.DestroyImmediate(go);
             return $"{person.name} ({person.id}): {person.materials.Length} materials, {person.height:0.00} m, humanoid {(ok ? "ok" : "FAILED")}. {report}";
+        }
+
+        /// <summary>
+        /// The outline of the body and clothes without the arms, slice by slice (see <see cref="PersonModel.bodyWide"/>).
+        /// Every vertex counts for the bone that moves it most; those of the arms are left out.
+        /// </summary>
+        static void Outline(GameObject go, Dictionary<string, string> map, PersonModel pm)
+        {
+            var all = go.GetComponentsInChildren<Transform>(true);
+            Transform Bone(string human) => map.TryGetValue(human, out var n) ? System.Array.Find(all, t => t.name == n) : null;
+            var hips = Bone("Hips"); var la = Bone("LeftUpperArm"); var ra = Bone("RightUpperArm");
+            if (!hips || !la || !ra) return;
+            var arms = new HashSet<Transform>(la.GetComponentsInChildren<Transform>(true));
+            arms.UnionWith(ra.GetComponentsInChildren<Transform>(true));
+            var root = go.transform;
+            var c = root.InverseTransformPoint(hips.position);
+            float top = Mathf.Min(root.InverseTransformPoint(la.position).y, root.InverseTransformPoint(ra.position).y);
+            int n = Mathf.Max(1, Mathf.CeilToInt(top / PersonModel.BodyStep));
+            float[] wide = new float[n], front = new float[n], back = new float[n];
+            foreach (var r in go.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                var mesh = r.sharedMesh;
+                if (!mesh) continue;
+                var verts = mesh.vertices; var bw = mesh.boneWeights; var binds = mesh.bindposes; var bones = r.bones;
+                if (bw.Length != verts.Length) continue;
+                var mats = new Matrix4x4[bones.Length];
+                for (int b = 0; b < bones.Length && b < binds.Length; b++) if (bones[b]) mats[b] = root.worldToLocalMatrix * bones[b].localToWorldMatrix * binds[b];
+                for (int i = 0; i < verts.Length; i++)
+                {
+                    int b = bw[i].boneIndex0;                    // the heaviest weight comes first
+                    if (b < 0 || b >= bones.Length || !bones[b] || arms.Contains(bones[b])) continue;
+                    var l = mats[b].MultiplyPoint3x4(verts[i]);
+                    int k = Mathf.FloorToInt(l.y / PersonModel.BodyStep);
+                    if (k < 0 || k >= n) continue;
+                    wide[k] = Mathf.Max(wide[k], Mathf.Abs(l.x - c.x));
+                    front[k] = Mathf.Max(front[k], l.z - c.z);
+                    back[k] = Mathf.Max(back[k], c.z - l.z);
+                }
+            }
+            // each slice also takes the widest of its neighbours: the body moves a little under the arms
+            pm.bodyWide = new float[n]; pm.bodyFront = new float[n]; pm.bodyBack = new float[n];
+            for (int k = 0; k < n; k++)
+                for (int d = -1; d <= 1; d++)
+                {
+                    int q = Mathf.Clamp(k + d, 0, n - 1);
+                    pm.bodyWide[k] = Mathf.Max(pm.bodyWide[k], wide[q]);
+                    pm.bodyFront[k] = Mathf.Max(pm.bodyFront[k], front[q]);
+                    pm.bodyBack[k] = Mathf.Max(pm.bodyBack[k], back[q]);
+                }
         }
 
         // ------------------------------------------------------------------ materials

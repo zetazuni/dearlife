@@ -2122,7 +2122,7 @@ namespace Dearlife.EditorTools
                     }
                     break;
                 case "hammock": Spot(go, "hammock", lie, new Vector3(0f, 0.85f, 0.2f), 0f, new Vector3(1.3f, 0f, 0f), raise: 14f, legRaise: 12f, knee: -14f); break;
-                case "bathtub": Spot(go, "bath", lie, new Vector3(0.12f, 0.24f, 0f), -90f, new Vector3(0f, 0f, 0.95f), raise: 52f, legRaise: 2f, knee: 10f); break;
+                case "bathtub": Spot(go, "bath", lie, new Vector3(0.27f, 0.24f, 0f), -90f, new Vector3(0f, 0f, 0.95f), raise: 52f, legRaise: 38f, knee: 52f); break;
             }
         }
 

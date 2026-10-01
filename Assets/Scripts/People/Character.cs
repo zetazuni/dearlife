@@ -137,7 +137,7 @@ namespace Dearlife
                     if (!onOrder) { if (spot) spot.occupant = null; spot = null; SetIdle(0f); }
                     break;
                 case Mode.Chatting: partner = null; SetIdle(0f); break;
-                case Mode.Petting: if (partner) partner.EndPetted(); partner = null; SetIdle(0f); break;
+                case Mode.Petting: if (partner) partner.EndPetted(); partner = null; if (rig) rig.NoWork(); SetIdle(0f); break;
                 case Mode.Idle: timer = 0f; break;
             }
         }
@@ -153,7 +153,8 @@ namespace Dearlife
             if (agent)
             {
                 agent.enabled = true;
-                if (NavMesh.SamplePosition(p, out var hit, 4f, NavMesh.AllAreas)) p = hit.position;
+                var walkable = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = NavMesh.AllAreas };
+                if (NavMesh.SamplePosition(p, out var hit, 4f, walkable)) p = hit.position;
                 agent.Warp(p);
             }
             transform.position = p;
@@ -544,6 +545,8 @@ namespace Dearlife
             float e = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(blend));
             var upright = Quaternion.Euler(0f, fromRot.eulerAngles.y, 0f);
             var faceOut = Quaternion.LookRotation(new Vector3(standPos.x - fromPos.x, 0f, standPos.z - fromPos.z).sqrMagnitude > 0.01f ? new Vector3(standPos.x - fromPos.x, 0f, standPos.z - fromPos.z) : transform.forward);
+            // half a step back from a counter is taken without turning round
+            if (new Vector2(standPos.x - fromPos.x, standPos.z - fromPos.z).magnitude < 0.5f) faceOut = upright;
             transform.SetPositionAndRotation(Vector3.Lerp(fromPos, standPos, e), Quaternion.Slerp(fromRot, faceOut, e));
             if (blend >= 1f)
             {
@@ -625,10 +628,169 @@ namespace Dearlife
                     chair.position += pivot - best.transform.position;
                 }
             }
+            PullUpChair(best, it);
             if (!GoToApproach(best)) return false;
             spot = best; spot.occupant = this; mode = Mode.ToSpot; holdSeat = true;
             afterSeat = () => BeginInteraction(it, d);
             return true;
+        }
+
+        /// <summary>
+        /// The chair is drawn up to the table or the desk (v0.52.0): close enough for the hands to reach it, far enough
+        /// that its edge clears this person's chest and belly. An office chair left half a metre from its desk rolls in,
+        /// a dining chair pushed right under the table comes out a little.
+        /// </summary>
+        /// <summary>How far in front of the seat the edge of the table is (at the height of its top), or a big number.</summary>
+        static float TableEdge(UseSpot seat, Interactable table)
+        {
+            var fwd = SpotForward(seat);
+            float edge = float.MaxValue;
+            foreach (float h in new[] { 0.10f, 0.16f, 0.22f, 0.28f, 0.34f })
+                foreach (var hit in Physics.RaycastAll(seat.transform.position - fwd * 0.7f + Vector3.up * h, fwd, 1.9f, ~0, QueryTriggerInteraction.Ignore))
+                    if (hit.transform.IsChildOf(table.transform)) edge = Mathf.Min(edge, hit.distance - 0.7f);
+            return edge;
+        }
+
+        void PullUpChair(UseSpot seat, Interactable table)
+        {
+            if (seat.label == "bar stool" || !seat.transform.parent) return;
+            var fwd = SpotForward(seat);
+            float edge = TableEdge(seat, table);
+            if (edge > 2f) return;
+            float want = Mathf.Clamp((rig ? rig.FrontDepth : 0.16f) + 0.13f, 0.30f, 0.42f);
+            float shift = edge - want;
+            if (Mathf.Abs(shift) < 0.03f || Mathf.Abs(shift) > 0.6f) return;
+            var chair = seat.transform.parent;
+            chair.position += fwd * shift;
+            var rb = chair.GetComponent<Rigidbody>();
+            if (rb) rb.position = chair.position;
+            Physics.SyncTransforms();
+        }
+
+        // ---- what the hands do with the thing (v0.52.0)
+
+        Vector3 workFace, stepLeft, steppedFrom;
+        bool hasFace, stepped;
+
+        /// <summary>Back on the walkable floor at once (something else came up in the middle of it).</summary>
+        void StepBack()
+        {
+            if (!stepped) return;
+            stepped = false;
+            transform.position = steppedFrom;
+            agent.enabled = true;
+            agent.Warp(steppedFrom);
+        }
+
+        /// <summary>
+        /// Standing at something: finds its front (a ray from the body towards it), turns the person square to it, has them
+        /// step up to it, and tells the rig where the hands work: on the worktop, on the board, at the drawer. Before, a cook
+        /// stood half a metre off, turned towards the middle of the kitchen, stirring the air.
+        /// </summary>
+        void SetUpWork(Interactable it, InteractionDef d)
+        {
+            hasFace = false; stepLeft = Vector3.zero;
+            if (rig == null || isPet || it == null || it.hasCustomStand || it.id == "treadmill" || d.id == "shower") return;
+            var kind = CharacterRig.HandWork.None;
+            float want = -1f, probe = 0.7f;
+            switch (d.id)
+            {
+                case "cook": case "cookjob": case "grill": case "tinker": case "washface": kind = CharacterRig.HandWork.Surface; break;
+                case "draw": kind = CharacterRig.HandWork.Board; want = 0.5f; probe = 1.3f; break;
+                case "files": kind = CharacterRig.HandWork.Reach; want = 0.52f; break;
+                case "mail": kind = CharacterRig.HandWork.Reach; want = 0.5f; probe = 1.05f; break;
+                case "laundry": kind = CharacterRig.HandWork.Reach; want = 0.62f; probe = 0.4f; break;
+                case "fire": kind = CharacterRig.HandWork.Reach; want = 0.55f; probe = 0.3f; break;
+                case "workout": if (it.id == "punchbag") { kind = CharacterRig.HandWork.Punch; want = 0.62f; probe = 1.2f; } break;
+            }
+            var pos = transform.position;
+            var dir = it.Centre - pos; dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) return;
+            dir.Normalize();
+            // the nearest thing in the way at that height: the front of the counter, the wall the board hangs on
+            float gap = float.MaxValue; var normal = -dir;
+            foreach (var hit in Physics.SphereCastAll(pos + Vector3.up * (probe * scale) - dir * 0.3f, 0.04f, dir, 1.9f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.distance <= 0f || hit.transform.IsChildOf(transform) || hit.distance - 0.3f >= gap) continue;
+                var piece = hit.transform.GetComponentInParent<Furniture>();
+                if (piece && piece.small && !hit.transform.IsChildOf(it.transform)) continue;      // a globe on the desk beside it
+                gap = hit.distance - 0.3f; normal = hit.normal;
+            }
+            if (gap > 1.6f)
+            {
+                // nothing solid at that height (a punch bag on its chain, a thin robot arm): go by where its middle is
+                if (kind == CharacterRig.HandWork.None || kind == CharacterRig.HandWork.Board) return;
+                var piece = it.GetComponent<Furniture>();
+                float half = piece ? Mathf.Min(piece.LocalBounds.extents.x, piece.LocalBounds.extents.z) : 0.2f;
+                var flat = it.Centre - pos; flat.y = 0f;
+                gap = flat.magnitude - Mathf.Min(half, 0.3f);
+                if (gap > 1.6f) return;
+                normal = -dir;
+            }
+            if (kind == CharacterRig.HandWork.Board && gap > 1.0f) kind = CharacterRig.HandWork.None;   // a desk stands in front of the board
+            normal.y = 0f;
+            var face = normal.sqrMagnitude > 0.01f && Vector3.Dot(-normal.normalized, dir) > 0.6f ? -normal.normalized : dir;
+            workFace = face; hasFace = true;
+            if (kind == CharacterRig.HandWork.None) return;
+            if (want < 0f) want = Mathf.Max(0.27f, rig.FrontDepth + 0.09f);
+            float move = Mathf.Clamp(gap - want, -0.35f, 0.6f);
+            stepLeft = face * move;
+            var final = pos + stepLeft;
+            // the walkable floor stops well short of furniture: the last step is taken off it, and taken back afterwards
+            if (Mathf.Abs(move) > 0.02f && agent.enabled) { steppedFrom = pos; stepped = true; agent.enabled = false; }
+            var right = Vector3.Cross(Vector3.up, face);
+            Vector3 point;
+            switch (kind)
+            {
+                case CharacterRig.HandWork.Surface:
+                {
+                    // the worktop a hand's length past its edge, from above (under the wall cupboards)
+                    float top = float.NegativeInfinity;
+                    var over = final + face * (want + 0.10f);
+                    foreach (var hit in Physics.RaycastAll(over + Vector3.up * (1.3f * scale), Vector3.down, 0.9f * scale, ~0, QueryTriggerInteraction.Ignore))
+                        if (!hit.transform.IsChildOf(transform) && hit.point.y - pos.y > 0.5f * scale) top = Mathf.Max(top, hit.point.y);
+                    if (float.IsNegativeInfinity(top))
+                    {
+                        // nothing flat to work on (a robot arm on its stand): the hands are held to the thing itself
+                        kind = CharacterRig.HandWork.Reach;
+                        point = final + face * (want + 0.02f) + Vector3.up * (1.02f * scale);
+                        rig.pose = CharacterRig.Pose.Stand;
+                        break;
+                    }
+                    point = new Vector3(over.x, top, over.z);
+                    break;
+                }
+                case CharacterRig.HandWork.Board:
+                    point = final + face * (want - 0.05f) + Vector3.up * (1.3f * scale) + right * (0.12f * scale);
+                    break;
+                case CharacterRig.HandWork.Punch:
+                    point = final + face * (want - 0.04f) + Vector3.up * (1.22f * scale);
+                    rig.Release();                              // no weights in the hands at the bag
+                    rig.pose = CharacterRig.Pose.Stand;
+                    break;
+                default:
+                    point = d.id == "fire" ? final + face * (0.42f * scale) + Vector3.up * (0.95f * scale)
+                          : d.id == "laundry" ? final + face * (want - 0.06f) + Vector3.up * (0.5f * scale)
+                          : final + face * (want - 0.08f) + Vector3.up * ((d.id == "mail" ? 1.08f : 1.0f) * scale);
+                    break;
+            }
+            rig.Work(kind, point);
+            // these are done standing up (the laundry is the one done squatting, at the door of the machine)
+            if (d.id == "draw" || d.id == "files" || d.id == "fire") rig.pose = CharacterRig.Pose.Stand;
+        }
+
+        /// <summary>Sitting at a table or a desk: the hands are on it, eating from the plate or busy on the keyboard.</summary>
+        void SeatedWork(Interactable it, InteractionDef d)
+        {
+            if (rig == null || isPet || spot == null) return;
+            var fwd = SpotForward(spot);
+            float edge = TableEdge(spot, it);
+            var at = spot.transform.position + fwd * (edge < 2f ? edge + 0.10f : 0.38f * scale);
+            float top = float.NegativeInfinity;
+            foreach (var hit in Physics.RaycastAll(at + Vector3.up * 0.8f, Vector3.down, 1.1f, ~0, QueryTriggerInteraction.Ignore))
+                if (hit.transform.IsChildOf(it.transform)) top = Mathf.Max(top, hit.point.y);
+            if (top < spot.transform.position.y - 0.05f || top > spot.transform.position.y + 0.5f) return;
+            rig.Work(d.id == "meal" || d.id == "takeaway" ? CharacterRig.HandWork.Eat : CharacterRig.HandWork.Type, new Vector3(at.x, top, at.z));
         }
 
         static Vector3 SpotForward(UseSpot s) => Quaternion.Euler(0f, (s.transform.parent ? s.transform.parent.eulerAngles.y : 0f) + s.yaw, 0f) * Vector3.forward;
@@ -642,7 +804,8 @@ namespace Dearlife
         {
             if (d.id != "meal" && d.id != "takeaway") return;
             var fwd = SpotForward(spot);
-            var at = spot.transform.position + fwd * 0.42f;
+            float edge = TableEdge(spot, it);
+            var at = spot.transform.position + fwd * (edge < 2f ? edge + 0.24f : 0.42f);
             // the table top under that point
             float top = it.transform.position.y + 0.76f;
             foreach (var h in Physics.RaycastAll(at + Vector3.up * 1.5f, Vector3.down, 2.5f))
@@ -729,12 +892,13 @@ namespace Dearlife
             actSound = GameAudio.PlayAct(d.id, d.seconds, it.Centre);
             if (d.id == "bath" && it.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(true);
             if (d.needsTv && spot != null) { var tv = TvScreen.Facing(spot); if (tv != null && !tv.on) tv.SetOn(true, true); }
-            if (d.sitNear && spot != null && mode == Mode.Using) TablePlate(it, d);
+            if (d.sitNear && spot != null && mode == Mode.Using) { TablePlate(it, d); SeatedWork(it, d); }
             if (d.seat || (d.sitNear && spot != null && mode == Mode.Using)) { timer = d.seconds; return; }   // seated: TickUsing runs it
             mode = Mode.Interacting; timer = d.seconds; blend = 0f;
             fromPos = transform.position; fromRot = transform.rotation;
             rig.pose = d.pose; rig.walkSpeed = 0f;
             HoldForInteraction(it, d);
+            if (d.pose != CharacterRig.Pose.Swim) SetUpWork(it, d);
             if (agent.enabled && agent.isOnNavMesh) agent.ResetPath();
             if (it && it.id == "treadmill")
             {
@@ -870,13 +1034,20 @@ namespace Dearlife
             }
             else if (!onBelt)
             {
-                var d = centre - transform.position; d.y = 0f;
+                var d = hasFace ? workFace : centre - transform.position; d.y = 0f;
                 if (d.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(d), Time.deltaTime * 6f);
+                // the last step up to the counter (or half a step back from it)
+                if (stepLeft.sqrMagnitude > 1e-6f && stepped)
+                {
+                    var step = Vector3.ClampMagnitude(stepLeft, Time.deltaTime * 0.8f);
+                    transform.position += step; stepLeft -= step;
+                }
             }
             if (timer <= 0f)
             {
-                bool swim = active.pose == CharacterRig.Pose.Swim || onBelt;
-                var stand = activeIt && activeIt.hasCustomStand ? activeIt.customStand : onBelt ? standPos : transform.position;
+                bool off = stepped; stepped = false;                 // steps back by rising, not at once
+                bool swim = active.pose == CharacterRig.Pose.Swim || onBelt || off;
+                var stand = activeIt && activeIt.hasCustomStand ? activeIt.customStand : onBelt ? standPos : off ? steppedFrom : transform.position;
                 FinishInteraction(true);
                 if (swim)
                 {
@@ -892,6 +1063,9 @@ namespace Dearlife
             var d = active; active = null;
             GameAudio.StopAct(actSound); actSound = null;
             ReleaseHeld();
+            if (rig) rig.NoWork();
+            hasFace = false; stepLeft = Vector3.zero;
+            StepBack();
             if (d.id == "bath" && activeIt && activeIt.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(false);
             if (plate) { Destroy(plate); plate = null; }
             if (onBelt)
@@ -1125,8 +1299,12 @@ namespace Dearlife
             var d = partner.transform.position - transform.position; d.y = 0f;
             if (d.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(d), Time.deltaTime * 6f);
             rig.pose = CharacterRig.Pose.Crouch;
+            // the hands on the pet's back
+            var petRig = partner.GetComponent<CharacterRig>();
+            rig.Work(CharacterRig.HandWork.Reach, (petRig ? petRig.BodyCentre : partner.transform.position + Vector3.up * 0.3f) + Vector3.up * 0.1f);
             if (timer <= 0f)
             {
+                rig.NoWork();
                 if (partner)
                 {
                     if (sim && partner.sim)

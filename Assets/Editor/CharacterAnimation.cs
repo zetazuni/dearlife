@@ -140,13 +140,14 @@ namespace Dearlife.EditorTools
         };
 
         /// <summary>
-        /// Every CharacterRig.Pose and the clip it plays (poses without a recording of their own borrow the closest one). Lying
+        /// Every CharacterRig.Pose and the clip it plays (poses without a recording of their own borrow the closest one).
+        /// Crouching is the standing clip: CharacterRig lowers the body into a squat itself (v0.52.0). Lying
         /// uses the calm standing clip: UseSpot.RootFor already tips the whole figure onto its back, so a standing hold becomes
         /// lying face up with the arms at the sides (a floor lying recording would be turned over twice).
         /// </summary>
         public static readonly (string pose, string clip)[] PoseClips =
         {
-            ("Stand", "stand"), ("Walk", "walk"), ("Sit", "sit"), ("Lie", "stand"), ("Wave", "wave"), ("Crouch", "crouch"),
+            ("Stand", "stand"), ("Walk", "walk"), ("Sit", "sit"), ("Lie", "stand"), ("Wave", "wave"), ("Crouch", "stand"),
             ("Sleep", "stand"), ("Groom", "stand"), ("Happy", "happy"), ("Eat", "eat"), ("Cook", "cook"), ("Read", "read"),
             ("Exercise", "exercise"), ("Work", "work"), ("Wash", "wash"), ("Swim", "swim"), ("Drink", "drink"),
             ("Guitar", "keys"), ("Keys", "keys"), ("Dance", "dance"), ("Talk", "talk"),
@@ -242,60 +243,9 @@ namespace Dearlife.EditorTools
             var layers = ctrl.layers;
             layers[0].iKPass = true;        // CharacterRig.OnAnimatorIK plants the feet and fits the pelvis to seats
             ctrl.layers = layers;
-            AddHandsLayer(ctrl);
-            AssetDatabase.SaveAssets();
-        }
-
-        const string HandsClip = "Assets/Resources/Animation/RelaxedHands.anim";
-        /// <summary>The index finger's three joints in the relaxed hand, as humanoid muscle values. Measured on the models:
-        /// 1 is straight, 0 is already a half closed hand (the middle finger curled 62 degrees) and -0.5 a fist; 0.5 gives
-        /// the 30 degrees of a hand hanging loose. Each further finger closes a touch more.</summary>
-        public static float[] FingerCurl = { 0.55f, 0.5f, 0.5f };
-        const string HandsMask = "Assets/Resources/Animation/Fingers.mask";
-
-        /// <summary>
-        /// None of the clips move the fingers, and Unity's own resting fingers are spread wide open. A second layer, masked
-        /// to the fingers alone, holds them in a relaxed curl: a little more from the index finger to the little one (v0.51.0;
-        /// the first try used negative values and closed the hands into claws).
-        /// </summary>
-        static void AddHandsLayer(UnityEditor.Animations.AnimatorController ctrl)
-        {
-            var clip = new AnimationClip { name = "RelaxedHands" };
-            void Key(string muscle, float v)
-            {
-                foreach (var hand in new[] { "LeftHand", "RightHand" })
-                    AnimationUtility.SetEditorCurve(clip, EditorCurveBinding.FloatCurve("", typeof(Animator), hand + "." + muscle), AnimationCurve.Constant(0f, 1f, v));
-            }
-            string[] fingers = { "Index", "Middle", "Ring", "Little" };
-            for (int i = 0; i < fingers.Length; i++)
-            {
-                Key(fingers[i] + ".1 Stretched", FingerCurl[0] - 0.05f * i);
-                Key(fingers[i] + ".2 Stretched", FingerCurl[1] - 0.05f * i);
-                Key(fingers[i] + ".3 Stretched", FingerCurl[2] - 0.05f * i);
-                Key(fingers[i] + ".Spread", -0.1f);
-            }
-            Key("Thumb.1 Stretched", 0.5f); Key("Thumb.2 Stretched", 0.5f); Key("Thumb.3 Stretched", 0.5f); Key("Thumb.Spread", 0f);
-            var settings = AnimationUtility.GetAnimationClipSettings(clip);
-            settings.loopTime = true;
-            AnimationUtility.SetAnimationClipSettings(clip, settings);
-            AssetDatabase.DeleteAsset(HandsClip);
-            AssetDatabase.CreateAsset(clip, HandsClip);
-
-            var mask = new AvatarMask { name = "Fingers" };
-            for (int i = 0; i < (int)AvatarMaskBodyPart.LastBodyPart; i++)
-                mask.SetHumanoidBodyPartActive((AvatarMaskBodyPart)i, i == (int)AvatarMaskBodyPart.LeftFingers || i == (int)AvatarMaskBodyPart.RightFingers);
-            AssetDatabase.DeleteAsset(HandsMask);
-            AssetDatabase.CreateAsset(mask, HandsMask);
-
-            var sm = new UnityEditor.Animations.AnimatorStateMachine { name = "Hands", hideFlags = HideFlags.HideInHierarchy };
-            AssetDatabase.AddObjectToAsset(sm, ctrl);
-            var st = sm.AddState("Relaxed");
-            st.motion = clip;
-            ctrl.AddLayer(new UnityEditor.Animations.AnimatorControllerLayer
-            {
-                name = "Hands", defaultWeight = 1f, avatarMask = mask, stateMachine = sm,
-                blendingMode = UnityEditor.Animations.AnimatorLayerBlendingMode.Override,
-            });
+            // the fingers are not in the controller: CharacterRig poses them on the model's own bones (v0.52.0)
+            AssetDatabase.DeleteAsset("Assets/Resources/Animation/RelaxedHands.anim");
+            AssetDatabase.DeleteAsset("Assets/Resources/Animation/Fingers.mask");
             AssetDatabase.SaveAssets();
         }
 

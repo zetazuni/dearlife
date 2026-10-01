@@ -29,7 +29,12 @@ namespace Dearlife
         /// <summary>The floor under the piece.</summary>
         public float FloorY => transform.parent ? transform.parent.position.y : 0f;
 
-        void OnEnable() { if (!All.Contains(this)) All.Add(this); }
+        void OnEnable()
+        {
+            if (!All.Contains(this)) All.Add(this);
+            // the bath in a saved house was made with straight legs, and feet came out through the end of the tub
+            if (label == "bath" && legRaise < 10f) { legRaise = 38f; kneeBend = 52f; transform.localPosition = new Vector3(0.27f, transform.localPosition.y, transform.localPosition.z); }
+        }
         void OnDisable() => All.Remove(this);
 
         public Vector3 ApproachWorld => transform.parent.TransformPoint(approachLocal);

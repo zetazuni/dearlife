@@ -201,14 +201,30 @@ namespace Dearlife
                     Bit(holder.transform, PrimitiveType.Cube, new Vector3(0f, 0.002f, 0.004f), new Vector3(0.17f, 0.03f, 0.245f), new Color(0.93f, 0.9f, 0.82f));
                     break;
                 case "mug":
+                {
                     if (fr == null) { Destroy(holder); return; }
                     holder.transform.SetParent(fr.t, false);
                     holder.transform.localScale = Vector3.one * Inv(fr.t);
                     holder.transform.localPosition = fr.anchor;
                     holder.transform.localRotation = fr.frame;
+                    // in the right hand itself where its fingers are known (v0.52.0): hung on the forearm it sat a hand's
+                    // length from the hand of anyone whose arm is not the length it was made for
+                    var grip = hands != null ? System.Array.Find(hands, x => x.right) : null;
+                    var thumb = anim && anim.isHuman ? anim.GetBoneTransform(HumanBodyBones.RightThumbProximal) : null;
+                    if (grip != null && thumb)
+                    {
+                        var thumbSide = Vector3.Cross(grip.fingers, grip.palm).normalized;         // across the hand: to the thumb or away from it
+                        if (Vector3.Dot(thumbSide, grip.hand.InverseTransformPoint(thumb.position)) < 0f) thumbSide = -thumbSide;
+                        float handScale = Inv(grip.hand);
+                        holder.transform.SetParent(grip.hand, false);
+                        holder.transform.localScale = Vector3.one * handScale;
+                        holder.transform.localRotation = Quaternion.LookRotation(grip.fingers, thumbSide);   // the mug stands up along the thumb side
+                        holder.transform.localPosition = (grip.fingers * 0.085f + grip.palm * 0.05f - thumbSide * 0.05f) * handScale;
+                    }
                     Bit(holder.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.045f, 0f), new Vector3(0.075f, 0.045f, 0.075f), new Color(0.95f, 0.94f, 0.9f), null, 0.8f);
                     Bit(holder.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.085f, 0f), new Vector3(0.062f, 0.004f, 0.062f), new Color(0.32f, 0.18f, 0.1f), null, 0.9f);
                     break;
+                }
                 case "dumbbell":
                     if (fr == null || fl == null) { Destroy(holder); return; }
                     // the two weights ride on the two forearms
@@ -301,6 +317,8 @@ namespace Dearlife
             if (quad != null) { quad.Tick(pose == Pose.Walk && speedSmooth < 0.05f ? Pose.Stand : pose, clock, speedSmooth, moved, Time.deltaTime); return; }
             if (animated)
             {
+                squat = Mathf.MoveTowards(squat, pose == Pose.Crouch && !OnSeat ? 1f : 0f, Time.deltaTime / 0.5f);
+                if (pose == Pose.Walk && speedSmooth > 0.3f) work = HandWork.None;   // walked off without saying so
                 // standing still with a walk order would march on the spot: stand instead
                 float shown = inPlaceSpeed > 0f ? inPlaceSpeed : speedSmooth;
                 var p = pose == Pose.Walk && shown < 0.05f ? Pose.Stand : pose;
@@ -376,23 +394,28 @@ namespace Dearlife
             var r = anim.GetIKPosition(AvatarIKGoal.RightFoot);
             float dy = Mathf.Clamp(transform.position.y + ankleHeight - Mathf.Min(l.y, r.y), -0.08f, 0.08f);
             l.y += dy; r.y += dy;
+            float down = Mathf.SmoothStep(0f, 1f, squat);
             // a narrow stance (v0.50.0): recordings of someone stirring or washing stand with the feet far apart. Each foot
             // stays within a hand's width of the line under the body, closer still for a feminine body; dancing and
             // exercise keep their own steps
             if (pose != Pose.Dance && pose != Pose.Exercise)
             {
-                float widest = Mathf.Lerp(0.12f, 0.075f, feminine < 0f ? 0.5f : feminine) * transform.lossyScale.y;
+                float widest = Mathf.Lerp(0.12f, 0.075f, feminine < 0f ? 0.5f : feminine) * transform.lossyScale.y * (1f + 0.6f * down);   // a squat stands wider
                 var right = transform.right;
                 var centre = anim.bodyPosition;
                 float sl = Vector3.Dot(l - centre, right), sr = Vector3.Dot(r - centre, right);
                 l += right * (Mathf.Clamp(sl, -widest, -0.03f) - sl);
                 r += right * (Mathf.Clamp(sr, 0.03f, widest) - sr);
             }
+            StraightenLegs();
             float floor = transform.position.y + ankleHeight;
-            foreach (var (goal, p) in new[] { (AvatarIKGoal.LeftFoot, l), (AvatarIKGoal.RightFoot, r) })
+            foreach (var (goal, hint, p) in new[] { (AvatarIKGoal.LeftFoot, AvatarIKHint.LeftKnee, l), (AvatarIKGoal.RightFoot, AvatarIKHint.RightKnee, r) })
             {
                 anim.SetIKPosition(goal, p);
                 anim.SetIKPositionWeight(goal, 1f);
+                // squatting: the knees go forward and a little out
+                anim.SetIKHintPosition(hint, p + transform.forward * 0.6f + Vector3.up * 0.4f + transform.right * (hint == AvatarIKHint.LeftKnee ? -0.12f : 0.12f));
+                anim.SetIKHintPositionWeight(hint, down);
                 // a foot on the floor lies flat on it (as it does at rest), turned the way the recording points it; one
                 // that is lifted keeps the recording's tilt
                 var fwd = Vector3.ProjectOnPlane(anim.GetIKRotation(goal) * Vector3.forward, Vector3.up);
@@ -402,14 +425,86 @@ namespace Dearlife
             }
         }
 
+        float squat, legLift, tableLean;
+
+        /// <summary>
+        /// Crouching (v0.52.0): the recording used before was the still moment of picking something up, a stiff bow with
+        /// straight legs. Now the body of the standing clip is lowered and tipped forward a little while the feet stay
+        /// on the floor (<see cref="GroundIK"/>), so the knees bend into a real squat. Eased, so getting down and up is
+        /// a movement.
+        /// </summary>
+        void Squat()
+        {
+            if (squat <= 0.001f) return;
+            float e = Mathf.SmoothStep(0f, 1f, squat), s = transform.lossyScale.y;
+            var body = anim.bodyPosition;
+            body.y -= e * 0.40f * (RestHip / 0.95f) * s;
+            body -= transform.forward * (e * 0.10f * s);
+            anim.bodyPosition = body;
+            anim.bodyRotation = Quaternion.AngleAxis(e * 22f, transform.right) * anim.bodyRotation;
+        }
+
+        /// <summary>
+        /// Standing up straight (v0.52.0): with the feet brought under the body and a recording made on other proportions
+        /// the hips end up too low and the knees stay bent the whole time someone cooks or washes. After each frame the
+        /// straighter leg is measured (<see cref="MeasureLegs"/>) and the body is raised a little more, or less, the next
+        /// frame, until that leg is nearly straight. Not while squatting, dancing or exercising.
+        /// </summary>
+        void StraightenLegs()
+        {
+            if (Mathf.Abs(legLift) < 0.002f) return;
+            var body = anim.bodyPosition; body.y += legLift; anim.bodyPosition = body;
+        }
+
+        bool Tall => animated && !OnSeat && squat <= 0.001f && (pose != Pose.Walk || speedSmooth <= 0.05f) && pose != Pose.Exercise && pose != Pose.Dance
+                     && pose != Pose.Happy && pose != Pose.Crouch && pose != Pose.Swim && pose != Pose.Lie && pose != Pose.Sleep && pose != Pose.Sit;
+
+        void MeasureLegs()
+        {
+            if (!animated) return;
+            float s = transform.lossyScale.y;
+            if (!Tall) { legLift = Mathf.MoveTowards(legLift, 0f, Time.deltaTime * 0.4f); return; }
+            float straightest = 0f, length = 0f;
+            foreach (var (up, lo, ft) in new[] { (HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot), (HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) })
+            {
+                var a = anim.GetBoneTransform(up); var b = anim.GetBoneTransform(lo); var c = anim.GetBoneTransform(ft);
+                if (!a || !b || !c) return;
+                float len = Vector3.Distance(a.position, b.position) + Vector3.Distance(b.position, c.position);
+                if (len < 1e-4f) return;
+                float ext = Vector3.Distance(a.position, c.position) / len;
+                if (ext > straightest) { straightest = ext; length = len; }
+            }
+            legLift = Mathf.Clamp(legLift + (0.975f - straightest) * length * Mathf.Min(1f, Time.deltaTime * 12f), -0.03f * s, 0.16f * s);
+        }
+
         void OnAnimatorIK(int layer)
+        {
+            LegsIK();
+            HandsIK();
+        }
+
+        void LegsIK()
         {
             if (pose == Pose.Walk && speedSmooth > 0.05f && !OnSeat) { WalkIK(); return; }
             hipAverage = -1f;
-            if (!OnSeat) { if (pose != Pose.Swim) GroundIK(); return; }
+            if (!OnSeat) { if (pose != Pose.Swim) { Squat(); GroundIK(); } return; }
             if (offsetFor != seat) { seatOffset = Vector3.zero; offsetFor = seat; kneeKnown = false; }
             anim.bodyPosition += transform.TransformVector(seatOffset);
             if (pose != Pose.Sit) return;
+            // at a table or a desk the back is upright: the sitting clip leans forward, and the edge of the table would
+            // go through the chest. Found a little at a time from how far the torso leant last frame
+            var sp = anim.GetBoneTransform(HumanBodyBones.Spine); var nk = anim.GetBoneTransform(HumanBodyBones.Neck);
+            if (sp && nk)
+            {
+                // (in the IK pass the bones show this frame's clip pose, before anything here is applied)
+                var torso = nk.position - sp.position;
+                float lean = Vector3.Angle(torso, Vector3.up) * Mathf.Sign(Vector3.Dot(torso, transform.forward));
+                // (anywhere else the recording's slump forward is taken out too, down to the slant of the backrest)
+                float allowed = work != HandWork.None ? 3f : Mathf.Max(-10f, 5f - seat.recline * 0.6f);
+                tableLean = Mathf.MoveTowards(tableLean, Mathf.Clamp(lean - allowed, 0f, 45f), Time.deltaTime * 60f);
+            }
+            else tableLean = Mathf.MoveTowards(tableLean, 0f, Time.deltaTime * 40f);
+            if (tableLean > 0.05f) anim.bodyRotation = Quaternion.AngleAxis(-tableLean, transform.right) * anim.bodyRotation;
             if (ankleHeight < 0f) ankleHeight = 0.075f * transform.lossyScale.y;
             float footY = seat.FloorY + seat.footY + ankleHeight;
             var goals = new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot };
@@ -440,11 +535,262 @@ namespace Dearlife
             }
         }
 
+        // ------------------------------------------------------------ hands that do something
+
+        /// <summary>What the hands are busy with (v0.52.0): the recordings were made in an empty room, so someone
+        /// "cooking" stirred the air in front of their chest half a metre from the counter. <see cref="Character"/> finds
+        /// the real surface and says what is done there; the hands are put on it and moved by a little.</summary>
+        public enum HandWork
+        {
+            None,
+            Surface,    // both hands just over a worktop, one stirring
+            Type,       // both hands on a desk, fingers busy
+            Eat,        // one hand on the table, the other between the plate and the mouth
+            Board,      // the right hand writing on something upright
+            Reach,      // both hands held out to a point: a drawer, a washing machine's door, a fire, a pet
+            Punch,      // fists up, one then the other thrown at the point (the punch bag)
+        }
+
+        [System.NonSerialized] public HandWork work;
+        [System.NonSerialized] public Vector3 workPoint;       // on the surface, in front of the middle of the body
+        HandWork workShown;
+        bool lapShown;
+        float workBlend;
+        readonly float[] clearW = new float[2];
+
+        // where the shoulders, the head and the hips ended up last frame. In the IK pass the bones do not show that: they
+        // show this frame's clip pose before the seat, the squat or anything else here has moved the body (on a bar stool
+        // that is 80 cm higher), so what is measured from the body there uses these
+        readonly Vector3[] shoulderSeen = new Vector3[2];
+        readonly float[] armSeen = new float[2];
+        Vector3 headSeen, hipsSeen;
+        bool seen;
+
+        void RememberPose()
+        {
+            if (!animated) return;
+            var head = anim.GetBoneTransform(HumanBodyBones.Head); var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
+            if (!head || !hips) return;
+            headSeen = head.position; hipsSeen = hips.position;
+            for (int side = 0; side < 2; side++)
+            {
+                var a = anim.GetBoneTransform(ArmBones[side][0]); var b = anim.GetBoneTransform(ArmBones[side][1]); var c = anim.GetBoneTransform(ArmBones[side][2]);
+                if (!a || !b || !c) return;
+                shoulderSeen[side] = a.position;
+                armSeen[side] = Vector3.Distance(a.position, b.position) + Vector3.Distance(b.position, c.position);
+            }
+            seen = true;
+        }
+
+        public void Work(HandWork kind, Vector3 point) { work = kind; workPoint = point; }
+        public void NoWork() { work = HandWork.None; }
+
+        /// <summary>How far the body and its clothes reach forward of the hip bone at the chest and belly, in metres.</summary>
+        public float FrontDepth
+        {
+            get
+            {
+                if (!model) model = GetComponent<PersonModel>();
+                return (model ? model.FrontAbove(RestHip) : 0.15f) * transform.lossyScale.y;
+            }
+        }
+
+        bool Upright => !OnSeat && pose != Pose.Sit && pose != Pose.Lie && pose != Pose.Sleep && pose != Pose.Swim && pose != Pose.Crouch && squat <= 0.001f;
+
+        bool HandTarget(int side, out Vector3 t)
+        {
+            float s = transform.lossyScale.y, sign = side == 0 ? -1f : 1f, c = clock;
+            var right = transform.right; var up = Vector3.up;
+            var fwd = Vector3.ProjectOnPlane(transform.forward, up).normalized;
+            t = default;
+            if (lapShown)
+            {
+                // sitting with nothing to do: the hands lie on the thighs, inside the arms of the chair
+                t = transform.TransformPoint(Vector3.Lerp(kneeLocal[side + 2], kneeLocal[side], 0.55f)) + up * (0.105f * s);
+                return true;
+            }
+            switch (workShown)
+            {
+                case HandWork.Surface:
+                    t = workPoint + right * (sign * 0.16f * s) + up * (0.075f * s);
+                    if (side == 1) t += (right * Mathf.Cos(c * 4.2f) + fwd * Mathf.Sin(c * 4.2f)) * (0.035f * s);
+                    else t += fwd * (0.02f * s * Mathf.Sin(c * 1.3f));
+                    return true;
+                case HandWork.Type:
+                    t = workPoint + right * ((sign * 0.12f + 0.03f * Mathf.Sin(c * 0.7f + side)) * s) + up * ((0.05f + 0.012f * Mathf.Max(0f, Mathf.Sin(c * 9f + side * 2.1f))) * s);
+                    return true;
+                case HandWork.Eat:
+                {
+                    var rest = workPoint + right * (sign * 0.17f * s) + up * (0.05f * s);
+                    t = rest;
+                    if (side == 0) return true;
+                    float bite = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(Mathf.Sin(c * 1.4f) * 1.6f - 0.3f));
+                    var mouth = seen ? headSeen + fwd * (0.16f * s) - up * (0.04f * s) + right * (0.03f * s) : rest + up * (0.45f * s);   // the wrist, under the mouth
+                    t = Vector3.Lerp(rest, mouth, bite) + up * (Mathf.Sin(bite * Mathf.PI) * 0.05f * s);
+                    return true;
+                }
+                case HandWork.Board:
+                    if (side == 0) return false;
+                    t = workPoint + right * (0.2f * s * Mathf.Sin(c * 0.9f)) + up * (0.11f * s * Mathf.Sin(c * 1.7f));
+                    return true;
+                case HandWork.Punch:
+                {
+                    // the guard in front of the chin, and a jab every other beat, left then right
+                    var guard = (seen ? shoulderSeen[side] : workPoint) + fwd * (0.20f * s) + up * (0.07f * s) - right * (sign * 0.07f * s);
+                    float jab = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(Mathf.Sin(c * 5.5f + side * Mathf.PI) * 2.2f - 1.1f));
+                    t = Vector3.Lerp(guard, workPoint + right * (sign * 0.05f * s), jab);
+                    return true;
+                }
+                case HandWork.Reach:
+                    t = workPoint + right * (sign * 0.11f * s) + up * (0.02f * s * Mathf.Sin(c * 2.2f + side * 1.4f)) + fwd * (0.02f * s * Mathf.Sin(c * 1.5f + side));
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>A hand in front of the belly or the chest that would be inside the body (a mug lifted to drink on
+        /// someone with a big chest): moved forward to just outside it.</summary>
+        bool OutOfChest(ref Vector3 p)
+        {
+            if (!model) model = GetComponent<PersonModel>();
+            if (!model || !seen) return false;
+            var c = transform.InverseTransformPoint(hipsSeen);
+            var l = transform.InverseTransformPoint(p);
+            if (l.y < c.y) return false;
+            if (!model.FrontEdge(l.y, l.x - c.x, heldProp ? 0.10f : 0.055f, out float edge)) return false;
+            float z = l.z - c.z;
+            if (z >= edge || z < -0.02f) return false;
+            l.z = c.z + edge;
+            p = transform.TransformPoint(l);
+            return true;
+        }
+
+        void HandsIK()
+        {
+            bool lap = work == HandWork.None && OnSeat && pose == Pose.Sit && kneeKnown && !heldProp;
+            bool any = work != HandWork.None || lap;
+            if (any) { workShown = work; lapShown = lap; }
+            workBlend = Mathf.MoveTowards(workBlend, any ? 1f : 0f, Time.deltaTime / 0.45f);
+            float e = Mathf.SmoothStep(0f, 1f, workBlend), s = transform.lossyScale.y;
+            bool upright = Upright;
+            var fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+            for (int side = 0; side < 2; side++)
+            {
+                var goal = side == 0 ? AvatarIKGoal.LeftHand : AvatarIKGoal.RightHand;
+                var hint = side == 0 ? AvatarIKHint.LeftElbow : AvatarIKHint.RightElbow;
+                var p = anim.GetIKPosition(goal);
+                float w = 0f;
+                Vector3 t = default;
+                bool busy = e > 0f && HandTarget(side, out t);
+                if (busy && seen)
+                {
+                    // never a stiff straight arm: what is too far away is reached for, not reached
+                    float most = armSeen[side] * (lapShown || workShown == HandWork.Punch ? 0.97f : 0.86f);
+                    var v = t - shoulderSeen[side];
+                    if (v.magnitude > most) t = shoulderSeen[side] + v.normalized * most;
+                }
+                if (busy) { p = Vector3.Lerp(p, t, e); w = e; }
+                bool pushed = upright && OutOfChest(ref p);
+                clearW[side] = Mathf.MoveTowards(clearW[side], pushed ? 1f : 0f, Time.deltaTime / 0.2f);
+                w = Mathf.Max(w, clearW[side]);
+                anim.SetIKPosition(goal, p);
+                anim.SetIKPositionWeight(goal, w);
+                // the elbow hangs down beside the body, a little back
+                if (busy && seen)
+                {
+                    anim.SetIKHintPosition(hint, shoulderSeen[side] + transform.right * ((side == 0 ? -0.22f : 0.22f) * s) - Vector3.up * (0.35f * s) - fwd * (0.12f * s));
+                    anim.SetIKHintPositionWeight(hint, 0.6f * e);
+                }
+                else anim.SetIKHintPositionWeight(hint, 0f);
+            }
+        }
+
+        // ------------------------------------------------------------ arms clear of the body
+
+        PersonModel model;
+        readonly float[] armOut = new float[2];
+        static readonly HumanBodyBones[][] ArmBones =
+        {
+            new[] { HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand, HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftMiddleDistal },
+            new[] { HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand, HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightMiddleDistal },
+        };
+
+        /// <summary>
+        /// The clips were made on slim bare bodies: on someone with broad hips, a flared skirt or a coat the hanging arm
+        /// swings straight through the clothes (v0.52.0). The model knows its own outline (<see cref="PersonModel.BodyEdge"/>):
+        /// whenever the forearm, the wrist or the fingers would be inside it, the whole arm is swung out from the shoulder
+        /// by just enough, eased so it does not twitch.
+        /// </summary>
+        void ClearBody()
+        {
+            if (!animated) return;
+            if (!model) model = GetComponent<PersonModel>();
+            if (!model || model.bodyWide == null || model.bodyWide.Length == 0) return;
+            bool upright = Upright;
+            var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
+            if (!hips) return;
+            var centre = transform.InverseTransformPoint(hips.position);
+            for (int side = 0; side < 2; side++)
+            {
+                var upper = anim.GetBoneTransform(ArmBones[side][0]); var lower = anim.GetBoneTransform(ArmBones[side][1]); var hand = anim.GetBoneTransform(ArmBones[side][2]);
+                if (!upper || !lower || !hand) continue;
+                float sign = side == 0 ? -1f : 1f, need = 0f;
+                if (upright)
+                {
+                    var shoulder = transform.InverseTransformPoint(upper.position);
+                    var knuckle = anim.GetBoneTransform(ArmBones[side][3]); var tip = anim.GetBoneTransform(ArmBones[side][4]);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Vector3 w; float thick;
+                        if (i == 0) { w = Vector3.Lerp(lower.position, hand.position, 0.5f); thick = 0.05f; }
+                        else if (i == 1) { w = hand.position; thick = 0.04f; }
+                        else if (i == 2) { if (!knuckle) continue; w = knuckle.position; thick = 0.035f; }
+                        else { if (!tip) continue; w = tip.position; thick = 0.025f; }
+                        var l = transform.InverseTransformPoint(w);
+                        if (l.y > shoulder.y - 0.12f) continue;          // a raised hand is not swung out sideways
+                        if (!model.BodyEdge(l.y, l.z - centre.z, thick, out float edge)) continue;
+                        float inside = edge - sign * (l.x - centre.x);
+                        if (inside <= 0f) continue;
+                        need = Mathf.Max(need, Mathf.Atan2(inside, Mathf.Max(0.15f, shoulder.y - l.y)) * Mathf.Rad2Deg);
+                    }
+                }
+                armOut[side] = Mathf.Lerp(armOut[side], Mathf.Min(need, 34f), 1f - Mathf.Exp(-12f * Time.deltaTime));
+                if (armOut[side] > 0.05f) upper.rotation = Quaternion.AngleAxis(armOut[side] * sign, transform.forward) * upper.rotation;
+            }
+        }
+
         // ------------------------------------------------------------ relaxed hands
 
-        class HandRef { public Transform hand, forearm; public Vector3 fingers, palm; }
+        class HandRef { public Transform hand, forearm; public Vector3 fingers, palm; public bool right; }
         HandRef[] hands;
         float handRelax;
+
+        // one joint of a finger: its rotation in the model's own rest pose, the axis it curls about (in its own space) and
+        // how far it is curled already at rest
+        class Knuckle { public Transform t; public Quaternion rest; public Vector3 axis, side; public float restCurl, restSpread; public int finger, joint; }
+        Knuckle[] knuckles;
+        float grip;
+
+        // degrees of curl at the three joints of the index finger in a hand hanging loose and in one holding something;
+        // each further finger closes a little more
+        static readonly float[] LooseCurl = { 18f, 28f, 12f }, GripCurl = { 52f, 62f, 34f };
+
+        static readonly HumanBodyBones[][] FingerBones =
+        {
+            new[] { HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftIndexIntermediate, HumanBodyBones.LeftIndexDistal },
+            new[] { HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftMiddleIntermediate, HumanBodyBones.LeftMiddleDistal },
+            new[] { HumanBodyBones.LeftRingProximal, HumanBodyBones.LeftRingIntermediate, HumanBodyBones.LeftRingDistal },
+            new[] { HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftLittleIntermediate, HumanBodyBones.LeftLittleDistal },
+            new[] { HumanBodyBones.RightIndexProximal, HumanBodyBones.RightIndexIntermediate, HumanBodyBones.RightIndexDistal },
+            new[] { HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightMiddleIntermediate, HumanBodyBones.RightMiddleDistal },
+            new[] { HumanBodyBones.RightRingProximal, HumanBodyBones.RightRingIntermediate, HumanBodyBones.RightRingDistal },
+            new[] { HumanBodyBones.RightLittleProximal, HumanBodyBones.RightLittleIntermediate, HumanBodyBones.RightLittleDistal },
+        };
+        static readonly HumanBodyBones[] ThumbBones =
+        {
+            HumanBodyBones.LeftThumbProximal, HumanBodyBones.LeftThumbIntermediate, HumanBodyBones.LeftThumbDistal,
+            HumanBodyBones.RightThumbProximal, HumanBodyBones.RightThumbIntermediate, HumanBodyBones.RightThumbDistal,
+        };
 
         /// <summary>Which way the fingers point and the palm faces, in each hand's own space, read from the finger bones.</summary>
         void FindHands()
@@ -463,12 +809,101 @@ namespace Dearlife
                 if (palm.sqrMagnitude < 1e-10f) continue;
                 list.Add(new HandRef
                 {
-                    hand = hand, forearm = fore,
+                    hand = hand, forearm = fore, right = sign < 0f,
                     fingers = hand.InverseTransformDirection((m.position - hand.position).normalized),
                     palm = hand.InverseTransformDirection(palm.normalized),
                 });
             }
             hands = list.ToArray();
+            FindKnuckles();
+        }
+
+        /// <summary>
+        /// The fingers (v0.52.0). No clip moves them, and what Unity's humanoid system makes of an unanimated finger is a
+        /// spread claw on every model (v0.50.0 and v0.51.0 tried to tame it with muscle values and did not). So the fingers
+        /// are posed here on the model's own bones, from the model's own rest pose: the spread and the thumb stay as the
+        /// artist made them, and each joint is curled about its own axis to the same few degrees on every model.
+        /// </summary>
+        void FindKnuckles()
+        {
+            var list = new List<Knuckle>();
+            for (int f = 0; f < FingerBones.Length; f++)
+            {
+                var hand = anim.GetBoneTransform(f < 4 ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand);
+                var href = System.Array.Find(hands, x => x.hand == hand);
+                if (href == null) continue;
+                var palm = hand.TransformDirection(href.palm);
+                var before = hand.TransformDirection(href.fingers);      // the way the segment before this one points
+                for (int k = 0; k < 3; k++)
+                {
+                    var t = anim.GetBoneTransform(FingerBones[f][k]);
+                    if (!t) break;
+                    var next = k < 2 ? anim.GetBoneTransform(FingerBones[f][k + 1]) : (t.childCount > 0 ? t.GetChild(0) : null);
+                    // the last joint of most models has no bone after it, or an end bone that sits anywhere: it points
+                    // on the way the one before it does
+                    var dir = next && (next.position - t.position).sqrMagnitude > 1e-10f ? (next.position - t.position).normalized : before;
+                    if (k == 2 && Vector3.Angle(dir, before) > 50f) dir = before;
+                    var axis = Vector3.Cross(dir, palm);                 // turning about it brings the fingertip towards the palm
+                    if (axis.sqrMagnitude < 1e-6f) break;
+                    axis.Normalize();
+                    list.Add(new Knuckle
+                    {
+                        t = t, rest = t.localRotation, axis = t.InverseTransformDirection(axis), side = t.InverseTransformDirection(palm), finger = f % 4, joint = k,
+                        restCurl = Vector3.SignedAngle(Vector3.ProjectOnPlane(before, axis), Vector3.ProjectOnPlane(dir, axis), axis),
+                        // models are made with the fingers fanned apart (easier to skin): how far this one is turned
+                        // sideways from the line of the hand, at its first joint
+                        restSpread = k == 0 ? Vector3.SignedAngle(Vector3.ProjectOnPlane(before, palm), Vector3.ProjectOnPlane(dir, palm), palm) : 0f,
+                    });
+                    before = dir;
+                }
+            }
+            foreach (var b in ThumbBones)
+            {
+                var t = anim.GetBoneTransform(b);
+                if (t) list.Add(new Knuckle { t = t, rest = t.localRotation, joint = -1 });
+            }
+            knuckles = list.ToArray();
+        }
+
+        /// <summary>How closed the hands are: loose most of the time, round whatever is held.</summary>
+        float GripWanted()
+        {
+            if (heldProp) return 1f;
+            switch (work)
+            {
+                case HandWork.Surface: return 0.55f;
+                case HandWork.Type: return 0.2f;
+                case HandWork.Eat: return 0.45f;
+                case HandWork.Board: return 0.6f;
+                case HandWork.Reach: return -0.3f;
+                case HandWork.Punch: return 1f;
+            }
+            if (OnSeat && pose == Pose.Sit) return 0f;
+            switch (pose)
+            {
+                case Pose.Cook: case Pose.Exercise: return 0.7f;        // a spoon, the bars of a machine
+                case Pose.Wash: case Pose.Eat: case Pose.Drink: return 0.45f;
+                case Pose.Work: case Pose.Keys: case Pose.Guitar: return 0.2f;   // fingers over the keys
+                case Pose.Wave: case Pose.Swim: return -0.6f;           // an open hand
+                default: return 0f;
+            }
+        }
+
+        void PoseFingers()
+        {
+            if (!animated || knuckles == null) return;
+            grip = Mathf.MoveTowards(grip, GripWanted(), Time.deltaTime / 0.35f);
+            foreach (var k in knuckles)
+            {
+                if (!k.t) continue;
+                if (k.joint < 0) { k.t.localRotation = k.rest; continue; }   // the thumb, as the model rests it
+                float loose = LooseCurl[k.joint] + (k.joint == 2 ? 1.5f : 3f) * k.finger;
+                float want = grip >= 0f ? Mathf.Lerp(loose, GripCurl[k.joint] + 2f * k.finger, grip) : Mathf.Lerp(loose, 3f, -grip);
+                // the fan of the rest pose closed to a quarter (a hand at rest keeps its fingers together), opened again
+                    // for an open hand
+                float fan = Mathf.Clamp(k.restSpread * (grip < 0f ? Mathf.Lerp(0.25f, 0.8f, -grip) : 0.25f), -6f, 6f);
+                k.t.localRotation = k.rest * Quaternion.AngleAxis(fan - k.restSpread, k.side) * Quaternion.AngleAxis(want - k.restCurl, k.axis);
+            }
         }
 
         /// <summary>
@@ -479,18 +914,34 @@ namespace Dearlife
         void RelaxHands()
         {
             if (!animated || hands == null || hands.Length == 0) return;
-            bool want = (pose == Pose.Stand || pose == Pose.Walk) && !heldProp && !OnSeat;
+            bool want = (pose == Pose.Stand || pose == Pose.Walk) && !heldProp && !OnSeat && work == HandWork.None;
             handRelax = Mathf.MoveTowards(handRelax, want ? 1f : 0f, Time.deltaTime / 0.3f);
-            if (handRelax <= 0f) return;
+            float busy = Mathf.SmoothStep(0f, 1f, workBlend);
+            if (handRelax <= 0f && busy <= 0f) return;
             var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
             if (!hips) return;
+            var fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
             foreach (var h in hands)
             {
                 var along = h.hand.position - h.forearm.position;
+                if (along.sqrMagnitude < 1e-8f) continue;
+                var own = Quaternion.LookRotation(h.fingers, h.palm);                // the hand's own fingers and palm
+                if (busy > 0f)
+                {
+                    // a hand that works lies flat over what it works on (or against the board), fingers leading on from the forearm
+                    Vector3 fingers, palm;
+                    if (!lapShown && workShown == HandWork.Board) { if (!h.right) continue; fingers = Vector3.up + fwd * 0.6f; palm = fwd; }
+                    else if (!lapShown && workShown == HandWork.Punch) continue;                 // a fist goes the way the arm goes
+                    else if (!lapShown && workShown == HandWork.Eat && h.right) continue;      // the eating hand turns as the arm brings it
+                    else { fingers = Vector3.ProjectOnPlane(along, Vector3.up).normalized + fwd * 0.7f; palm = Vector3.down; }
+                    fingers = Vector3.ProjectOnPlane(fingers, palm);
+                    if (fingers.sqrMagnitude > 1e-6f)
+                        h.hand.rotation = Quaternion.Slerp(h.hand.rotation, Quaternion.LookRotation(fingers, palm) * Quaternion.Inverse(own), busy * 0.85f);
+                    continue;
+                }
                 var inward = hips.position - h.hand.position; inward.y = 0f;
                 inward = Vector3.ProjectOnPlane(inward, along);
-                if (along.sqrMagnitude < 1e-8f || inward.sqrMagnitude < 1e-6f) continue;
-                var own = Quaternion.LookRotation(h.fingers, h.palm);                // the hand's own fingers and palm
+                if (inward.sqrMagnitude < 1e-6f) continue;
                 var goal = Quaternion.LookRotation(along, inward) * Quaternion.Inverse(own);
                 h.hand.rotation = Quaternion.Slerp(h.hand.rotation, goal, handRelax * 0.9f);
             }
@@ -499,8 +950,11 @@ namespace Dearlife
         /// <summary>Whatever is left after the IK pass is corrected exactly, and fed back into the offset for the next frame.</summary>
         void LateUpdate()
         {
+            ClearBody();
             RelaxHands();
-            if (!OnSeat) return;
+            PoseFingers();
+            MeasureLegs();
+            if (!OnSeat) { RememberPose(); return; }
             var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
             if (!hips) return;
             var err = seat.transform.position - hips.position;
@@ -527,7 +981,16 @@ namespace Dearlife
                         var t = anim.GetBoneTransform(thigh); var s = anim.GetBoneTransform(shin);
                         if (t && s) Lift(t, s.position - t.position, seat.legRaise);
                     }
+                // the knees: bent down again after raised thighs (lying in a bath that is shorter than the legs), or the
+                // lower legs raised further (the far end of a hammock). Small values were never shown and stay that way
+                if (Mathf.Abs(seat.kneeBend) > 8f)
+                    foreach (var (shin, foot) in new[] { (HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot), (HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) })
+                    {
+                        var s = anim.GetBoneTransform(shin); var f = anim.GetBoneTransform(foot);
+                        if (s && f) Lift(s, f.position - s.position, -seat.kneeBend);
+                    }
             }
+            RememberPose();
         }
 
         /// <summary>Turns a bone (and all below it) so the direction it points rises towards vertical by the given angle.</summary>

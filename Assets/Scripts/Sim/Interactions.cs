@@ -204,7 +204,9 @@ namespace Dearlife
                 if (!NavMesh.SamplePosition(p, out var hit, onTop ? 1.1f : 0.4f, filter)) continue;
                 float dy = transform.position.y - hit.position.y;
                 if (onTop ? (dy < -0.1f || dy > 1.9f) : Mathf.Abs(dy) > 0.5f) continue;
-                found.Add((hit.position, (hit.position - from).sqrMagnitude + k * 0.5f));  // near, and front preferred
+                // near, and the front preferred; something long (a run of counters) is not used from its ends
+                bool wide = lb.extents.x > lb.extents.z * 2f;
+                found.Add((hit.position, (hit.position - from).sqrMagnitude + (k == 0 ? 0f : k == 4 ? 1f : wide ? 30f : k * 0.5f)));
             }
             found.Sort((x, y) => x.d.CompareTo(y.d));
             foreach (var fp in found) list.Add(fp.p);
