@@ -935,3 +935,18 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   layout (the pet bed and bowls, the study, the nightstands, the armchair upstairs). They were recorded as they stood,
   small slants included.
 
+### Where things stand at the end of 2026-10-01 (v0.54.0)
+
+Sessions 55 to 62 were one long day. What is open, for whoever picks this up next:
+
+- **To check by hand** (none of it could be done from a script): the G key, the Alt key and the Grid button in move
+  mode; turning the camera with the mouse now that the frame rate has doubled; the fingers, the third try at them.
+- **Known and left:** no outfits (baths and showers are taken dressed); a wide hat goes through headboards; two people
+  can still end up at one counter; the barbecue stands in a bush and the chalkboard behind a desk; people stand back
+  from the coffee machine; the default layout was recorded with a few pieces a few degrees off square.
+- **More frame rate to be had:** the fences, wall panels, string lights and fountain bulbs of the scene (about 1,300
+  renderers) are not joined yet, because build mode paints scene renderers by their path.
+- **The default garage** holds a Porsche and a BMW that can be sold in a new game for a lot of money.
+- **Housekeeping to remember:** after Dearlife > Set up character animation, look at `git diff --stat` before
+  committing: the controller file has once been rewritten with stale duplicates and had to be restored.
+

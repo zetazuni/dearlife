@@ -14,7 +14,7 @@ Made by Amir Ariffin (Zetazuni) for Lily ♥
 ## Features
 
 - A pre-built, fully furnished home with a free 360 degree orbit camera and walls that fade away as you look around
-- Decorate mode: pick up and place furniture, colour swatches for fabric/paint and wood/stone, undo and redo
+- Move mode: pick up and place furniture, a grid to line things up (G), colour swatches for fabric/paint and wood/stone, undo and redo
 - Build mode: walls, rooms, floors, doors, windows, stairs, roofs and pools, on three extra empty lots reached from a map
 - A life sim underneath: needs and mood, five careers with promotions, wishes, friendships, a day/night cycle and four seasons
 - A shop with furniture, decor, instruments, cars (real licensed models) and a dog to adopt
@@ -25,6 +25,10 @@ Made by Amir Ariffin (Zetazuni) for Lily ♥
 
 Playable. See `docs/devlog.md` for the full session-by-session history, and `CLAUDE.md` for the current
 version and a tour of how the project is put together.
+
+The people are ready made rigged models that are kept out of this repository (`Assets/Local`, they are other
+people's characters). A fresh clone shows plain stand-ins until you add your own: see "Adding a character" in
+`docs/UNITY_GUIDE.md`.
 
 ## Opening the project
 
