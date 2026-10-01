@@ -387,14 +387,25 @@ namespace Dearlife
             var body = anim.bodyPosition;
             float y = body.y - transform.position.y;
             hipAverage = hipAverage < 0f ? y : Mathf.Lerp(hipAverage, y, 1f - Mathf.Exp(-Time.deltaTime / 0.45f));
-            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.8f;
+            // legLift: the hips as high as this body's legs allow (see MeasureLegs). On a body with shorter legs than the
+            // cycle was made for, the whole walk was done on knees bent 45 to 70 degrees (v0.54.0)
+            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.8f + legLift;
             anim.bodyPosition = body;
-            foreach (var goal in new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot })
-            {
-                anim.SetIKPosition(goal, anim.GetIKPosition(goal));
-                anim.SetIKPositionWeight(goal, 1f);
-            }
+            var l = anim.GetIKPosition(AvatarIKGoal.LeftFoot);
+            var r = anim.GetIKPosition(AvatarIKGoal.RightFoot);
+            // and the feet on the floor: the lowest a foot comes in the cycle is where this body's ankle is when it stands
+            // (they floated 5 cm up). The lowest point is remembered and let go slowly, so the heel still lifts and the
+            // foot still swings exactly as the cycle has it
+            float low = Mathf.Min(l.y, r.y) - transform.position.y;
+            walkLow = walkLow < -90f ? low : Mathf.Min(low, walkLow + Time.deltaTime * 0.04f);
+            float drop = ankleHeight > 0f ? Mathf.Clamp(ankleHeight - walkLow, -0.1f, 0.1f) : 0f;
+            walkDrop = Mathf.Lerp(walkDrop, drop, 1f - Mathf.Exp(-Time.deltaTime / 0.25f));
+            l.y += walkDrop; r.y += walkDrop;
+            anim.SetIKPosition(AvatarIKGoal.LeftFoot, l); anim.SetIKPositionWeight(AvatarIKGoal.LeftFoot, 1f);
+            anim.SetIKPosition(AvatarIKGoal.RightFoot, r); anim.SetIKPositionWeight(AvatarIKGoal.RightFoot, 1f);
         }
+
+        float walkLow = -99f, walkDrop, walkPeak;
 
         /// <summary>
         /// Standing poses (v0.49.0): a recording retargeted onto a body with other proportions leaves the soles a few
@@ -477,7 +488,9 @@ namespace Dearlife
         {
             if (!animated) return;
             float s = transform.lossyScale.y;
-            if (!Tall) { legLift = Mathf.MoveTowards(legLift, 0f, Time.deltaTime * 0.4f); return; }
+            bool walking = !OnSeat && pose == Pose.Walk && speedSmooth > 0.05f;
+            if (!walking) { walkLow = -99f; walkPeak = 0f; }
+            if (!Tall && !walking) { legLift = Mathf.MoveTowards(legLift, 0f, Time.deltaTime * 0.4f); return; }
             float straightest = 0f, length = 0f;
             foreach (var (up, lo, ft) in new[] { (HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot), (HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) })
             {
@@ -487,6 +500,14 @@ namespace Dearlife
                 if (len < 1e-4f) return;
                 float ext = Vector3.Distance(a.position, c.position) / len;
                 if (ext > straightest) { straightest = ext; length = len; }
+            }
+            if (walking)
+            {
+                // walking, a leg is only straight for a moment in each stride: it is the straightest moment of the last
+                // stride that should be nearly straight, so the hips are raised or lowered slowly, over a few strides
+                walkPeak = Mathf.Max(straightest, walkPeak - Time.deltaTime * 0.06f);
+                legLift = Mathf.Clamp(legLift + (0.98f - walkPeak) * length * Mathf.Min(1f, Time.deltaTime * 2.5f), -0.03f * s, 0.14f * s);
+                return;
             }
             legLift = Mathf.Clamp(legLift + (0.975f - straightest) * length * Mathf.Min(1f, Time.deltaTime * 12f), -0.03f * s, 0.16f * s);
         }
@@ -671,10 +692,18 @@ namespace Dearlife
             var c = transform.InverseTransformPoint(hipsSeen);
             var l = transform.InverseTransformPoint(p);
             if (l.y < c.y) return false;
-            if (!model.FrontEdge(l.y, l.x - c.x, heldProp ? 0.10f : 0.055f, out float edge)) return false;
+            // (walking, the hand swings beside the body, where swinging the arm out is what keeps it clear: v0.53.0 took
+            // that hand for one inside the chest, pushed it 20 cm forward and let go of it in a single frame, every stride)
+            if (pose == Pose.Walk) return false;
+            if (!model.FrontEdge(l.y, l.x - c.x, heldProp ? 0.10f : 0.055f, out float edge, out float across)) return false;
             float z = l.z - c.z;
-            if (z >= edge || z < -0.02f) return false;
-            l.z = c.z + edge;
+            if (z >= edge) return false;
+            // all the way out for a hand well in front of the middle of the body, less and less towards its side and
+            // towards the hip bone, nothing beside or behind it: no place where the hand would jump
+            float push = (edge - z) * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.15f, 0.6f, z / Mathf.Max(edge, 0.01f)))
+                                    * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.85f, 0.55f, across));
+            if (push < 0.001f) return false;
+            l.z += push;
             p = transform.TransformPoint(l);
             return true;
         }

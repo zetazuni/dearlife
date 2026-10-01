@@ -42,14 +42,15 @@ namespace Dearlife
 
         /// <summary>How far forward of the hip bone the body reaches at this height, this far to the side of it, or
         /// false beside the body (there the arm is swung out sideways instead).</summary>
-        public bool FrontEdge(float y, float x, float margin, out float edge)
+        public bool FrontEdge(float y, float x, float margin, out float edge, out float across)
         {
-            edge = 0f;
+            edge = 0f; across = 1f;
             if (bodyWide == null || bodyWide.Length == 0) return false;
             int k = Mathf.FloorToInt(y / BodyStep);
             if (k < 0 || k >= bodyWide.Length || bodyWide[k] <= 0f) return false;
             float t = x / (bodyWide[k] + margin);
-            if (Mathf.Abs(t) >= 0.85f) return false;
+            across = Mathf.Abs(t);                        // 0 in front of the middle of the body, 1 at its side
+            if (across >= 0.85f) return false;
             edge = bodyFront[k] * Mathf.Sqrt(1f - t * t) + margin;
             return true;
         }

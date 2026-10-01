@@ -907,3 +907,18 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - **Dumbbells** (Amir: one pair, in the hands). They hung on the forearms at a fixed distance, so on most bodies they
   floated beside the hands. One is now held in each hand, the bar across the palm inside the closed fingers.
 
+## Session 61: the man's walk again (2026-10-01) · v0.53.1
+
+- **Amir:** when the man walks his right hand snaps every loop, and his legs are very wobbly.
+- Recorded Leon walking, every frame: where his hands and feet were and how bent his knees were, against the phase of
+  the stride. The right hand moved 22 cm in a single frame at the same point of every stride; the left never did. The
+  walk clip, played alone, was smooth on both sides, so the fault was in the game's own corrections.
+- **The hand.** It was the "keep a hand out of the chest" rule added in v0.52. A hand swinging beside the body was
+  taken for one inside it, pushed forward to the front of the coat and released in one frame. Only the right hand,
+  because it swings 3 cm closer to the body than the left. The rule is off while walking, and it no longer has any
+  edge where a hand can jump.
+- **The legs.** His knees never came straighter than 45 degrees and his feet floated 5 cm above where they stand at
+  rest: the cycle was made on longer legs. The feet are brought down to the floor and the hips raised until the leg
+  is nearly straight once a stride. Measured after: knees 20 to 56 degrees through the stride, the planted foot at
+  standing height, both hands at the same speed. Ada's walk measured the same way: 17 to 88 degrees, feet on the floor.
+
