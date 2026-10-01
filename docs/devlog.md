@@ -833,3 +833,20 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - **Found on the way:** with three characters installed Danial got the magic girl (a household without models was
   matched by list position). The default couple now takes the first woman and the first man.
 
+## Session 58: glass UI, the walks put right, relaxed fingers (2026-10-01) · v0.51.0
+
+- **Hands** (Amir: weird, two photos of clawed hands). The hand's direction was right (measured: in line with the
+  forearm, palm to the body); the fingers were not. On Unity's finger muscles 0 is already a half closed hand, so the
+  small negative values of v0.50.0 made a fist. Measured on the three models and set to about 0.5: 30 degrees of curl.
+- **The man's walk** (Amir: he does not lift his heels). The cause was in every baked clip: Unity takes the first frame
+  of a skeleton only FBX as the default pose and the avatar's neutral reference, and the walks started in mid stride.
+  His foot was referenced 31 degrees toes up. The files now start with a rest pose frame that the clip skips, and the
+  feet rest as they stand when planted (`flat=`). His foot now goes from 14 degrees toes up to 38 toes down while
+  walking (15 down at most before); her walk was corrected by the same change. Stride speeds measured again.
+- **A glass UI like inZOI** (Amir's screenshot). Every panel is see through glass with hairline borders and white
+  words; switched on things are solid white. The top strip is gone. Bottom centre is a people bar: name, mood and
+  activity in a pill, a round portrait of who you play, smaller ones for the rest. The portraits are real pictures of
+  the faces taken in the game. The needs are six round gauges over the bar. The title screen's side is smoked glass
+  too. The tutorial card moved up clear of the bar.
+- **Found on the way:** the game's depth of field (set for the far play camera) smeared the portraits, and a wall
+  could stand between the camera and the face: the portrait camera now sees the person alone, with the effect off.

@@ -113,30 +113,36 @@ namespace Dearlife
             var who = LiveMode.Selected;
 
             // ---- needs of the person you play
-            if (who != null && who.sim != null && !DecorateMode.Active && !Splash.Showing)
+            if (who != null && who.sim != null && !DecorateMode.Active && !Splash.Showing && !StatusOpen)
             {
+                // the needs: six round gauges on a glass card over the people bar, like inZOI (v0.51.0). Each fills from the
+                // bottom in its own colour and turns red when it runs low
                 var sim = who.sim;
-                float ch = 44f + 6f * 24f + (sim.wishes.Count > 0 ? 26f + sim.wishes.Count * 17f : 0f) + 10f;
-                needsPanel = new Rect(12f, h - 112f - ch, 262f, ch);
-                Ui.Box(needsPanel, Ui.Card.A(0.96f), Ui.Line, 18f, 2f, true);
-                float x = needsPanel.x + 14f, y = needsPanel.y + 10f;
-                Ui.Round(new Rect(x, y + 3f, 16f, 16f), sim.MoodColour, 8f);
-                Ui.Label(new Rect(x + 22f, y, 140f, 22f), who.displayName, 16f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
-                Ui.Label(new Rect(x + 22f, y + 19f, 150f, 16f), sim.MoodName, 12f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
-                if (Ui.Chip(new Rect(needsPanel.xMax - 82f, y + 2f, 68f, 24f), "Status", false, 12f)) StatusOpen = true;
-                y += 44f;
+                var bar = LiveMode.Bar;
+                const float cell = 62f, disc = 40f;
+                needsPanel = new Rect(Mathf.Max(12f, bar.center.x - cell * 3f - 10f), bar.y - 84f, cell * 6f + 20f, 76f);
+                Ui.Box(needsPanel, Ui.Panel, Ui.Line, 20f, 1f, true);
                 for (int i = 0; i < 6; i++)
                 {
-                    DrawIcon(new Rect(x, y + 1f, 16f, 16f), i);
-                    Ui.Label(new Rect(x + 22f, y, 70f, 18f), ((Need)i).ToString(), 12f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
                     float v = sim.needs[i] / 100f;
-                    Ui.Bar(new Rect(x + 92f, y + 4f, needsPanel.width - 92f - 28f, 10f), v, v < 0.22f ? Ui.Hex("e35d5d") : NeedColours[i]);
-                    y += 24f;
+                    var g = new Rect(needsPanel.x + 10f + i * cell + (cell - disc) * 0.5f, needsPanel.y + 9f, disc, disc);
+                    Ui.Gauge(g, v, (v < 0.22f ? Ui.Hex("e35d5d") : NeedColours[i]).A(0.9f));
+                    if (Event.current.type == EventType.Repaint)
+                    {
+                        var o = GUI.color; GUI.color = Color.white; GUI.DrawTexture(Ui.S(new Rect(g.x + 11f, g.y + 11f, 18f, 18f)), Icon(i)); GUI.color = o;
+                    }
+                    Ui.Label(new Rect(g.x - 11f, g.yMax + 3f, cell, 14f), ((Need)i).ToString(), 10.5f, Ui.Soft, TextAnchor.UpperCenter, Ui.Weight.ExtraBold);
                 }
-                y += 4f;
-                if (sim.wishes.Count > 0) Ui.Label(new Rect(x, y, 200f, 16f), "WISHES", 11f, Ui.Accent, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
-                y += 18f;
-                foreach (var wish in sim.wishes) { Ui.Label(new Rect(x, y, needsPanel.width - 24f, 16f), "· " + wish.text, 12f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.Bold); y += 17f; }
+                // the wishes keep their corner, bottom left
+                if (sim.wishes.Count > 0)
+                {
+                    float wh = 30f + sim.wishes.Count * 17f + 8f;
+                    var wr = new Rect(12f, h - 52f - wh, 250f, wh);
+                    Ui.Box(wr, Ui.Panel, Ui.Line, 16f, 1f, true);
+                    Ui.Label(new Rect(wr.x + 14f, wr.y + 9f, 200f, 16f), "WISHES", 11f, Ui.Accent, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
+                    float wy = wr.y + 28f;
+                    foreach (var wish in sim.wishes) { Ui.Label(new Rect(wr.x + 14f, wy, wr.width - 24f, 16f), "· " + wish.text, 12f, Ui.Ink.A(0.85f), TextAnchor.UpperLeft, Ui.Weight.Bold); wy += 17f; }
+                }
             }
             else needsPanel = Rect.zero;
 

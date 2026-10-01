@@ -172,7 +172,7 @@ namespace Dearlife.EditorTools
             imp.SaveAndReimport();
         }
 
-        /// <summary>A baked clip (BakedDir): all of it, looping, the body kept over the character like the recordings.</summary>
+        /// <summary>A baked clip (BakedDir): all of it but its first frame, looping, the body kept over the character like the recordings.</summary>
         static void ConfigureBaked(string path)
         {
             string key = System.IO.Path.GetFileName(path).Split('_')[0];
@@ -181,7 +181,8 @@ namespace Dearlife.EditorTools
             var take = imp.defaultClipAnimations[0];
             var clip = new ModelImporterClipAnimation
             {
-                name = key, takeName = take.takeName, firstFrame = take.firstFrame, lastFrame = take.lastFrame,
+                // the file's first frame is the rest pose (the avatar's reference, see tools/blender_anim.py): not part of the clip
+                name = key, takeName = take.takeName, firstFrame = take.firstFrame + 1f, lastFrame = take.lastFrame,
                 loopTime = true, loopPose = true,
                 lockRootRotation = true, keepOriginalOrientation = false,
                 lockRootHeightY = true, keepOriginalPositionY = true, heightFromFeet = false,
@@ -246,12 +247,16 @@ namespace Dearlife.EditorTools
         }
 
         const string HandsClip = "Assets/Resources/Animation/RelaxedHands.anim";
+        /// <summary>The index finger's three joints in the relaxed hand, as humanoid muscle values. Measured on the models:
+        /// 1 is straight, 0 is already a half closed hand (the middle finger curled 62 degrees) and -0.5 a fist; 0.5 gives
+        /// the 30 degrees of a hand hanging loose. Each further finger closes a touch more.</summary>
+        public static float[] FingerCurl = { 0.55f, 0.5f, 0.5f };
         const string HandsMask = "Assets/Resources/Animation/Fingers.mask";
 
         /// <summary>
         /// None of the clips move the fingers, and Unity's own resting fingers are spread wide open. A second layer, masked
-        /// to the fingers alone, holds them in a relaxed curl: a little more from the index finger to the little one, close
-        /// together, the thumb resting by the palm (v0.50.0).
+        /// to the fingers alone, holds them in a relaxed curl: a little more from the index finger to the little one (v0.51.0;
+        /// the first try used negative values and closed the hands into claws).
         /// </summary>
         static void AddHandsLayer(UnityEditor.Animations.AnimatorController ctrl)
         {
@@ -264,12 +269,12 @@ namespace Dearlife.EditorTools
             string[] fingers = { "Index", "Middle", "Ring", "Little" };
             for (int i = 0; i < fingers.Length; i++)
             {
-                Key(fingers[i] + ".1 Stretched", -0.18f - 0.08f * i);
-                Key(fingers[i] + ".2 Stretched", -0.30f - 0.08f * i);
-                Key(fingers[i] + ".3 Stretched", -0.30f - 0.05f * i);
-                Key(fingers[i] + ".Spread", -0.45f);
+                Key(fingers[i] + ".1 Stretched", FingerCurl[0] - 0.05f * i);
+                Key(fingers[i] + ".2 Stretched", FingerCurl[1] - 0.05f * i);
+                Key(fingers[i] + ".3 Stretched", FingerCurl[2] - 0.05f * i);
+                Key(fingers[i] + ".Spread", -0.1f);
             }
-            Key("Thumb.1 Stretched", -0.1f); Key("Thumb.2 Stretched", -0.2f); Key("Thumb.3 Stretched", -0.2f); Key("Thumb.Spread", -0.35f);
+            Key("Thumb.1 Stretched", 0.5f); Key("Thumb.2 Stretched", 0.5f); Key("Thumb.3 Stretched", 0.5f); Key("Thumb.Spread", 0f);
             var settings = AnimationUtility.GetAnimationClipSettings(clip);
             settings.loopTime = true;
             AnimationUtility.SetAnimationClipSettings(clip, settings);

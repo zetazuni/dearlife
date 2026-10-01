@@ -489,6 +489,11 @@ namespace Dearlife
             return Vector2.Distance(screenPoint / scale, pieCenter) < PieRadius + PieDisc * 0.5f + 6f;
         }
 
+        /// <summary>Where the people bar is on the screen (ui units), for the needs above it.</summary>
+        public static Rect Bar { get; private set; }
+
+        void LateUpdate() { if (!MainMenu.Busy) Portraits.Tick(); }
+
         void OnGUI()
         {
             Ui.Begin();
@@ -496,41 +501,50 @@ namespace Dearlife
             float w = Ui.W, h = Ui.H;
             speedPanel = Rect.zero;
             if (Splash.Showing) return;
+            if (MainMenu.Busy) { portraits = Rect.zero; return; }       // the title screen and the selection have the screen
 
             if (DecorateMode.Active) { portraits = Rect.zero; return; }
 
-            // the people, bottom left under the needs panel: little cards like the 2D game's
+            // the people, bottom centre like inZOI (v0.51.0): who you play as a big round picture with their name, mood and
+            // what they are doing beside it, the rest of the household as smaller pictures to click
             var people = new List<Character>();
             foreach (var c in Character.All) if (!c.isPet) people.Add(c);
-            const float cardW = 178f, cardH = 54f;
-            portraits = new Rect(12f, h - 108f, cardW * Mathf.Max(1, people.Count) + 8f * Mathf.Max(0, people.Count - 1), cardH);
-            float px = portraits.x;
+            bool stop = Selected != null && (Selected.Queued > 0 || Selected.OnOrder);
+            const float big = 68f, small = 46f, pad = 10f, pillW = 190f;
+            int others = Mathf.Max(0, people.Count - (Selected != null && people.Contains(Selected) ? 1 : 0));
+            float bw = pad + pillW + 10f + big + others * (small + 8f) + (stop ? 74f : 0f) + pad + 6f;
+            float mid = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
+            portraits = new Rect(Mathf.Max(12f, mid - bw * 0.5f), h - 46f - (big + 2f * pad), bw, big + 2f * pad);
+            Bar = portraits;
+            Ui.Box(portraits, Ui.Panel, Ui.Line, portraits.height * 0.5f, 1f, true);
+            float px = portraits.x + pad, cy = portraits.center.y;
+            if (Selected != null && Selected.sim != null)
+            {
+                // name, mood and activity: click for the status window
+                var pill = new Rect(px, cy - 25f, pillW, 50f);
+                bool hov = Ui.Hover(pill);
+                Ui.Round(pill, hov ? Ui.Pale : Ui.Surface, 25f);
+                Ui.Round(new Rect(pill.x + 14f, pill.y + 12f, 10f, 10f), Selected.sim.MoodColour, 5f);
+                Ui.Label(new Rect(pill.x + 32f, pill.y + 6f, pillW - 44f, 20f), Selected.displayName, 15f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
+                Ui.Label(new Rect(pill.x + 14f, pill.y + 27f, pillW - 26f, 16f), Selected.sim.MoodName + "  ·  " + Selected.Activity + (Selected.Queued > 0 ? $" (+{Selected.Queued})" : ""), 11f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.Bold);
+                if (GUI.Button(Ui.S(pill), GUIContent.none, GUIStyle.none)) SimUi.OpenStatus();
+                px += pillW + 10f;
+                var face = new Rect(px, cy - big * 0.5f, big, big);
+                Ui.Portrait(face, Portraits.Of(Selected), Selected.displayName.Substring(0, 1), Selected.sim.MoodColour, Selected.sim.MoodColour, 3f);
+                if (GUI.Button(Ui.S(face), GUIContent.none, GUIStyle.none)) { GameAudio.Play(GameAudio.Sfx.Click); OrbitCamera.Instance.FocusOn(Selected.transform.position, 8f); }
+                px += big + 8f;
+            }
             foreach (var c in people)
             {
-                var r = new Rect(px, portraits.y, cardW, cardH);
-                bool me = c == Selected;
-                Ui.Round(new Rect(r.x, r.y + 3f, r.width, r.height), new Color(0.47f, 0.23f, 0.16f, 0.09f), 16f);
+                if (c == Selected) continue;
+                var r = new Rect(px, cy - small * 0.5f, small, small);
                 bool hover = Ui.Hover(r);
-                Ui.Round(r, me ? Ui.Pale : Ui.Card.A(0.97f), 16f);
-                Ui.Ring(r, me || hover ? Ui.Pink : Ui.Line, 2f, 16f);
-                Ui.Round(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.sim ? c.sim.MoodColour : Ui.Line, 17f);
-                Ui.Label(new Rect(r.x + 10f, r.y + 10f, 34f, 34f), c.displayName.Substring(0, 1), 18f, Color.white, TextAnchor.MiddleCenter, Ui.Weight.ExtraBold);
-                Ui.Label(new Rect(r.x + 52f, r.y + 7f, cardW - 60f, 20f), c.displayName, 15f, Ui.Ink, TextAnchor.MiddleLeft, Ui.Weight.ExtraBold);
-                Ui.Label(new Rect(r.x + 52f, r.y + 27f, cardW - 60f, 18f), c.Activity + (c.Queued > 0 ? $" (+{c.Queued})" : ""), 11f, Ui.Soft, TextAnchor.MiddleLeft, Ui.Weight.Bold);
-                if (GUI.Button(Ui.S(r), GUIContent.none, GUIStyle.none))
-                {
-                    GameAudio.Play(GameAudio.Sfx.Click);
-                    if (c == Selected) OrbitCamera.Instance.FocusOn(c.transform.position, 8f);
-                    Select(c);
-                }
-                px += cardW + 8f;
+                Ui.Portrait(r, Portraits.Of(c), c.displayName.Substring(0, 1), c.sim ? c.sim.MoodColour : Ui.Line, hover ? Ui.Pink : Ui.Line, hover ? 2f : 1.25f);
+                if (hover) Ui.Tag(new Vector2(r.center.x, r.y - 14f) * Ui.Scale, c.displayName + "  ·  " + c.Activity, 12f);
+                if (GUI.Button(Ui.S(r), GUIContent.none, GUIStyle.none)) { GameAudio.Play(GameAudio.Sfx.Click); Select(c); }
+                px += small + 8f;
             }
-
-            if (Selected != null && (Selected.Queued > 0 || Selected.OnOrder))
-            {
-                if (Ui.Pill(new Rect(portraits.xMax + 8f, portraits.y + 12f, 64f, 30f), "Stop", false, 13f)) Selected.CancelOrders();
-                portraits.width += 76f;
-            }
+            if (stop && Ui.Pill(new Rect(px + 2f, cy - 15f, 64f, 30f), "Stop", false, 13f)) Selected.CancelOrders();
 
             // where the last walk order went
             if (Time.unscaledTime < markerUntil && Camera.main)

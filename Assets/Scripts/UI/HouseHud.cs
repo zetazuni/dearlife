@@ -78,10 +78,8 @@ namespace Dearlife
         void DrawTopBar(float w)
         {
             TopBar = new Rect(0f, 0f, w, BarH);
-            Ui.Rect2(TopBar, Ui.Card.A(0.93f));
-            Ui.Rect2(new Rect(0f, BarH - 2f, w, 2f), Ui.Dark ? Ui.Pink : Ui.Line);
-
-            Ui.Label(new Rect(18f, 3f, 220f, 40f), "Dearlife", 34f, Ui.Rose, TextAnchor.UpperLeft, Ui.Weight.Script);
+            // no strip behind it: the pills float over the scene on their own glass
+            Ui.Label(new Rect(18f, 3f, 220f, 40f), "Dearlife", 34f, Ui.Ink, TextAnchor.UpperLeft, Ui.Weight.Script);
             Ui.Label(new Rect(20f, 37f, 220f, 16f), $"v{GameInfo.Version}", 11f, Ui.Soft, TextAnchor.UpperLeft, Ui.Weight.ExtraBold);
 
             float x = 200f, y = 12f, ph = 34f;
@@ -208,7 +206,7 @@ namespace Dearlife
                      : "Click the floor to walk  ·  click things for their menu  ·  WASD move  ·  M map  ·  P move furniture  ·  Space pause";
             float tw = Mathf.Min(Ui.TextWidth(s, 13f) + 26f, w - (PanelOpen ? SideW : 0f) - 40f);
             var r = new Rect(12f, h - 40f, tw, 28f);
-            Ui.Round(r, Ui.Card.A(0.92f), 14f);
+            Ui.Round(r, Ui.Card.A(0.8f), 14f);
             Ui.Label(r, s, 13f, Ui.Soft, TextAnchor.MiddleCenter, Ui.Weight.Bold);
         }
 

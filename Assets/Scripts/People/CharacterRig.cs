@@ -43,7 +43,7 @@ namespace Dearlife
         bool animated;
         // metres a second the walks cover at normal playback on a person whose hips rest 0.95 m high, measured in the game
         // from how fast a planted foot moves back under the body: the masculine one and the feminine one
-        const float WalkClipSpeedM = 1.16f, WalkClipSpeedF = 1.30f;
+        const float WalkClipSpeedM = 0.97f, WalkClipSpeedF = 1.21f;
         float feminine = -1f;
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
@@ -348,15 +348,14 @@ namespace Dearlife
         /// <summary>
         /// Walking (v0.50.0): the walks are hand made cycles with the feet already where they belong. The feet follow the
         /// cycle's own foot goals, which keeps the soles on the floor on a body with other proportions than the one the
-        /// cycle was made on, and the rise and fall of the hips is eased to half round its running average (the
-        /// feminine cycle bobs 7 cm as made, which read as bouncing).
+        /// cycle was made on, and the rise and fall of the hips is eased a little round its running average.
         /// </summary>
         void WalkIK()
         {
             var body = anim.bodyPosition;
             float y = body.y - transform.position.y;
             hipAverage = hipAverage < 0f ? y : Mathf.Lerp(hipAverage, y, 1f - Mathf.Exp(-Time.deltaTime / 0.45f));
-            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.5f;
+            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.8f;
             anim.bodyPosition = body;
             foreach (var goal in new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot })
             {

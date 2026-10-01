@@ -3,9 +3,12 @@ using UnityEngine;
 namespace Dearlife
 {
     /// <summary>
-    /// The look of the 2D Tiramisu App, for every panel of the game: warm cream cards, soft pink borders, round pills, Nunito for the words
-    /// and Great Vibes for the title. Everything is drawn with rounded rectangles (no texture files), and all rectangles you pass in are in
-    /// "ui units" (the screen is 900 units high at the normal size), so text stays sharp at any resolution.
+    /// The look of every panel of the game (v0.51.0): clean see through glass over the scene, like inZOI. Smoked glass with
+    /// white words in the dark mode, frosted white glass with dark words in the light one; thin soft borders, round pills,
+    /// whatever is switched on filled solid. Nunito for the words and Great Vibes for the title. Everything is drawn with
+    /// rounded rectangles (no texture files), and all rectangles you pass in are in "ui units" (the screen is 900 units high
+    /// at the normal size), so text stays sharp at any resolution. The palette colours carry their own transparency, and
+    /// <see cref="A"/> multiplies it, so a panel asked for at 0.96 stays glass.
     /// </summary>
     public static class Ui
     {
@@ -15,17 +18,23 @@ namespace Dearlife
         /// <summary>Whether name tags show above people and pets. Always off on the title screen regardless of this.</summary>
         public static bool ShowNames { get; private set; } = true;
         public static void SetShowNames(bool on) { ShowNames = on; PlayerPrefs.SetInt("dearlife.showNames", on ? 1 : 0); }
-        static readonly Color inkL = Hex("5b4636"), inkD = Hex("eaf3ff"), softL = Hex("8c7462"), softD = Hex("a9b3e8"), cardL = Hex("fff8ef"), cardD = Hex("161129");
-        static readonly Color lineL = Hex("f0dcc6"), lineD = Hex("3a2f66"), pinkL = Hex("f4a6b7"), pinkD = Hex("ff4fa8"), accL = Hex("e98aa0"), accD = Hex("57e6ff");
-        static readonly Color goldL = Hex("f2b84b"), goldD = Hex("ffd3ec"), goldTL = Hex("c98a17"), goldTD = Hex("ffd3ec"), roseL = Hex("b5566e"), roseD = Hex("ff8fc9");
-        static readonly Color cream2L = Hex("fdeedd"), cream2D = Hex("140f28"), paleL = Hex("ffeef2"), paleD = Hex("211a44"), paperL = Hex("fffaf4"), paperD = Hex("160f2e");
-        static readonly Color surfL = Color.white, surfD = Hex("171130"), onL = Color.white, onD = Hex("0a0716"), panelL = Color.white, panelD = Hex("100c22");
+        static Color G(float r, float g, float b, float a) => new Color(r, g, b, a);
+        static readonly Color inkL = Hex("1b1e24"), inkD = G(1f, 1f, 1f, 0.96f), softL = G(0.1f, 0.12f, 0.15f, 0.62f), softD = G(1f, 1f, 1f, 0.62f);
+        static readonly Color cardL = G(1f, 1f, 1f, 0.86f), cardD = G(0.07f, 0.08f, 0.10f, 0.8f), panelL = G(1f, 1f, 1f, 0.62f), panelD = G(0.06f, 0.07f, 0.09f, 0.55f);
+        static readonly Color lineL = G(0f, 0f, 0f, 0.12f), lineD = G(1f, 1f, 1f, 0.16f), pinkL = G(0f, 0f, 0f, 0.4f), pinkD = G(1f, 1f, 1f, 0.6f);
+        static readonly Color accL = Hex("2f6fd0"), accD = Hex("9fd0ff"), goldL = Hex("f2b84b"), goldD = Hex("ffd98a"), goldTL = Hex("a8730d"), goldTD = Hex("ffd98a");
+        static readonly Color roseL = Hex("c2334d"), roseD = Hex("ff9aa8"), cream2L = G(1f, 1f, 1f, 0.3f), cream2D = G(1f, 1f, 1f, 0.04f);
+        static readonly Color paleL = G(1f, 1f, 1f, 0.9f), paleD = G(1f, 1f, 1f, 0.22f), paperL = G(1f, 1f, 1f, 0.45f), paperD = G(1f, 1f, 1f, 0.07f);
+        static readonly Color surfL = G(1f, 1f, 1f, 0.6f), surfD = G(1f, 1f, 1f, 0.10f), onL = Color.white, onD = Hex("14171c");
+        static readonly Color fillL = G(0.1f, 0.12f, 0.15f, 0.9f), fillD = G(1f, 1f, 1f, 0.93f);
         public static Color Ink => Dark ? inkD : inkL;
         public static Color Soft => Dark ? softD : softL;
+        /// <summary>The denser glass of windows and panels full of words (the status window, the side panel); the small
+        /// floating pieces (the people bar, the needs) use the lighter <see cref="Panel"/>.</summary>
         public static Color Card => Dark ? cardD : cardL;
         public static Color Line => Dark ? lineD : lineL;
         public static Color Pink => Dark ? pinkD : pinkL;
-        /// <summary>The colour of small highlights: rose in the day, ice blue at night.</summary>
+        /// <summary>The colour of small highlights: a clear blue.</summary>
         public static Color Accent => Dark ? accD : accL;
         public static Color Gold => Dark ? goldD : goldL;
         public static Color GoldText => Dark ? goldTD : goldTL;
@@ -40,17 +49,19 @@ namespace Dearlife
         /// <summary>The white of the big panel cards.</summary>
         public static Color Panel => Dark ? panelD : panelL;
         public static Color White => Color.white;
-        public static readonly Color Green = Hex("bfe3c4"), GreenPale = Hex("f4fbf3"), Night = Hex("171130");
+        public static readonly Color Green = Hex("bfe3c4"), GreenPale = Hex("f4fbf3");
+        /// <summary>The smoked glass of the title screen's side, whichever mode is on.</summary>
+        public static readonly Color Night = new Color(0.04f, 0.05f, 0.07f, 0.7f);
 
         public static Color Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
-        public static Color A(this Color c, float a) { c.a = a; return c; }
+        /// <summary>The colour more see through by this much (the palette's glass keeps its own transparency).</summary>
+        public static Color A(this Color c, float a) { c.a *= a; return c; }
 
         public static float Scale { get; private set; } = 1f;
         public static float W { get; private set; }
         public static float H { get; private set; }
 
         static Font body, bold, xbold, script;
-        static Texture2D gradient;
         static GUIStyle text;
         static Texture2D white;
 
@@ -66,9 +77,6 @@ namespace Dearlife
                 white = Texture2D.whiteTexture;
                 Dark = PlayerPrefs.GetInt("dearlife.dark", 0) == 1;
                 ShowNames = PlayerPrefs.GetInt("dearlife.showNames", 1) == 1;
-                gradient = new Texture2D(64, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-                for (int i = 0; i < 64; i++) gradient.SetPixel(i, 0, Color.Lerp(Hex("ff4fa8"), Hex("57e6ff"), i / 63f));
-                gradient.Apply();
                 text = new GUIStyle(GUI.skin.label) { richText = false, clipping = TextClipping.Overflow, padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(0, 0, 0, 0) };
             }
             Scale = Mathf.Max(0.85f, Screen.height / 900f);
@@ -92,41 +100,53 @@ namespace Dearlife
         public static void Ring(Rect r, Color c, float width, float radius)
         {
             if (Event.current.type != EventType.Repaint || c.a <= 0f) return;
-            float rad = Mathf.Min(radius, Mathf.Min(r.width, r.height) * 0.5f) * Scale, bw = width * Scale;
+            // glass has hairline borders: whatever width is asked for, the line stays thin
+            float rad = Mathf.Min(radius, Mathf.Min(r.width, r.height) * 0.5f) * Scale, bw = Mathf.Max(1f, Mathf.Min(width, 1.25f) * Scale);
             GUI.DrawTexture(S(r), white, ScaleMode.StretchToFill, true, 0f, c, new Vector4(bw, bw, bw, bw), new Vector4(rad, rad, rad, rad));
         }
 
-        /// <summary>The fill of anything switched on: rose by day, the pink to ice blue gradient at night.</summary>
-        public static void OnFill(Rect r, float radius)
+        /// <summary>The fill of anything switched on: solid white on the smoked glass, solid dark on the frosted one.</summary>
+        public static void OnFill(Rect r, float radius) => Round(r, Dark ? fillD : fillL, radius);
+
+        /// <summary>A round picture (a face in the people bar), or a coloured disc with a letter while there is none.</summary>
+        public static void Portrait(Rect r, Texture picture, string letter, Color disc, Color ring, float ringWidth = 2f)
         {
             if (Event.current.type != EventType.Repaint) return;
-            if (!Dark) { Round(r, Accent, radius); return; }
-            float rad = Mathf.Min(radius, Mathf.Min(r.width, r.height) * 0.5f) * Scale;
-            GUI.DrawTexture(S(r), gradient, ScaleMode.StretchToFill, true, 0f, Color.white, Vector4.zero, new Vector4(rad, rad, rad, rad));
+            float rad = r.height * 0.5f * Scale;
+            if (picture) GUI.DrawTexture(S(r), picture, ScaleMode.ScaleAndCrop, false, 0f, Color.white, Vector4.zero, new Vector4(rad, rad, rad, rad));
+            else
+            {
+                Round(r, disc, r.height);
+                Label(r, letter, r.height * 0.42f, Color.white, TextAnchor.MiddleCenter, Weight.ExtraBold);
+            }
+            float bw = ringWidth * Scale;
+            GUI.DrawTexture(S(r), white, ScaleMode.StretchToFill, true, 0f, ring, new Vector4(bw, bw, bw, bw), new Vector4(rad, rad, rad, rad));
         }
 
-        static void GradientRing(Rect r, float width, float radius)
+        /// <summary>A round gauge that fills from the bottom (a need in the people bar).</summary>
+        public static void Gauge(Rect r, float value01, Color fill)
         {
-            float rad = Mathf.Min(radius, Mathf.Min(r.width, r.height) * 0.5f) * Scale, bw = width * Scale;
-            GUI.DrawTexture(S(r), gradient, ScaleMode.StretchToFill, true, 0f, Color.white, new Vector4(bw, bw, bw, bw), new Vector4(rad, rad, rad, rad));
+            if (Event.current.type != EventType.Repaint) return;
+            Round(r, Surface, r.height);
+            float v = Mathf.Clamp01(value01), rad = r.height * 0.5f * Scale;
+            if (v > 0.01f)
+            {
+                float cut = r.height * (1f - v);
+                GUI.BeginGroup(S(new Rect(r.x, r.y + cut, r.width, r.height - cut)));
+                GUI.DrawTexture(new Rect(0f, -cut * Scale, r.width * Scale, r.height * Scale), white, ScaleMode.StretchToFill, true, 0f, fill, Vector4.zero, new Vector4(rad, rad, rad, rad));
+                GUI.EndGroup();
+            }
+            Ring(r, Line, 1f, r.height);
         }
 
         /// <summary>A card: a fill, a border, and optionally a soft shadow under it.</summary>
         public static void Box(Rect r, Color fill, Color border, float radius = 14f, float borderWidth = 2f, bool shadow = false)
         {
             if (Event.current.type != EventType.Repaint) return;
-            if (shadow)
-            {
-                Round(new Rect(r.x - 1f, r.y + 5f, r.width + 2f, r.height), Dark ? new Color(0f, 0f, 0f, 0.2f) : new Color(0.47f, 0.23f, 0.16f, 0.07f), radius + 2f);
-                Round(new Rect(r.x, r.y + 3f, r.width, r.height), Dark ? new Color(0f, 0f, 0f, 0.3f) : new Color(0.47f, 0.23f, 0.16f, 0.09f), radius);
-            }
-            if (Dark && borderWidth >= 3f)
-            {
-                Round(new Rect(r.x - 6f, r.y - 6f, r.width + 12f, r.height + 12f), new Color(1f, 0.31f, 0.66f, 0.09f), radius + 6f);
-                Round(new Rect(r.x - 3f, r.y - 3f, r.width + 6f, r.height + 6f), new Color(0.34f, 0.9f, 1f, 0.09f), radius + 3f);
-            }
+            // a shadow outside the card only: under see through glass it would darken the glass itself
+            if (shadow) Ring(new Rect(r.x - 2f, r.y - 1f, r.width + 4f, r.height + 5f), new Color(0f, 0f, 0f, Dark ? 0.16f : 0.07f), 1.25f, radius + 2f);
             Round(r, fill, radius);
-            if (borderWidth > 0f) { if (Dark && borderWidth >= 3f) GradientRing(r, borderWidth, radius); else Ring(r, border, borderWidth, radius); }
+            if (borderWidth > 0f) Ring(r, border, borderWidth, radius);
         }
 
         public static void Rect2(Rect r, Color c) { if (Event.current.type == EventType.Repaint) GUI.DrawTexture(S(r), white, ScaleMode.StretchToFill, true, 0f, c, 0f, 0f); }
@@ -271,9 +291,7 @@ namespace Dearlife
             Round(track, Line, 3f);
             Round(new Rect(track.x, track.y, track.width * t, track.height), Pink, 3f);
             var knob = new Rect(track.x + track.width * t - 9f, r.center.y - 9f, 18f, 18f);
-            Round(new Rect(knob.x, knob.y + 2f, 18f, 18f), new Color(0.4f, 0.2f, 0.1f, 0.12f), 9f);
-            Round(knob, Surface, 9f);
-            Ring(knob, Dark ? Pink : Accent, 3f, 9f);
+            Round(knob, Dark ? fillD : fillL, 9f);
             return value;
         }
 

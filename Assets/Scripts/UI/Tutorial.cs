@@ -42,7 +42,7 @@ namespace Dearlife
             float w = Ui.W;
             float bw = 360f, bh = 190f;
             float cx = (w - (HouseHud.PanelOpen ? 350f : 0f)) * 0.5f;
-            box = new Rect(cx - bw * 0.5f, Ui.H - bh - 60f, bw, bh);
+            box = new Rect(cx - bw * 0.5f, Ui.H - bh - 236f, bw, bh);       // clear of the people bar and the needs over it
             Ui.Box(box, Ui.Card, Ui.Pink, 22f, 3f, true);
             float dy = swap * 6f;
             var a = 1f - swap;

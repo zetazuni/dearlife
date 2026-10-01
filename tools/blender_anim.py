@@ -16,7 +16,9 @@ Run with Blender in the background:
 
 For bake, the key=value pairs say which of the file's bones is which standard bone (Hips=hips Spine=spine ...); a name
 ending in .L or .R may be given once as LeftX=name.L and the right side is found by itself. action=<name> plays that
-action instead of what the file has on the rig. turn=180 turns a character that faces +Y round.
+action instead of what the file has on the rig. turn=180 turns a character that faces +Y round. flat=<frame> names a
+frame where the left foot stands flat on the ground: Unity reads the rest pose as "foot flat", so a rig that rests with
+its feet tilted would walk with its toes up and never lift a heel (the right foot is read half a cycle later).
 
 The idle is made here from nothing (no recording): a relaxed stand with slow breathing and a slight shift of weight.
 """
@@ -69,8 +71,19 @@ def new_rig(heads, tails=None, mats=None):
 
 def export(rig, name, first, last, fps):
     sc = bpy.context.scene
-    sc.frame_start, sc.frame_end = first, last
+    sc.frame_start, sc.frame_end = first - 1, last
     sc.render.fps = fps
+    # Unity takes the first frame of the file as the model's own default pose, and that as the neutral reference for
+    # every muscle: starting in mid stride, the whole walk comes out skewed (toes up, heels never lifting). So the file
+    # starts one frame early with the rest pose, and Unity's clip skips that frame (ConfigureBaked)
+    for pb in rig.pose.bones:
+        pb.rotation_mode = 'QUATERNION'
+        pb.location = (0.0, 0.0, 0.0)
+        pb.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+        pb.scale = (1.0, 1.0, 1.0)
+        for path in ("location", "rotation_quaternion", "scale"):
+            pb.keyframe_insert(path, frame=first - 1)
+    sc.frame_set(first - 1)
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.object.select_all(action='DESELECT')
     rig.select_set(True)
@@ -84,7 +97,9 @@ def export(rig, name, first, last, fps):
     return path
 
 
-def bake(arm_name, clip, first, last, names, action=None, turn=0.0):
+def bake(arm_name, clip, first, last, names, action=None, turn=0.0, flat=None):
+    if first < 1:
+        raise RuntimeError("the first frame must be 1 or later: the frame before it holds the rest pose (see export)")
     sc = bpy.context.scene
     src = bpy.data.objects[arm_name]
     fps = sc.render.fps
@@ -127,6 +142,22 @@ def bake(arm_name, clip, first, last, names, action=None, turn=0.0):
         m = rot @ src.data.bones[b].matrix_local
         m.translation = heads[s]
         mats[s] = m
+    if flat is not None:
+        # the feet and toes rest the way they stand when planted, not the way the source rig rests
+        half = (last - first) // 2
+        for side, frame in (("Left", flat), ("Right", first + (flat - first + half) % (last - first))):
+            sc.frame_set(frame)
+            pose = {part: src.matrix_world @ src.pose.bones[full[side + part]].matrix for part in ("Foot", "Toes")}
+            tail = src.matrix_world @ src.pose.bones[full[side + "Toes"]].tail
+            # Unity reads where the toe joint lies from the ankle, so the joint itself moves to where it is when planted
+            heads[side + "Toes"] = heads[side + "Foot"] + (pose["Toes"].translation - pose["Foot"].translation)
+            tails[side + "Foot"] = heads[side + "Toes"]
+            tails[side + "Toes"] = heads[side + "Toes"] + (tail - pose["Toes"].translation)
+            for part in ("Foot", "Toes"):
+                m = pose[part].to_quaternion().to_matrix().to_4x4()
+                m.translation = heads[side + part]
+                mats[side + part] = m
+        sc.frame_set(first)
     rig = new_rig(heads, tails, mats)
     for s, b in full.items():
         c = rig.pose.bones[s].constraints.new('COPY_TRANSFORMS')
@@ -194,8 +225,8 @@ def idle(clip, seconds=6.0, fps=30):
         return rest[name].inverted() @ q @ rest[name]
 
     n = int(seconds * fps)
-    for f in range(n + 1):
-        t = f / n * 2 * math.pi
+    for f in range(1, n + 2):                    # frame 0 is left for the rest pose (see export)
+        t = (f - 1) / n * 2 * math.pi
         breath = math.sin(t * 2)                 # two breaths in the loop
         sway = math.sin(t)                       # one shift of weight, there and back
         late = math.sin(t - 0.5)
@@ -222,7 +253,7 @@ def idle(clip, seconds=6.0, fps=30):
             b.keyframe_insert("rotation_quaternion", frame=f)
         pb["Hips"].keyframe_insert("location", frame=f)
     bpy.ops.object.mode_set(mode='OBJECT')
-    return f"{clip}: {seconds:.0f} s at {fps} fps, made here -> {export(rig, clip, 0, n, fps)}"
+    return f"{clip}: {seconds:.0f} s at {fps} fps, made here -> {export(rig, clip, 1, n + 1, fps)}"
 
 
 if __name__ == "__main__" and "--" in sys.argv:
@@ -233,4 +264,5 @@ if __name__ == "__main__" and "--" in sys.argv:
         kv = dict(x.split("=", 1) for x in a[5:])
         action = kv.pop("action", None)
         turn = float(kv.pop("turn", 0))
-        print("ANIM", bake(a[1], a[2], int(a[3]), int(a[4]), kv, action, turn))
+        flat = kv.pop("flat", None)
+        print("ANIM", bake(a[1], a[2], int(a[3]), int(a[4]), kv, action, turn, int(flat) if flat else None))
