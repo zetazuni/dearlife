@@ -149,6 +149,7 @@ namespace Dearlife
                 float ux = group.x - 10f - 84f;
                 if (Ui.Pill(new Rect(ux, y, 84f, ph), "Redo", false, 13f, canRedo)) { if (build) BuildMode.Instance.RedoBuild(); else dec.Redo(); }
                 if (Ui.Pill(new Rect(ux - 92f, y, 84f, ph), "Undo", false, 13f, canUndo)) { if (build) BuildMode.Instance.UndoBuild(); else dec.Undo(); }
+                if (DecorateMode.Active && !build && dec != null && Ui.Pill(new Rect(ux - 92f - 108f, y, 100f, ph), "Grid (G)", MoveGrid.On, 13f)) dec.ToggleGrid();
             }
         }
 
@@ -202,7 +203,8 @@ namespace Dearlife
         {
             string s = BuyMode.Active ? "Pick something in the shop, move it into place and click. R turns it, Esc puts it back."
                      : BuildMode.Active ? "Build mode: choose a tool on the right. Shift draws diagonal walls, Z undoes, Esc leaves."
-                     : DecorateMode.Active ? "Move mode: click a piece to pick it up, click again to put it down. R turns it, Delete sells it."
+                     : DecorateMode.Active ? (MoveGrid.On ? "Move mode: click a piece to pick it up, click again to put it down. It snaps to the grid (G), R turns a quarter turn, Alt places freely."
+                                                   : "Move mode: click a piece to pick it up, click again to put it down. R turns it, G switches the grid on, Delete sells it.")
                      : "Click the floor to walk  ·  click things for their menu  ·  WASD move  ·  M map  ·  P move furniture  ·  Space pause";
             float tw = Mathf.Min(Ui.TextWidth(s, 13f) + 26f, w - (PanelOpen ? SideW : 0f) - 40f);
             var r = new Rect(12f, h - 40f, tw, 28f);

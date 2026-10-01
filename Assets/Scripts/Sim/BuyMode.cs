@@ -86,7 +86,7 @@ namespace Dearlife
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = rb.mass < 8f ? CollisionDetectionMode.ContinuousDynamic : CollisionDetectionMode.Discrete;
             rb.linearDamping = 0.6f; rb.angularDamping = 3f;
-            rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;   // stays upright
+            rb.constraints = RigidbodyConstraints.FreezeRotation;   // stays upright, and keeps the way it faces until you turn it
             var f = go.AddComponent<Furniture>();
             f.key = key ?? $"{id}#b{++counter}_{Random.Range(1000, 9999)}";
             f.small = Small.Contains(id);

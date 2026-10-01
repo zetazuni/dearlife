@@ -10,6 +10,8 @@ namespace Dearlife
     /// and letting go works too.) Everything you do can be undone and redone (Ctrl+Z, Ctrl+Y, or the buttons in the top bar).
     /// A piece cannot be dropped inside a wall or another piece; it goes back to the last free spot instead.
     /// Layouts are saved automatically and come back next time.
+    /// The grid (G, v0.54.0, see <see cref="MoveGrid"/>): while it is on, what is moved stands square and with the edges
+    /// of its box on the grid's lines, and R turns it a quarter turn; holding Alt places and turns it freely.
     /// </summary>
     [DefaultExecutionOrder(-50)]
     public class DecorateMode : MonoBehaviour
@@ -74,6 +76,13 @@ namespace Dearlife
         {
             StartCoroutine(SettleWhenQuiet());
             int n = Furniture.LoadAll();
+            // furniture keeps the way it faces (v0.54.0): a loose piece could be turned a few degrees by the physics as it
+            // settled or was pushed, so nothing stayed square for long. Only you turn a piece; the beach ball still rolls
+            foreach (var f in FindObjectsByType<Furniture>(FindObjectsInactive.Include))
+            {
+                var rb = f.GetComponent<Rigidbody>();
+                if (rb && !f.GetComponent<RollingBall>()) rb.constraints |= RigidbodyConstraints.FreezeRotationY;
+            }
             if (n > 0) Say($"Welcome back, {n} piece{(n == 1 ? "" : "s")} of furniture are where you left them.");
         }
 
@@ -89,7 +98,7 @@ namespace Dearlife
         {
             if (Active) { Drop(false); DropWindow(false); }
             Active = !Active;
-            Say(Active ? "Decorate mode: click a piece to pick it up, click again to put it down. R turns it, Delete sells it, Esc puts it back." : "Decorate mode is off.");
+            Say(Active ? "Move mode: click a piece to pick it up, click again to put it down. R turns it, G is the grid, Delete sells it, Esc puts it back." : "Move mode is off.");
         }
 
         public void ResetLayout()
@@ -104,7 +113,7 @@ namespace Dearlife
 
         void Say(string t) { toast = t; toastUntil = Time.time + 4f; }
 
-        void OnDisable() { OrbitCamera.Blocked = false; Active = false; }
+        void OnDisable() { OrbitCamera.Blocked = false; Active = false; MoveGrid.Show(false, 0f); }
 
         void Update()
         {
@@ -117,8 +126,10 @@ namespace Dearlife
                 else if (Input.GetKeyDown(KeyCode.Y)) Redo();
             }
             if (Active != ghosted) { ghosted = Active; Character.SetAllFrozen(Active, ghostMaterial); }
-            if (!Active) { OrbitCamera.Blocked = false; return; }
+            if (!Active) { OrbitCamera.Blocked = false; MoveGrid.Show(false, 0f); return; }
             if (!cam) cam = Camera.main;
+            if (Input.GetKeyDown(KeyCode.G) && !SettingsWindow.Open && !MainMenu.Busy) ToggleGrid();
+            ShowGrid();
 
             if (winWall != null) { WindowUpdate(); return; }
 
@@ -143,19 +154,64 @@ namespace Dearlife
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)) { Drop(true); return; }
             if (Input.GetKeyDown(KeyCode.R))
             {
-                float step = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? -turnStep : turnStep;
-                held.transform.Rotate(0f, step, 0f, Space.World);
+                Turn(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
                 MoveRiders();
             }
             if (!Input.GetMouseButton(0)) { Drop(false); return; }
             // hold the left button (dragging) and turn the wheel: one degree per notch (the camera zoom is blocked meanwhile)
             float wheel = Input.mouseScrollDelta.y;
-            if (Mathf.Abs(wheel) > 0.01f)
+            if (Mathf.Abs(wheel) > 0.01f && !OnGrid)
             {
                 held.transform.Rotate(0f, Mathf.Sign(wheel) * Mathf.Max(1f, Mathf.Round(Mathf.Abs(wheel))), 0f, Space.World);
                 MoveRiders();
             }
             Drag();
+        }
+
+        // ---------- the grid ----------
+
+        static bool AltHeld => Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt) || Input.GetKey(KeyCode.AltGr);
+        static bool CtrlHeld => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+
+        /// <summary>The grid is on and nothing says "freely" right now.</summary>
+        static bool OnGrid => MoveGrid.On && !AltHeld && !CtrlHeld;
+
+        float gridY = 0.02f;
+
+        public void ToggleGrid()
+        {
+            MoveGrid.On = !MoveGrid.On;
+            GameAudio.Play(GameAudio.Sfx.Click);
+            Say(MoveGrid.On ? "Grid on: pieces stand square on the grid, R turns a quarter turn. Hold Alt to place freely." : "Grid off: pieces go anywhere, R turns a little at a time.");
+        }
+
+        /// <summary>The grid lies on the floor that is worked on: under the piece in the hand, or under the mouse.</summary>
+        void ShowGrid()
+        {
+            if (!MoveGrid.On) { MoveGrid.Show(false, 0f); return; }
+            if (held == null && cam && !(OrbitCamera.IsOverUi != null && OrbitCamera.IsOverUi(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y))))
+            {
+                var hits = Physics.RaycastAll(cam.ScreenPointToRay(Input.mousePosition), 300f, ~0, QueryTriggerInteraction.Ignore);
+                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+                foreach (var h in hits)
+                {
+                    if (IsArchitecture(h.collider) || h.normal.y < 0.6f || h.collider.GetComponentInParent<Furniture>()) continue;
+                    gridY = h.point.y;
+                    break;
+                }
+            }
+            MoveGrid.Show(true, gridY);
+        }
+
+        /// <summary>R: a quarter turn on the grid (from the nearest quarter), a small step off it.</summary>
+        void Turn(bool back)
+        {
+            if (OnGrid)
+            {
+                held.transform.rotation = MoveGrid.Square(held.transform.rotation) * Quaternion.Euler(0f, back ? -90f : 90f, 0f);
+                if (snapped) freeRot = held.transform.rotation;
+            }
+            else held.transform.Rotate(0f, back ? -turnStep : turnStep, 0f, Space.World);
         }
 
         // ---------- buying and selling ----------
@@ -194,13 +250,9 @@ namespace Dearlife
                 LeaveIfEntered();
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.R))
-            {
-                float step = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? -turnStep : turnStep;
-                held.transform.Rotate(0f, step, 0f, Space.World);
-            }
+            if (Input.GetKeyDown(KeyCode.R)) Turn(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
             float wheel = Input.mouseScrollDelta.y;
-            if (Mathf.Abs(wheel) > 0.01f) held.transform.Rotate(0f, Mathf.Sign(wheel) * 5f, 0f, Space.World);
+            if (Mathf.Abs(wheel) > 0.01f && !OnGrid) held.transform.Rotate(0f, Mathf.Sign(wheel) * 5f, 0f, Space.World);
             Drag();
             bool overUi = OrbitCamera.IsOverUi != null && OrbitCamera.IsOverUi(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
             bool dragDrop = placingExisting && Input.GetMouseButtonUp(0) && Time.unscaledTime - grabbedAt > 0.35f;
@@ -475,9 +527,17 @@ namespace Dearlife
             }
             if (!found) return;
 
-            bool free = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool free = CtrlHeld || AltHeld;
+            bool grid = OnGrid;
+            gridY = p.y;
             float x = p.x + grabOffset.x, z = p.z + grabOffset.y;
-            if (!free) { x = Mathf.Round(x / snap) * snap; z = Mathf.Round(z / snap) * snap; }
+            if (grid)
+            {
+                // square to the grid, the edges of its box on the lines
+                if (snapped) freeRot = MoveGrid.Square(freeRot); else held.transform.rotation = MoveGrid.Square(held.transform.rotation);
+                MoveGrid.Snap(held.LocalBounds, snapped ? freeRot : held.transform.rotation, ref x, ref z);
+            }
+            else if (!free) { x = Mathf.Round(x / snap) * snap; z = Mathf.Round(z / snap) * snap; }
             var lotB = LotManager.Bounds;       // the plot of the lot you are on
             x = Mathf.Clamp(x, lotB.xMin, lotB.xMax);
             z = Mathf.Clamp(z, lotB.yMin, lotB.yMax);

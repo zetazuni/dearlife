@@ -116,6 +116,9 @@ The people are downloaded rigged models that stay on this computer (`Assets/Loca
 ### The people bar (v0.51)
 At the bottom of the screen: the pill shows who you are playing, their mood and what they are doing (click it for the status window, same as **C**), the big round picture is them (click it to find them), the smaller pictures are the rest of the household (click one to play as them). The six round gauges above are their needs: each empties downwards and turns red when it runs low.
 
+### The grid in move mode (v0.54)
+In move mode (P) press **G**, or the Grid button beside Undo, to switch the grid on or off. With it on, a piece you carry stands square and its edges sit on the grid lines, and **R** turns it a quarter turn. Hold **Alt** while moving to place it anywhere and turn it in small steps.
+
 ### Making the house you arranged the default (v0.53)
 Arrange the house in the game, leave Play mode, and run **Dearlife > Record saved layout as the default** with the Main scene open, then save the scene (Ctrl+S). New games then start with that layout, and Reset layout goes back to it. It records what was moved, not what was bought or sold.
 

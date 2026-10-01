@@ -41,7 +41,7 @@ namespace Dearlife
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.G)) Apply((Mode)(((int)mode + 1) % 3));
+            if (Input.GetKeyDown(KeyCode.G) && !DecorateMode.Active) Apply((Mode)(((int)mode + 1) % 3));   // in move mode G is the grid
         }
 
         public string Label

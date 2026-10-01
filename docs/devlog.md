@@ -922,3 +922,16 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
   is nearly straight once a stride. Measured after: knees 20 to 56 degrees through the stride, the planted foot at
   standing height, both hands at the same speed. Ada's walk measured the same way: 17 to 88 degrees, feet on the floor.
 
+## Session 62: a grid for moving furniture, the layout recorded again (2026-10-01) · v0.54.0
+
+- **The grid** (Amir: a grid in move mode, switched with a key, everything snaps to it with its box at right angles
+  unless Alt is held). G switches it in move mode (there it no longer changes the graphics mode); there is a button
+  beside Undo too. With it on, a piece in the hand turns to the nearest quarter turn, the edges of its box lie on the
+  lines (cells of 25 cm, stronger lines every metre), and R turns a quarter turn. Holding Alt places and turns freely.
+  The lines lie on the floor being worked on, upstairs and in the garden too.
+- **Why nothing stayed square.** The save showed nightstands at 358.9 and 4.1 degrees and a desk at 90.4: nobody set
+  those, the physics turned loose pieces a little as they settled. Furniture now only turns when you turn it.
+- **The default** (Amir: record the current position as the default). The seventeen pieces of save 1 are the starting
+  layout (the pet bed and bowls, the study, the nightstands, the armchair upstairs). They were recorded as they stood,
+  small slants included.
+

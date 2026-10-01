@@ -388,7 +388,7 @@ namespace Dearlife
             float y = body.y - transform.position.y;
             hipAverage = hipAverage < 0f ? y : Mathf.Lerp(hipAverage, y, 1f - Mathf.Exp(-Time.deltaTime / 0.45f));
             // legLift: the hips as high as this body's legs allow (see MeasureLegs). On a body with shorter legs than the
-            // cycle was made for, the whole walk was done on knees bent 45 to 70 degrees (v0.54.0)
+            // cycle was made for, the whole walk was done on knees bent 45 to 70 degrees (v0.53.1)
             body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.8f + legLift;
             anim.bodyPosition = body;
             var l = anim.GetIKPosition(AvatarIKGoal.LeftFoot);
