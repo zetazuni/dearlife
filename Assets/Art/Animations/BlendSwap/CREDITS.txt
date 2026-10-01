@@ -1,0 +1,9 @@
+Walks and the idle of the people, baked onto one standard skeleton by tools/blender_anim.py (skeleton and motion only,
+none of the original models or textures are in this project).
+
+- walk_bs_man.fbx: the 40 frame walk cycle of "Rigged Man With Walk Cycle" by brightonpiers,
+  https://blendswap.com/blend/3764, Creative Commons Attribution (a modification of the Low Poly Character by Blork).
+- walkf_bs_sintel.fbx: the walk cycle "Walk_A" of "Sintel Walkcycle" by Shader, https://blendswap.com/blend/3090, CC0,
+  on the Sintel rig of the Blender Foundation's Durian open movie project.
+- stand_made_idle.fbx: made for this game by tools/blender_anim.py (a relaxed stand with breathing and a slight shift
+  of weight), no recording.

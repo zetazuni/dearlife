@@ -20,7 +20,13 @@ import bpy
 OUT = r"S:\Dearlife by Zetazuni\Assets\Local\People"
 
 
+RIG = None        # the armature's name when the file has more than one (set it before the other calls)
+CAP = 2048        # textures are saved no larger than this (the game imports them at 2048 at most)
+
+
 def rig():
+    if RIG:
+        return bpy.data.objects[RIG]
     return next(o for o in bpy.context.scene.objects if o.type == 'ARMATURE')
 
 
@@ -89,6 +95,79 @@ def bake():
         bpy.ops.object.shade_smooth()
 
 
+def deform_only(others=()):
+    """A control rig (Rigify and the like) cut down to what the game needs: the deform bones alone, each under the deform
+    bone it really hangs from (Rigify parks them under ORG and MCH helpers; Unity wants the legs under the hips), with
+    no constraints, drivers or animation left. Things pinned to a bone (hair, a hat) become skinned to it. Armatures
+    named in others (a face rig) and their modifiers are removed: faces are not animated in the game."""
+    arm = rig()
+    for name in others:
+        o = bpy.data.objects.get(name)
+        if o:
+            for m in bpy.data.objects:
+                if m.type == 'MESH':
+                    for mod in list(m.modifiers):
+                        if mod.type == 'ARMATURE' and mod.object == o:
+                            m.modifiers.remove(mod)
+            bpy.data.objects.remove(o, do_unlink=True)
+
+    def deform_parent(b):
+        """The nearest bone above that deforms, reading ORG-x as DEF-x."""
+        p = b.parent
+        while p:
+            if p.use_deform:
+                return p.name
+            if p.name.startswith("ORG-"):
+                d = arm.data.bones.get("DEF-" + p.name[4:])
+                if d and d.use_deform and d != b:
+                    return d.name
+            p = p.parent
+        return None
+
+    parents = {b.name: deform_parent(b) for b in arm.data.bones if b.use_deform}
+    # hair and hats pinned to a bone: skinned to the deform bone that goes with it
+    for o in list(bpy.context.scene.objects):
+        if o.type == 'MESH' and o.parent == arm and o.parent_type == 'BONE':
+            b = arm.data.bones[o.parent_bone]
+            target = b.name if b.use_deform else None
+            if target is None:
+                for cand in ("DEF-" + b.name, "DEF-spine.006"):
+                    if cand in arm.data.bones and arm.data.bones[cand].use_deform:
+                        target = cand
+                        break
+            target = target or deform_parent(b)
+            mw = o.matrix_world.copy()
+            o.parent = arm
+            o.parent_type = 'OBJECT'
+            o.matrix_world = mw
+            vg = o.vertex_groups.new(name=target)
+            vg.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+            o.modifiers.new("Armature", 'ARMATURE').object = arm
+    arm.animation_data_clear()
+    arm.data.animation_data_clear()
+    for pb in arm.pose.bones:
+        for c in list(pb.constraints):
+            pb.constraints.remove(c)
+        pb.matrix_basis.identity()
+    bpy.ops.object.select_all(action='DESELECT')
+    arm.hide_set(False)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode='EDIT')
+    eb = arm.data.edit_bones
+    for name, parent in parents.items():
+        eb[name].use_connect = False
+        eb[name].parent = eb[parent] if parent else None
+    for b in list(eb):
+        if b.name not in parents:
+            eb.remove(b)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for o in list(bpy.context.scene.objects):
+        if o.type != 'ARMATURE' and o.find_armature() != arm and o.type != 'CAMERA':
+            bpy.data.objects.remove(o, do_unlink=True)       # the rig's control shapes and anything else unskinned
+    return f"{len(arm.data.bones)} deform bones, {len(skinned(arm))} skinned meshes"
+
+
 def height(meshes):
     from mathutils import Vector
     zs = [(o.matrix_world @ Vector(c)).z for o in meshes for c in o.bound_box]
@@ -111,10 +190,63 @@ def image_of(principled, socket):
     return None
 
 
+def capped(img):
+    """A copy no larger than CAP on its longer side (the caller removes it)."""
+    c = img.copy()
+    w, h = c.size
+    if max(w, h) > CAP:
+        k = CAP / max(w, h)
+        c.scale(max(1, int(w * k)), max(1, int(h * k)))
+    return c
+
+
+def pixels(img, size=None):
+    """The image as rows of RGBA, no larger than CAP, or resized to size (width, height)."""
+    import numpy as np
+    c = capped(img)
+    if size and tuple(c.size) != tuple(size):
+        c.scale(size[0], size[1])
+    w, h = c.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    c.pixels.foreach_get(px)
+    bpy.data.images.remove(c)
+    return px.reshape(h, w, 4)
+
+
+def write(px, path, colour=True):
+    h, w = px.shape[:2]
+    m = bpy.data.images.new("write_tmp", w, h, alpha=True)
+    if not colour:
+        m.colorspace_settings.name = 'Non-Color'
+    m.alpha_mode = 'STRAIGHT'
+    m.pixels.foreach_set(px.ravel())
+    m.filepath_raw = path
+    m.file_format = 'PNG'
+    m.save()
+    bpy.data.images.remove(m)
+
+
+def save_rgba(base, alpha, path):
+    """A colour image and its separate alpha image as one PNG. A tiny colour image (a swatch or a gradient strip) is
+    taken as one flat colour."""
+    import numpy as np
+    if os.path.exists(path):
+        return
+    a = pixels(alpha)
+    h, w = a.shape[:2]
+    if max(base.size) <= 64:
+        b = np.empty((h, w, 4), dtype=np.float32)
+        b[..., :3] = pixels(base)[..., :3].mean(axis=(0, 1))
+    else:
+        b = pixels(base, (w, h))
+    b[..., 3] = a[..., 0] if alpha.channels < 4 or float(a[..., 3].min()) > 0.99 else a[..., 3]
+    write(b, path)
+
+
 def save_png(img, path):
     if os.path.exists(path):
         return
-    c = img.copy()
+    c = capped(img)
     c.filepath_raw = path
     c.file_format = 'PNG'
     c.save()
@@ -129,8 +261,8 @@ def save_cut(img, path, strands=None):
     import numpy as np
     if os.path.exists(path):
         return
-    w, h = img.size
-    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    px = pixels(img)
+    h, w = px.shape[:2]
     if strands is None:
         a = (px[..., :3] * 255).round().astype(np.int32)
         key = a[..., 0] * 65536 + a[..., 1] * 256 + a[..., 2]
@@ -149,40 +281,33 @@ def save_cut(img, path, strands=None):
         for _ in range(1):
             s = np.maximum(s, (np.roll(s, 1, 1) + np.roll(s, -1, 1) + s) / 3 * 1.5)    # a little fuller sideways
         px[..., 3] = np.clip(s, 0, 1)
-    m = bpy.data.images.new("cut_tmp", w, h, alpha=True)
-    m.alpha_mode = 'STRAIGHT'
-    m.pixels.foreach_set(px.ravel())
-    m.filepath_raw = path
-    m.file_format = 'PNG'
-    m.save()
-    bpy.data.images.remove(m)
+    write(px, path)
 
 
-def save_mask(img, path):
-    """glTF keeps roughness in green and metal in blue; HDRP's mask map wants metal in red, occlusion in green and
-    smoothness in alpha."""
+def save_mask(rough, path, metal=None):
+    """HDRP's mask map: metal in red, occlusion in green, smoothness in alpha. glTF keeps roughness in green and metal
+    in blue of one image (metal None); other files have a grey roughness image and maybe a grey metal image (metal
+    False when there is none)."""
     import numpy as np
     if os.path.exists(path):
         return
-    w, h = img.size
-    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    px = pixels(rough)
+    h, w = px.shape[:2]
     out = np.empty_like(px)
-    out[..., 0] = px[..., 2]
+    if metal is None:
+        out[..., 0] = px[..., 2]
+        out[..., 3] = 1.0 - px[..., 1]
+    else:
+        out[..., 0] = pixels(metal, (w, h))[..., 0] if metal is not False else 0.0
+        out[..., 3] = 1.0 - px[..., 0]
     out[..., 1] = 1.0
     out[..., 2] = 0.0
-    out[..., 3] = 1.0 - px[..., 1]
-    m = bpy.data.images.new("mask_tmp", w, h, alpha=True)
-    m.colorspace_settings.name = 'Non-Color'
-    m.alpha_mode = 'STRAIGHT'
-    m.pixels.foreach_set(out.ravel())
-    m.filepath_raw = path
-    m.file_format = 'PNG'
-    m.save()
-    bpy.data.images.remove(m)
+    write(out, path, colour=False)
 
 
-def export(pid, name, tall, feminine=0.5, drop=(), bones=None, kinds=None, blend=None, cut=None, credit=""):
-    """pid: file name; name: shown in the game; tall: metres from the soles to the top of the head or hair;
+def export(pid, name, tall, feminine=0.5, drop=(), bones=None, kinds=None, blend=None, cut=None, credit="", measure=None):
+    """pid: file name; name: shown in the game; tall: metres from the soles to the top of the head or hair (of the
+    objects named in measure when given: a tall hat should not shrink the person under it);
     feminine: 1 walks the feminine walk, 0 the masculine one; drop: objects left out (a holstered gun);
     bones: Unity humanoid bone -> the model's bone; kinds: material name -> skin, hair, eye or cloth;
     blend: material name -> opacity, for see through parts with no texture of their own;
@@ -195,7 +320,7 @@ def export(pid, name, tall, feminine=0.5, drop=(), bones=None, kinds=None, blend
         if o:
             bpy.data.objects.remove(o, do_unlink=True)
     meshes = skinned(arm)
-    lo, hi = height(meshes)
+    lo, hi = height([o for o in meshes if o.name in measure] if measure else meshes)
     k = tall / (hi - lo)
     arm.location.z -= lo
     arm.scale = (k, k, k)
@@ -222,9 +347,14 @@ def export(pid, name, tall, feminine=0.5, drop=(), bones=None, kinds=None, blend
                     "color": [round(c, 4) for c in p.inputs['Base Color'].default_value[:3]],
                     "kind": kinds.get(m.name, "cloth")}
             base = image_of(p, 'Base Color')
+            alpha = image_of(p, 'Alpha')
             if base:
                 info["color"] = [1.0, 1.0, 1.0]
-                if m.name in cut:
+                if alpha is not None and alpha != base and m.name not in cut:
+                    info["base"] = pid + "_" + os.path.splitext(base.name)[0][-48:] + "_rgba.png"
+                    save_rgba(base, alpha, os.path.join(out, info["base"]))
+                    info["alpha"] = "clip"
+                elif m.name in cut:
                     tag = "_cut.png" if cut[m.name] is None else "_cut%d.png" % round(cut[m.name][0] * 1000)
                     info["base"] = pid + "_" + os.path.splitext(base.name)[0][-48:] + tag
                     save_cut(base, os.path.join(out, info["base"]), cut[m.name])
@@ -232,8 +362,8 @@ def export(pid, name, tall, feminine=0.5, drop=(), bones=None, kinds=None, blend
                 else:
                     info["base"] = pid + "_" + os.path.splitext(base.name)[0][-48:] + ".png"
                     save_png(base, os.path.join(out, info["base"]))
-                    a = np.array(base.pixels[:], dtype=np.float32)[3::4]
-                    if base.channels == 4 and float(a.min()) < 0.9 and float((a < 0.5).mean()) > 0.02:
+                    a = pixels(base)[..., 3] if base.channels == 4 else None
+                    if a is not None and float(a.min()) < 0.9 and float((a < 0.5).mean()) > 0.02:
                         info["alpha"] = "clip"       # hair cards, lashes, lace
             nrm = image_of(p, 'Normal')
             if nrm:
@@ -241,8 +371,10 @@ def export(pid, name, tall, feminine=0.5, drop=(), bones=None, kinds=None, blend
                 save_png(nrm, os.path.join(out, info["normal"]))
             orm = image_of(p, 'Roughness')
             if orm:
+                metal = image_of(p, 'Metallic')
                 info["mask"] = pid + "_" + os.path.splitext(orm.name)[0][-48:] + "_mask.png"
-                save_mask(orm, os.path.join(out, info["mask"]))
+                # one image for both is glTF's packing; otherwise a grey roughness image with or without a metal image
+                save_mask(orm, os.path.join(out, info["mask"]), None if metal == orm else (metal or False))
             em = image_of(p, 'Emission Color')
             if em:
                 info["emissive"] = pid + "_" + os.path.splitext(em.name)[0][-48:] + ".png"

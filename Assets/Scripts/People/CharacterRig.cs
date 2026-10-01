@@ -41,8 +41,9 @@ namespace Dearlife
         // people play motion capture through a Humanoid Animator (docs/CHARACTER_PLAN.md, phase 2)
         Animator anim;
         bool animated;
-        // metres a second the CMU walks cover at normal playback: the masculine one (105_29) and the feminine one (105_34)
-        const float WalkClipSpeedM = 0.77f, WalkClipSpeedF = 0.96f;
+        // metres a second the walks cover at normal playback on a person whose hips rest 0.95 m high (tools/blender_anim.py
+        // prints it): the masculine one and the feminine one
+        const float WalkClipSpeedM = 0.94f, WalkClipSpeedF = 1.24f;
         float feminine = -1f;
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
@@ -310,7 +311,7 @@ namespace Dearlife
                     feminine = model ? Mathf.Clamp01(model.feminine) : 0.5f;
                     anim.SetFloat("feminine", feminine);
                 }
-                float clipSpeed = Mathf.Lerp(WalkClipSpeedM, WalkClipSpeedF, feminine);
+                float clipSpeed = Mathf.Lerp(WalkClipSpeedM, WalkClipSpeedF, feminine) * (RestHip / 0.95f);   // longer legs, longer strides
                 anim.SetFloat("walkSpeed", Mathf.Clamp(shown / (clipSpeed * Mathf.Max(transform.lossyScale.y, 0.01f)), 0.4f, 1.8f));
                 return;
             }
@@ -341,35 +342,24 @@ namespace Dearlife
 
         bool OnSeat => animated && seat && (pose == Pose.Sit || pose == Pose.Lie || pose == Pose.Sleep);
 
-        /// <summary>
-        /// Motion capture does not know our furniture. In the IK pass the body is moved so the pelvis lands on the seat point
-        /// (the offset is learnt from the previous frames), then each foot is planted on the floor, or on the foot ring of a bar
-        /// stool, with the knees bending to suit the seat height (a beanbag, a bar stool).
-        /// </summary>
         float hipAverage = -1f;
 
         /// <summary>
-        /// Walking (v0.48.0): the recordings are retargeted onto wider MakeHuman hips, which sets the feet further apart
-        /// than the walker placed them, and the hips bob. Each foot is drawn in towards the line under the body (more for a
-        /// feminine body, whose walk puts one foot nearly in front of the other), and the hips' rise and fall is halved
-        /// round their running average. The feet keep their places along the walk and stay planted.
+        /// Walking (v0.50.0): the walks are hand made cycles with the feet already where they belong. The feet follow the
+        /// cycle's own foot goals, which keeps the soles on the floor on a body with other proportions than the one the
+        /// cycle was made on, and the rise and fall of the hips is eased to 60 percent round its running average (the
+        /// feminine cycle bobs 7 cm as made, which read as bouncing).
         /// </summary>
         void WalkIK()
         {
-            var fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
-            var right = Vector3.Cross(Vector3.up, fwd);
             var body = anim.bodyPosition;
-            var centre = transform.position;
             float y = body.y - transform.position.y;
             hipAverage = hipAverage < 0f ? y : Mathf.Lerp(hipAverage, y, 1f - Mathf.Exp(-Time.deltaTime / 0.45f));
-            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.5f;
+            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.6f;
             anim.bodyPosition = body;
-            float pull = Mathf.Lerp(0.2f, 0.45f, feminine < 0f ? 0.5f : feminine);
             foreach (var goal in new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot })
             {
-                var p = anim.GetIKPosition(goal);
-                float side = Vector3.Dot(p - centre, right);
-                anim.SetIKPosition(goal, p - right * (side * pull));
+                anim.SetIKPosition(goal, anim.GetIKPosition(goal));
                 anim.SetIKPositionWeight(goal, 1f);
             }
         }

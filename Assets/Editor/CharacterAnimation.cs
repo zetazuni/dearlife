@@ -14,6 +14,16 @@ namespace Dearlife.EditorTools
     public static class CharacterAnimation
     {
         public const string ClipDir = "Assets/Art/Animations/CMU";
+        /// <summary>Walks and the idle (v0.50.0): baked onto one standard skeleton by tools/blender_anim.py, whose bones are
+        /// named like Unity's humanoid bones, so the bone map is each name onto itself. The whole clip is used and loops.</summary>
+        public const string BakedDir = "Assets/Art/Animations/BlendSwap";
+
+        static readonly string[] StandardBones =
+        {
+            "Hips", "Spine", "Chest", "Neck", "Head",
+            "LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand",
+            "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes", "RightUpperLeg", "RightLowerLeg", "RightFoot", "RightToes",
+        };
 
         static readonly Dictionary<string, string> CmuMap = new Dictionary<string, string>
         {
@@ -116,10 +126,8 @@ namespace Dearlife.EditorTools
         /// </summary>
         static readonly (string clip, float from, float to)[] Segments =
         {
-            // the walks (v0.48.0): one calm stride each, the left foot leading at both ends; "walk" for men (105_29, a
-            // relaxed normal walk), "walkf" for women (105_34, light and narrow, the feet close to one line). The old walk
-            // (02_01) bobbed the hips twice as much and planted the feet wide apart.
-            ("stand", 0.1f, 2.9f), ("walk", 14.833f, 16.233f), ("walkf", 14.333f, 15.533f), ("sit", 6.0f, 10.4f), ("wave", 0.1f, 3.0f),
+            // walking and standing are not CMU recordings any more (v0.50.0): see BakedDir
+            ("sit", 6.0f, 10.4f), ("wave", 0.1f, 3.0f),
             // crouch (petting a pet, the laundry): the still moment of the pick up with the hands held low, 33 cm off the
             // floor (v0.48.0); the old 0.4 to 1.6 s went down and came back up, so the loop bent over again and again
             ("crouch", 1.4f, 1.8f), ("happy", 1.0f, 4.0f), ("eat", 0.1f, 8.4f), ("cook", 0.1f, 5.4f), ("read", 2.0f, 6.9f),
@@ -160,8 +168,34 @@ namespace Dearlife.EditorTools
             imp.SaveAndReimport();
         }
 
+        /// <summary>A baked clip (BakedDir): all of it, looping, the body kept over the character like the recordings.</summary>
+        static void ConfigureBaked(string path)
+        {
+            string key = System.IO.Path.GetFileName(path).Split('_')[0];
+            var imp = (ModelImporter)AssetImporter.GetAtPath(path);
+            if (imp.defaultClipAnimations.Length == 0) return;
+            var take = imp.defaultClipAnimations[0];
+            var clip = new ModelImporterClipAnimation
+            {
+                name = key, takeName = take.takeName, firstFrame = take.firstFrame, lastFrame = take.lastFrame,
+                loopTime = true, loopPose = true,
+                lockRootRotation = true, keepOriginalOrientation = false,
+                lockRootHeightY = true, keepOriginalPositionY = true, heightFromFeet = false,
+                lockRootPositionXZ = true, keepOriginalPositionXZ = false,
+            };
+            imp.clipAnimations = new[] { clip };
+            imp.SaveAndReimport();
+        }
+
         static AnimationClip LoadClip(string key)
         {
+            foreach (var guid in AssetDatabase.FindAssets(key + "_ t:Model", new[] { BakedDir }))
+            {
+                string p = AssetDatabase.GUIDToAssetPath(guid);
+                if (System.IO.Path.GetFileName(p).Split('_')[0] != key) continue;
+                foreach (var o in AssetDatabase.LoadAllAssetsAtPath(p))
+                    if (o is AnimationClip c && c.name == key) return c;
+            }
             foreach (var guid in AssetDatabase.FindAssets(key + "_cmu t:Model", new[] { ClipDir }))
                 foreach (var o in AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GUIDToAssetPath(guid)))
                     if (o is AnimationClip c && c.name == key) return c;
@@ -216,6 +250,15 @@ namespace Dearlife.EditorTools
                 MakeHumanoid(p, CmuMap, out var r); log.AppendLine(r);
                 ConfigureClip(p);
             }
+            var same = new Dictionary<string, string>();
+            foreach (var b in StandardBones) same[b] = b;
+            if (AssetDatabase.IsValidFolder(BakedDir))
+                foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { BakedDir }))
+                {
+                    string p = AssetDatabase.GUIDToAssetPath(guid);
+                    MakeHumanoid(p, same, out var r); log.AppendLine(r);
+                    ConfigureBaked(p);
+                }
             BuildController();
             Debug.Log("Dearlife: character animation set up.\n" + log);
         }

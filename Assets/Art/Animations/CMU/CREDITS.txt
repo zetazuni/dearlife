@@ -6,9 +6,8 @@ Licence: free to use, modify and share, including in commercial products; the da
 in converted form. FBX conversions from the Hugging Face dataset gbionics/cmu-fbx, re-saved at 30 fps by
 tools/blender_cmu_clips.py (the conversions have a frame rate of 0 in their header).
 
-Clips (file = our name, CMU subject_trial, description):
-- stand_cmu_111_28  111_28  standing still
-- walk_cmu_02_01    02_01   walk
+Clips (file = our name, CMU subject_trial, description). Walking and standing are not from here any more (v0.50.0),
+see Assets/Art/Animations/BlendSwap/CREDITS.txt:
 - sit_cmu_114_05    114_05  sitting in chair
 - wave_cmu_13_26    13_26   direct traffic, wave
 - crouch_cmu_111_17 111_17  pick up
