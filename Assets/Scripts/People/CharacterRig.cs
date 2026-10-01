@@ -41,9 +41,9 @@ namespace Dearlife
         // people play motion capture through a Humanoid Animator (docs/CHARACTER_PLAN.md, phase 2)
         Animator anim;
         bool animated;
-        // metres a second the walks cover at normal playback on a person whose hips rest 0.95 m high (tools/blender_anim.py
-        // prints it): the masculine one and the feminine one
-        const float WalkClipSpeedM = 0.94f, WalkClipSpeedF = 1.24f;
+        // metres a second the walks cover at normal playback on a person whose hips rest 0.95 m high, measured in the game
+        // from how fast a planted foot moves back under the body: the masculine one and the feminine one
+        const float WalkClipSpeedM = 1.16f, WalkClipSpeedF = 1.30f;
         float feminine = -1f;
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
@@ -95,6 +95,7 @@ namespace Dearlife
                 anim.applyRootMotion = false;
                 anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 animated = anim.runtimeAnimatorController != null;
+                FindHands();
                 var foot = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
                 if (foot) ankleHeight = Mathf.Max(0.03f, foot.position.y - transform.position.y);   // still at rest here
             }
@@ -347,7 +348,7 @@ namespace Dearlife
         /// <summary>
         /// Walking (v0.50.0): the walks are hand made cycles with the feet already where they belong. The feet follow the
         /// cycle's own foot goals, which keeps the soles on the floor on a body with other proportions than the one the
-        /// cycle was made on, and the rise and fall of the hips is eased to 60 percent round its running average (the
+        /// cycle was made on, and the rise and fall of the hips is eased to half round its running average (the
         /// feminine cycle bobs 7 cm as made, which read as bouncing).
         /// </summary>
         void WalkIK()
@@ -355,7 +356,7 @@ namespace Dearlife
             var body = anim.bodyPosition;
             float y = body.y - transform.position.y;
             hipAverage = hipAverage < 0f ? y : Mathf.Lerp(hipAverage, y, 1f - Mathf.Exp(-Time.deltaTime / 0.45f));
-            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.6f;
+            body.y = transform.position.y + hipAverage + (y - hipAverage) * 0.5f;
             anim.bodyPosition = body;
             foreach (var goal in new[] { AvatarIKGoal.LeftFoot, AvatarIKGoal.RightFoot })
             {
@@ -376,6 +377,18 @@ namespace Dearlife
             var r = anim.GetIKPosition(AvatarIKGoal.RightFoot);
             float dy = Mathf.Clamp(transform.position.y + ankleHeight - Mathf.Min(l.y, r.y), -0.08f, 0.08f);
             l.y += dy; r.y += dy;
+            // a narrow stance (v0.50.0): recordings of someone stirring or washing stand with the feet far apart. Each foot
+            // stays within a hand's width of the line under the body, closer still for a feminine body; dancing and
+            // exercise keep their own steps
+            if (pose != Pose.Dance && pose != Pose.Exercise)
+            {
+                float widest = Mathf.Lerp(0.12f, 0.075f, feminine < 0f ? 0.5f : feminine) * transform.lossyScale.y;
+                var right = transform.right;
+                var centre = anim.bodyPosition;
+                float sl = Vector3.Dot(l - centre, right), sr = Vector3.Dot(r - centre, right);
+                l += right * (Mathf.Clamp(sl, -widest, -0.03f) - sl);
+                r += right * (Mathf.Clamp(sr, 0.03f, widest) - sr);
+            }
             float floor = transform.position.y + ankleHeight;
             foreach (var (goal, p) in new[] { (AvatarIKGoal.LeftFoot, l), (AvatarIKGoal.RightFoot, r) })
             {
@@ -428,9 +441,66 @@ namespace Dearlife
             }
         }
 
+        // ------------------------------------------------------------ relaxed hands
+
+        class HandRef { public Transform hand, forearm; public Vector3 fingers, palm; }
+        HandRef[] hands;
+        float handRelax;
+
+        /// <summary>Which way the fingers point and the palm faces, in each hand's own space, read from the finger bones.</summary>
+        void FindHands()
+        {
+            var list = new List<HandRef>();
+            foreach (var (h, f, index, middle, little, sign) in new[]
+            {
+                (HumanBodyBones.LeftHand, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftLittleProximal, 1f),
+                (HumanBodyBones.RightHand, HumanBodyBones.RightLowerArm, HumanBodyBones.RightIndexProximal, HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightLittleProximal, -1f),
+            })
+            {
+                var hand = anim.GetBoneTransform(h); var fore = anim.GetBoneTransform(f);
+                var i = anim.GetBoneTransform(index); var m = anim.GetBoneTransform(middle); var l = anim.GetBoneTransform(little);
+                if (!hand || !fore || !i || !m || !l) continue;
+                var palm = Vector3.Cross(i.position - hand.position, l.position - hand.position) * sign;
+                if (palm.sqrMagnitude < 1e-10f) continue;
+                list.Add(new HandRef
+                {
+                    hand = hand, forearm = fore,
+                    fingers = hand.InverseTransformDirection((m.position - hand.position).normalized),
+                    palm = hand.InverseTransformDirection(palm.normalized),
+                });
+            }
+            hands = list.ToArray();
+        }
+
+        /// <summary>
+        /// Standing and walking with nothing in the hands (v0.50.0): each hand hangs in line with its forearm, the palm
+        /// turned to the hip, whatever the recording or the model's own rest pose does with the wrist. Eased in and out,
+        /// so a hand that goes on to stir a pot or wave turns back smoothly.
+        /// </summary>
+        void RelaxHands()
+        {
+            if (!animated || hands == null || hands.Length == 0) return;
+            bool want = (pose == Pose.Stand || pose == Pose.Walk) && !heldProp && !OnSeat;
+            handRelax = Mathf.MoveTowards(handRelax, want ? 1f : 0f, Time.deltaTime / 0.3f);
+            if (handRelax <= 0f) return;
+            var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
+            if (!hips) return;
+            foreach (var h in hands)
+            {
+                var along = h.hand.position - h.forearm.position;
+                var inward = hips.position - h.hand.position; inward.y = 0f;
+                inward = Vector3.ProjectOnPlane(inward, along);
+                if (along.sqrMagnitude < 1e-8f || inward.sqrMagnitude < 1e-6f) continue;
+                var own = Quaternion.LookRotation(h.fingers, h.palm);                // the hand's own fingers and palm
+                var goal = Quaternion.LookRotation(along, inward) * Quaternion.Inverse(own);
+                h.hand.rotation = Quaternion.Slerp(h.hand.rotation, goal, handRelax * 0.9f);
+            }
+        }
+
         /// <summary>Whatever is left after the IK pass is corrected exactly, and fed back into the offset for the next frame.</summary>
         void LateUpdate()
         {
+            RelaxHands();
             if (!OnSeat) return;
             var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
             if (!hips) return;

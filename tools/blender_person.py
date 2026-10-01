@@ -9,7 +9,8 @@ their licence says. In Unity, run Dearlife > Import people afterwards.
 Run inside Blender (Blender MCP) with the model imported and nothing else in the scene:
 
     exec(open(r"S:\\Dearlife by Zetazuni\\tools\\blender_person.py").read(), g := {"__name__": "person"})
-    g["bake"]()                                   # once, straight after the import
+    g["bake"]()                                   # once, straight after the import (a model taken from a game)
+    g["RIG"] = "<armature>"; g["deform_only"](others=["<face rig>"])     # instead, for a Rigify character
     g["export"]("mia", "Mia", 1.68, feminine=1.0, drop=["Object_25"], bones={...}, kinds={...})
 """
 import json

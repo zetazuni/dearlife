@@ -32,13 +32,18 @@ namespace Dearlife
             }
         }
 
-        /// <summary>The model a person uses: their own, or for a save from before the selection (no model in it) the one at
-        /// their place in the household, so the first is a woman and the second a man as the old default couple was.</summary>
+        /// <summary>The model a person uses: their own, or for a household with no models in it (the default couple, a save
+        /// from before the selection) a woman for the first, third... and a man for the second, fourth..., however many
+        /// characters are installed.</summary>
         public static PersonModel ModelOf(PersonData p, int place)
         {
             var list = Models;
             foreach (var m in list) if (m.id == p.model) return m;
-            return list.Count > 0 ? list[Mathf.Abs(place) % list.Count] : null;
+            if (list.Count == 0) return null;
+            place = Mathf.Abs(place);
+            bool woman = place % 2 == 0;
+            var fit = list.FindAll(m => (m.feminine >= 0.5f) == woman);
+            return fit.Count > 0 ? fit[(place / 2) % fit.Count] : list[place % list.Count];
         }
 
         /// <summary>A person standing still (for the selection screen) or living (a full Character).</summary>

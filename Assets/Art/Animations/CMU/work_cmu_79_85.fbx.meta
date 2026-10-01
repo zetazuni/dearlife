@@ -475,7 +475,7 @@ ModelImporter:
     - name: lShldr
       parentName: 
       position: {x: -0.0000000011920929, y: 0.09110615, z: 0.00000002026558}
-      rotation: {x: -0.0795503, y: 0.1942747, z: -0.11637341, w: 0.9707659}
+      rotation: {x: -0.07410466, y: 0.23879027, z: -0.1199147, w: 0.9607852}
       scale: {x: 0.9999999, y: 0.99999994, z: 0.99999994}
     - name: lForeArm
       parentName: 
@@ -485,7 +485,7 @@ ModelImporter:
     - name: lHand
       parentName: 
       position: {x: 0.000000052452087, y: 0.23681538, z: 0.000000038146972}
-      rotation: {x: 0.029351972, y: -0.033941455, z: -0.02362852, w: 0.99871325}
+      rotation: {x: 0.004027771, y: -0.032735944, z: 0.03780895, w: 0.9987405}
       scale: {x: 1, y: 0.9999999, z: 0.99999994}
     - name: lIndex1
       parentName: 
@@ -565,7 +565,7 @@ ModelImporter:
     - name: rShldr
       parentName: 
       position: {x: -0.000000095367426, y: 0.09110616, z: 0.0000000047683715}
-      rotation: {x: -0.079258, y: -0.19567063, z: 0.1021233, w: 0.9721121}
+      rotation: {x: -0.07446887, y: -0.2402493, z: 0.10566632, w: 0.96206516}
       scale: {x: 1, y: 0.99999994, z: 1}
     - name: rForeArm
       parentName: 
@@ -575,7 +575,7 @@ ModelImporter:
     - name: rHand
       parentName: 
       position: {x: -0.000000019073486, y: 0.23681554, z: -0.000000019073486}
-      rotation: {x: 0.029351143, y: 0.033945408, z: 0.023631344, w: 0.9987131}
+      rotation: {x: 0.0040272865, y: 0.032739773, z: -0.037808526, w: 0.99874043}
       scale: {x: 1.0000001, y: 1, z: 1}
     - name: rIndex1
       parentName: 

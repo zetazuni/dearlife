@@ -807,3 +807,29 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - **Saves.** `PersonData` is now a name, a model, traits and a job. Saves without a chosen household (slots 1 and 2)
   get the default one: Aina takes the first woman installed and Danial the first man.
 
+## Session 57: new walks, an idle, relaxed hands and a third character (2026-10-01) · v0.50.0
+
+- **Why.** Amir found the motion capture walk and idle too bad and gave two walk cycles from Blend Swap to use instead.
+- **Blend Swap.** Its key is `blendswap_api_key.txt` beside the other keys (gitignored) and its MCP server is registered
+  in Claude Code as `blendswap`. Downloads through the API were refused at first ("0 credits" although seven free ones
+  were left) and worked an hour later.
+- **Walks.** `tools/blender_anim.py` bakes a rig's animation onto one standard skeleton and exports it for Unity. The
+  man's walk is the cycle of "Rigged Man With Walk Cycle" (brightonpiers, CC BY), the woman's is Sintel's `Walk_A`
+  (Shader, CC0). The CMU walk, feminine walk and stand recordings are deleted. Both are stylised hand made cycles: he
+  swings his arms well back, she lifts her knees.
+- **Idle.** Greta the Witch (the pick for an idle) turned out to hold a single action that moves nothing, so the idle
+  is made by the tool itself: a relaxed stand, slow breathing, a slight shift of weight.
+- **Measured in the house.** Stride speeds were set from how fast a planted foot moves back under the body: 1.16 m/s
+  for his cycle (the tool's own guess of 0.94 left his feet sliding), 1.30 for hers. The hips' rise and fall is
+  halved (her cycle bobs 7 cm as made).
+- **Hands** (Amir: relaxed, palm to the hip, standing and walking, men and women). A fingers only layer holds a
+  relaxed curl in every pose (Unity's resting fingers are spread wide), and `RelaxHands` turns each hand in line
+  with its forearm with the palm to the hip while standing or walking with nothing held.
+- **Legs** (Amir: too wide apart when using something, narrower still for women). In standing poses each foot now
+  stays within 12 cm of the line under the body, 7.5 cm for women. Cooking at the counter: ankles 15 cm apart.
+- **A third character,** the "chubby magic girl" Amir added (a Rigify body with a face rig, hair and hat pinned to
+  the head, 8K textures with separate alpha and metal images). `blender_person.py` learnt `deform_only` and the
+  separate images; textures are saved at 2048 at most. She is 1.60 m, 1.75 with the hat, and local only like the others.
+- **Found on the way:** with three characters installed Danial got the magic girl (a household without models was
+  matched by list position). The default couple now takes the first woman and the first man.
+

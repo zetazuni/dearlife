@@ -1,6 +1,9 @@
 """
 Animations for the people, from any rigged Blender file (v0.50.0).
 
+The walking speed it prints is only a first guess (it assumes each foot is planted for half the cycle): measure the real
+one in the game and put it in CharacterRig (WalkClipSpeedM, WalkClipSpeedF).
+
 Every source rig is different (control bones, IK, twist bones), so the motion is baked onto one plain standard
 skeleton of 21 bones named like Unity's humanoid bones, sized to a real person, and exported as a skeleton only FBX to
 Assets/Art/Animations/BlendSwap. In Unity, Dearlife > Set up character animation makes them Humanoid and puts them in

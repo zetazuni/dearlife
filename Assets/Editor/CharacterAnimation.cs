@@ -102,6 +102,10 @@ namespace Dearlife.EditorTools
                 var outward = right * sign;
                 upper.rotation = Quaternion.FromToRotation(lower.position - upper.position, outward) * upper.rotation;
                 lower.rotation = Quaternion.FromToRotation(hand.position - lower.position, outward) * lower.rotation;
+                // the hand in line with the arm too: a model that rests with drooping wrists would otherwise carry that
+                // droop into every pose (hands flared away from the body)
+                if (map.TryGetValue(side + " Middle Proximal", out var mi) && bones.TryGetValue(mi, out var middle))
+                    hand.rotation = Quaternion.FromToRotation(middle.position - hand.position, outward) * hand.rotation;
                 // and the roll: palms down, thumbs forward. With the arm rolled 90 degrees every elbow bend of the recording
                 // swings up instead of forward (a relaxed seated arm ended up in the air)
                 if (map.TryGetValue(side + " Thumb Proximal", out var th) && bones.TryGetValue(th, out var thumb))
@@ -237,6 +241,56 @@ namespace Dearlife.EditorTools
             var layers = ctrl.layers;
             layers[0].iKPass = true;        // CharacterRig.OnAnimatorIK plants the feet and fits the pelvis to seats
             ctrl.layers = layers;
+            AddHandsLayer(ctrl);
+            AssetDatabase.SaveAssets();
+        }
+
+        const string HandsClip = "Assets/Resources/Animation/RelaxedHands.anim";
+        const string HandsMask = "Assets/Resources/Animation/Fingers.mask";
+
+        /// <summary>
+        /// None of the clips move the fingers, and Unity's own resting fingers are spread wide open. A second layer, masked
+        /// to the fingers alone, holds them in a relaxed curl: a little more from the index finger to the little one, close
+        /// together, the thumb resting by the palm (v0.50.0).
+        /// </summary>
+        static void AddHandsLayer(UnityEditor.Animations.AnimatorController ctrl)
+        {
+            var clip = new AnimationClip { name = "RelaxedHands" };
+            void Key(string muscle, float v)
+            {
+                foreach (var hand in new[] { "LeftHand", "RightHand" })
+                    AnimationUtility.SetEditorCurve(clip, EditorCurveBinding.FloatCurve("", typeof(Animator), hand + "." + muscle), AnimationCurve.Constant(0f, 1f, v));
+            }
+            string[] fingers = { "Index", "Middle", "Ring", "Little" };
+            for (int i = 0; i < fingers.Length; i++)
+            {
+                Key(fingers[i] + ".1 Stretched", -0.18f - 0.08f * i);
+                Key(fingers[i] + ".2 Stretched", -0.30f - 0.08f * i);
+                Key(fingers[i] + ".3 Stretched", -0.30f - 0.05f * i);
+                Key(fingers[i] + ".Spread", -0.45f);
+            }
+            Key("Thumb.1 Stretched", -0.1f); Key("Thumb.2 Stretched", -0.2f); Key("Thumb.3 Stretched", -0.2f); Key("Thumb.Spread", -0.35f);
+            var settings = AnimationUtility.GetAnimationClipSettings(clip);
+            settings.loopTime = true;
+            AnimationUtility.SetAnimationClipSettings(clip, settings);
+            AssetDatabase.DeleteAsset(HandsClip);
+            AssetDatabase.CreateAsset(clip, HandsClip);
+
+            var mask = new AvatarMask { name = "Fingers" };
+            for (int i = 0; i < (int)AvatarMaskBodyPart.LastBodyPart; i++)
+                mask.SetHumanoidBodyPartActive((AvatarMaskBodyPart)i, i == (int)AvatarMaskBodyPart.LeftFingers || i == (int)AvatarMaskBodyPart.RightFingers);
+            AssetDatabase.DeleteAsset(HandsMask);
+            AssetDatabase.CreateAsset(mask, HandsMask);
+
+            var sm = new UnityEditor.Animations.AnimatorStateMachine { name = "Hands", hideFlags = HideFlags.HideInHierarchy };
+            AssetDatabase.AddObjectToAsset(sm, ctrl);
+            var st = sm.AddState("Relaxed");
+            st.motion = clip;
+            ctrl.AddLayer(new UnityEditor.Animations.AnimatorControllerLayer
+            {
+                name = "Hands", defaultWeight = 1f, avatarMask = mask, stateMachine = sm,
+                blendingMode = UnityEditor.Animations.AnimatorLayerBlendingMode.Override,
+            });
             AssetDatabase.SaveAssets();
         }
 
