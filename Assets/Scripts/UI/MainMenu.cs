@@ -17,11 +17,11 @@ namespace Dearlife
         public static MainMenu Instance { get; private set; }
         /// <summary>Set just before a slot switch reloads the scene, so the fresh load drops straight into play instead of showing the menu again.</summary>
         static bool pendingEnter;
-        /// <summary>New Game: after the reload the character creator opens instead of play.</summary>
+        /// <summary>New Game: after the reload the character selection opens instead of play.</summary>
         static bool pendingCreate;
 
-        /// <summary>The title screen or the character creator is up: the game's own HUD and hotkeys stay out of the way.</summary>
-        public static bool Busy => Active || CharacterCreator.IsOpen;
+        /// <summary>The title screen or the character selection is up: the game's own HUD and hotkeys stay out of the way.</summary>
+        public static bool Busy => Active || CharacterSelect.IsOpen;
 
         enum Page { Title, NewSlots, LoadSlots, Settings }
         Page page = Page.Title;
@@ -60,7 +60,7 @@ namespace Dearlife
         void Start()
         {
             BuildShots();
-            if (createNow) CharacterCreator.Begin();          // a new game: make the household first
+            if (createNow) CharacterSelect.Begin();           // a new game: choose the household first
             else Residents.MoveInSaved();                     // this save's own household, if it has one
             if (Active) EnterCamera();
         }

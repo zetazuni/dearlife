@@ -39,7 +39,7 @@ namespace Dearlife
         public readonly List<Moodlet> moodlets = new List<Moodlet>();
         public readonly List<Wish> wishes = new List<Wish>();
         public readonly Dictionary<string, float> friendship = new Dictionary<string, float>();
-        public readonly Dictionary<string, string> relation = new Dictionary<string, string>();   // Married, Siblings... (from the creator)
+        public readonly Dictionary<string, string> relation = new Dictionary<string, string>();   // Married, Siblings... (from the character selection)
         public string job = "";          // the career (see Careers), or empty
         public readonly Dictionary<string, float> careerXp = new Dictionary<string, float>();
         /// <summary>Seconds worked in the current career.</summary>
@@ -72,14 +72,14 @@ namespace Dearlife
         public void Setup(string who, bool pet)
         {
             displayName = who; isPet = pet;
-            // people are set up from their creator data (SetupPerson); this is for the pets
+            // people are set up from their household data (SetupPerson); this is for the pets
             traits.AddRange(pet ? new[] { "Cuddly", "Curious" } : new[] { "Cheerful" });
             if (!pet) { NewWish(); NewWish(); NewWish(); LoadCareer(); }
             friendship[who] = 100f;
             foreach (var s in All) if (s != this && s.displayName != "") friendship[s.displayName] = 45f;
         }
 
-        /// <summary>A person made in the character creator: their own name, traits and career, fond of the rest of the household.</summary>
+        /// <summary>A person chosen in the character selection: their own name, traits and career, fond of the rest of the household.</summary>
         public void SetupPerson(PersonData p, IEnumerable<string> household, HouseholdData h = null)
         {
             displayName = p.name; isPet = false;
@@ -89,7 +89,7 @@ namespace Dearlife
             foreach (var n in household) friendship[n] = 65f;
             if (h != null)
             {
-                // how they are related, set in the creator, decides how close they start
+                // how they are related, set in the selection, decides how close they start
                 int me = h.members.IndexOf(p);
                 for (int i = 0; i < h.members.Count && me >= 0; i++)
                 {

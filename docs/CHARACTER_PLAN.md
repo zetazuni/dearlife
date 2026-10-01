@@ -1,5 +1,7 @@
 # Character plan: realistic people and a character creator
 
+> **History since v0.49.0 (2026-10-01).** Everything below was built (v0.40 to v0.48) and then removed at Amir's request: he found the MPFB2 people looked bad. People are now ready made downloaded models chosen in a character selection (`CLAUDE.md`, "Ready made people"). Kept for the record of what was tried; the code is in the git history up to commit 38b7a44.
+
 Written 2026-09-28 (session 43). Follows rule 8 in `docs/RULES.md`: people are hyper realistic and inspired by inZOI, never copied. This is a plan, nothing here is built yet. Work through it phase by phase and tick things off in the devlog.
 
 ## 1. Why: what the scan of the current characters found

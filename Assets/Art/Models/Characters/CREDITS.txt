@@ -2,7 +2,5 @@ Downloaded from Sketchfab (CC Attribution 4.0), prepared in Blender by tools/ble
 - Bedah (bedah.fbx, bedah_*.png): "An Animated Cat" by Evil_Katz, https://sketchfab.com/3d-models/aec25699660043a29595f9572149d1e8 (its black coat repainted as a calico: white with orange and black patches, a black tail and one black ear; tufts and whiskers made pale)
 - The dog (dog.fbx, dog_*.png): "Animated Dog Sits Rolls Over Shake Paw" by LasquetiSpice, https://sketchfab.com/3d-models/d9020159339145e6b9ecd5f3d830830f (a Shiba Inu)
 
-Made with MPFB2 (MakeHuman for Blender), assets CC0 (base mesh, targets, skin, eyes, brows, lashes, teeth, the casual outfit, shoes and long hair from the MakeHuman system asset pack), by tools/blender_mpfb_body.py:
-- mpfb_test: the test person of docs/CHARACTER_PLAN.md. The female end of its gender slider adds MakeHuman's CC0 measurement targets (narrower shoulders, waist, hips, seat, bust).
-- The wardrobe in Assets/Resources/Clothes: casual (female_casualsuit01), shoes (shoes01), hair_long (long01) and hair_short (short02) are MakeHuman's CC0 pieces, refitted by the tool; tunic, trousers, hijab, pyjama_top and pyjama_bottoms are our own, made by the tool from the body's surface (CC0 like the rest). Assets/Art/Textures/Characters/fabric_weave_detail.png is made from scratch by CharacterLook.
-- mpfb_test_body.png is MakeHuman's young_asian_female skin with a hair coloured scalp painted in by tools/blender_mpfb_body.py; Assets/Art/Textures/Characters holds our own derivatives (pore map made from scratch, iris and sclera cut from MakeHuman's brown eye, hair strands from MakeHuman's long01 with its shine removed), all CC0.
+The people are not in this repository. They are downloaded characters, prepared by tools/blender_person.py and kept in
+Assets/Local (gitignored), each with its credit in its own <id>.person.json. Without them the game shows a plain stand-in.

@@ -141,18 +141,16 @@ namespace Dearlife.EditorTools
         }
 
         /// <summary>
-        /// The people and the cat come from Sketchfab (credits in Assets/Art/Models/Characters/CREDITS.txt), rigged in Blender by
-        /// tools/blender_rig.py. Each FBX has a .materials.json next to it (material name, texture file, colour): build an HDRP Lit material
+        /// The pets come from Sketchfab (credits in Assets/Art/Models/Characters/CREDITS.txt), prepared in Blender by
+        /// tools/blender_pets.py. Each FBX has a .materials.json next to it (material name, texture file, colour): build an HDRP Lit material
         /// for every entry and link it.
         /// </summary>
         static void ImportCharacters()
         {
-            ImportCharacterFolder(ModelDir + "/Characters", "Assets/Art/Materials/Characters", false);
-            // the wardrobe (clothes and hair styles made by tools/blender_mpfb_body.py), loaded while the game runs by Wardrobe.cs
-            ImportCharacterFolder(CharacterLook.ClothesDir, CharacterLook.ClothesMatDir, true);
+            ImportCharacterFolder(ModelDir + "/Characters", "Assets/Art/Materials/Characters");
         }
 
-        static void ImportCharacterFolder(string dir, string matDir, bool wear)
+        static void ImportCharacterFolder(string dir, string matDir)
         {
             if (!System.IO.Directory.Exists(dir)) return;
             System.IO.Directory.CreateDirectory(matDir);
@@ -167,14 +165,9 @@ namespace Dearlife.EditorTools
                 imp.importCameras = false;
                 imp.importLights = false;
                 imp.isReadable = true;
-                // keeps the skin: bones stay ordinary transforms that CharacterRig drives. The MPFB2 people are Humanoid instead
-                // (motion capture retargeting, see CharacterAnimation), so they are left as they are.
-                if (!System.IO.Path.GetFileName(path).StartsWith("mpfb")) imp.animationType = ModelImporterAnimationType.Generic;
-                if (wear)
-                {
-                    imp.avatarSetup = ModelImporterAvatarSetup.NoAvatar;   // only the mesh and its bone names are used
-                    imp.meshCompression = ModelImporterMeshCompression.Off;
-                }
+                // keeps the skin: bones stay ordinary transforms that CharacterRig drives (the people are Humanoid instead and
+                // come in through PersonImport)
+                imp.animationType = ModelImporterAnimationType.Generic;
                 imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
                 string json = path.Replace(".fbx", ".materials.json");
                 if (!System.IO.File.Exists(json)) { imp.SaveAndReimport(); continue; }
@@ -194,10 +187,7 @@ namespace Dearlife.EditorTools
                     Texture2D t = tex != "null" ? AssetDatabase.LoadAssetAtPath<Texture2D>($"{dir}/{tex}") : null;
                     if (t) { mat.SetTexture("_BaseColorMap", t); mat.SetColor("_BaseColor", Color.white); }
                     if (mname.Contains("EyeColor")) { mat.SetFloat("_UseEmissiveIntensity", 0f); mat.SetColor("_EmissiveColor", new Color(0.1f, 0.6f, 0.15f) * 0.6f); }
-                    // the realistic MPFB2 people: skin, hair and teeth get HDRP's own skin and hair shaders (CharacterLook)
-                    bool done = wear ? CharacterLook.UpgradeWear(mat, mname, t) : CharacterLook.Upgrade(mat, model, mname, t);
-                    if (!done) UnityEngine.Rendering.HighDefinition.HDMaterial.ValidateMaterial(mat);
-                    if (model.StartsWith("mpfb") && mname == "high-poly") CharacterLook.MakeEye(model, t);
+                    UnityEngine.Rendering.HighDefinition.HDMaterial.ValidateMaterial(mat);
                     EditorUtility.SetDirty(mat);
                     imp.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), mname), mat);
                 }

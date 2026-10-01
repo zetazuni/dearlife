@@ -53,3 +53,7 @@ polypizza_api_key.txt
 *.blend1
 Where_u_left.blend
 tools/__pycache__/
+
+# Downloaded characters (tools/blender_person.py): kept on this computer only, never in the public repo
+/[Aa]ssets/[Ll]ocal/
+/[Aa]ssets/[Ll]ocal.meta

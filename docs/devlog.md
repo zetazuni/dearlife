@@ -781,3 +781,29 @@ Amir's notes: night too dark outside, skylights, lounger backrest upside down, b
 - **Clipping scan: 792 of 798 pass.** Left: the one piece swimsuit on masculine or older bodies (as before) and one
   shirt case in the deep crouch on the strongest body (8 mm).
 
+## Session 56: ready made people instead of the creator (2026-10-01) · v0.49.0
+
+- **Why.** Amir found the MPFB2 people looked bad and asked for them to be removed and replaced by two downloaded
+  characters, picked in a character selection instead of a creator.
+- **Removed:** the MPFB2 body and its sliders (`BodyShape`), the eyes, the wardrobe and every garment and hair style
+  in `Resources/Clothes`, `PersonLook` and the skin layers shader, the character creator, the clipping scan,
+  `CharacterLook`, `PersonPrefab`, and `tools/blender_mpfb_body.py` and `blender_skin_layers.py`. With them went
+  changing into sleepwear and swimwear. All of it is in the git history up to 38b7a44.
+- **Ready made people.** `tools/blender_person.py` prepares a downloaded rigged model in Blender (the visible pose
+  becomes the rest pose, real height, textures, an HDRP mask map, a `.person.json` with the materials and the humanoid
+  bone map) and **Dearlife > Import people** turns it into a prefab with `PersonModel`. `Residents` lists them and
+  `CharacterSelect` offers them after New Game, with name, traits, career and relationships as before. `CharacterRig`
+  now finds its joints through Unity's humanoid bones, so any rig works.
+- **The two models stay off the repo.** Both are another company's characters shared by fans on Sketchfab, so they
+  live in `Assets/Local` (gitignored) with their credits in their own `.person.json`. A copy of the project without
+  them shows a plain stand-in and says how to add a character. The second link Amir gave was not downloadable; a
+  downloadable upload of the same character was used.
+- **Scale.** The woman is 1.70 m (in heels) and the man 1.80 m, against 2.3 m doors and 3 m walls. Checked in the
+  house: standing, walking, sitting at the dining table, bending down to the cat.
+- **Fixes found on the way:** the first model's rest pose and normals were broken (dark blotches on the dress and
+  arms), both had lost the alpha of their hair cards (rebuilt from the textures), one spine was not under its hips
+  bone. The selection stage stood 11 cm above the deck (it now reads the deck's height). New `GroundIK`: in standing
+  poses the lower foot rests flat on the floor, where a retargeted recording used to leave the toes 3 to 5 cm in it.
+- **Saves.** `PersonData` is now a name, a model, traits and a job. Saves without a chosen household (slots 1 and 2)
+  get the default one: Aina takes the first woman installed and Danial the first man.
+

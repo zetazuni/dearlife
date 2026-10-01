@@ -10,16 +10,14 @@ How the tools connect and how an asset gets from Blender into the game.
 | Unity Hub | | `S:\Unity\Unity Hub` |
 | Blender | 5.2.2 LTS | Blender MCP add-on v1.7 |
 | uv / uvx | | `S:\Tools\uv` (runs both MCP servers) |
-| MPFB (MakeHuman for Blender) | 2.0.17 | Extension in `S:\Tools\blender-extensions` (Blender repo "S Tools"), zip in `S:\Tools\mpfb` |
+| MPFB (MakeHuman for Blender) | 2.0.17 | Extension in `S:\Tools\blender-extensions`, zip in `S:\Tools\mpfb`. Not used since v0.49.0 (the MPFB2 people were removed) |
 | Git + Git LFS | LFS 3.7.1 | GitHub CLI at `C:\Program Files\GitHub CLI`, account `zetazuni` |
 
-## Realistic people (MPFB2)
+## People (ready made models, v0.49.0)
 
-Rule 8 and `docs/CHARACTER_PLAN.md`. MPFB is installed as a Blender extension in a local repo on S: (`S:\Tools\blender-extensions`). Its user data (the assets) is set to `S:\Tools\mpfb\userdata` in its preferences, with MakeHuman's CC0 system asset pack (`S:\Tools\mpfb\makehuman_system_assets_cc0.zip`) loaded into it. Gotcha: switching the add-on off and on again wipes that preference, and MPFB reads it only when it starts, so after changing it either restart Blender or run `LocationService.__init__()` from `bl_ext.s_tools.mpfb.services.locationservice`.
+People are downloaded rigged characters, not made here. Each one goes through `tools/blender_person.py` in Blender and **Dearlife > Import people** in Unity (see "Ready made people" in `CLAUDE.md` and "Adding a character" in `docs/UNITY_GUIDE.md`). The files land in `Assets/Local`, which is gitignored: other people's characters stay on this computer and never reach the public repo. The source .blend files are kept in `S:\Tools\dearlife-people`.
 
-`tools/blender_mpfb_body.py` builds a person: base mesh, the `game_engine` rig (53 bones with fingers, maps onto Unity's Humanoid), eyes, brows, lashes, teeth, skin, an outfit and hair, then bakes the body sliders into shape keys on every mesh (both ends of gender, weight, muscle, height, proportions and adult age; the female end also narrows the shoulders and shapes waist, hips, seat and bust), records how the bones move per slider in a `.bodyshape.json`, deletes MakeHuman's fitting helpers (the body under clothes stays, with a per vertex cover bit in a second UV channel) and exports an FBX plus a `.materials.json`. Hair, brow and lash materials are named `cut_...`, which `FurnitureImport.ImportCharacters` gives alpha clipping. In Unity, `BodyShape` drives the sliders and `CharacterRig` with `kind = "mpfb"` animates the skeleton.
-
-The same run makes the wardrobe (phase 3): every garment and hair style is its own FBX in `Assets/Resources/Clothes` with its `.materials.json`, listed in `wardrobe.json` (slot, cover bit, whether it hides hair, and the outfits). Our own garments are cut from the body surface, pushed out as cloth under tension, re-weighted to the body under them, tucked inside each other layer by layer (inner layers also take the outer layer's bone weights) and cleaned of shape key spikes; MakeHuman's pieces are pushed out over any skin that stays visible. Run it, then **Dearlife > Import furniture**, then check with **Dearlife > Scan characters** in Play mode (report in `Logs/character_scan.txt`). The whole run takes about a minute.
+Things that went wrong with the first two and what the tool does about them: a rest pose that means nothing under scaled empties (bake the visible pose), shading in dark blotches (the stored normals belonged to the broken rest pose: cleared and worked out again), hair cards with no alpha (rebuilt from the texture's background colour, or from the green channel when the strands are painted on black), a spine that is not under the hips bone (map Hips to the bone above both, Unity needs the spine below the hips).
 
 ## MCP connections (how Claude drives the tools)
 

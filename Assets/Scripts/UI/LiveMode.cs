@@ -56,7 +56,7 @@ namespace Dearlife
         void Update()
         {
             if (Selected == null || !Selected) Selected = FirstPerson();
-            if (MainMenu.Busy) return;       // the title screen or the character creator owns the mouse and keys
+            if (MainMenu.Busy) return;       // the title screen or the character selection owns the mouse and keys
 
             if (Input.GetKeyDown(KeyCode.Space)) SetSpeed(Speed == 0 ? 1 : 0);
             if (Input.GetKeyDown(KeyCode.Alpha1)) SetSpeed(1);

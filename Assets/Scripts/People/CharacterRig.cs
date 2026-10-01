@@ -14,8 +14,8 @@ namespace Dearlife
         public enum Pose { Stand, Walk, Sit, Lie, Wave, Crouch, Sleep, Groom, Happy, Eat, Cook, Read, Exercise, Work, Wash, Swim, Drink, Guitar, Keys, Dance, Talk }
 
         public bool pet;
-        [Tooltip("mpfb (a person), cat or dog: which skeleton this is")]
-        public string kind = "mpfb";
+        [Tooltip("person, cat or dog: which skeleton this is")]
+        public string kind = "person";
         public float RestHip { get; private set; } = 0.95f;   // pelvis height above the feet at rest, measured from the model
         [Tooltip("parts whose material name contains this are not drawn (once used to hide a model's glasses)")]
         public string hideMaterial = "";
@@ -38,7 +38,7 @@ namespace Dearlife
         readonly Dictionary<string, Joint> j = new Dictionary<string, Joint>();
         PetBody quad;
 
-        // realistic (MPFB2) people play motion capture through a Humanoid Animator instead (docs/CHARACTER_PLAN.md, phase 2)
+        // people play motion capture through a Humanoid Animator (docs/CHARACTER_PLAN.md, phase 2)
         Animator anim;
         bool animated;
         // metres a second the CMU walks cover at normal playback: the masculine one (105_29) and the feminine one (105_34)
@@ -47,19 +47,15 @@ namespace Dearlife
         float phase, clock, amp = 1f, speedSmooth;
         Vector3 lastPos;
 
-        // the realistic people: our joint name -> the model's bone name
-        // the MPFB2 "game engine" skeleton (tools/blender_mpfb_body.py)
-        static readonly Dictionary<string, string> MpfbBones = new Dictionary<string, string>
+        // our joint name -> Unity's humanoid bone: any rigged person works, whatever its own bones are called (v0.49.0)
+        static readonly Dictionary<string, HumanBodyBones> HumanJoints = new Dictionary<string, HumanBodyBones>
         {
-            { "pelvis", "pelvis" }, { "spine", "spine_02" }, { "neck", "neck_01" },
-            { "arm.L", "upperarm_l" }, { "forearm.L", "lowerarm_l" }, { "arm.R", "upperarm_r" }, { "forearm.R", "lowerarm_r" },
-            { "leg.L", "thigh_l" }, { "shin.L", "calf_l" }, { "leg.R", "thigh_r" }, { "shin.R", "calf_r" },
-            { "foot.L", "foot_l" }, { "foot.R", "foot_r" },
-        };
-
-        static readonly Dictionary<string, Dictionary<string, string>> Aliases = new Dictionary<string, Dictionary<string, string>>
-        {
-            { "mpfb", MpfbBones },
+            { "pelvis", HumanBodyBones.Hips }, { "spine", HumanBodyBones.Chest }, { "neck", HumanBodyBones.Neck },
+            { "arm.L", HumanBodyBones.LeftUpperArm }, { "forearm.L", HumanBodyBones.LeftLowerArm },
+            { "arm.R", HumanBodyBones.RightUpperArm }, { "forearm.R", HumanBodyBones.RightLowerArm },
+            { "leg.L", HumanBodyBones.LeftUpperLeg }, { "shin.L", HumanBodyBones.LeftLowerLeg },
+            { "leg.R", HumanBodyBones.RightUpperLeg }, { "shin.R", HumanBodyBones.RightLowerLeg },
+            { "foot.L", HumanBodyBones.LeftFoot }, { "foot.R", HumanBodyBones.RightFoot },
         };
 
         static readonly string[] PersonJoints = { "pelvis", "spine", "neck", "arm.L", "forearm.L", "arm.R", "forearm.R", "leg.L", "shin.L", "leg.R", "shin.R", "foot.L", "foot.R" };
@@ -74,10 +70,12 @@ namespace Dearlife
                 return;
             }
             if (pet) return;   // a pet model without its skeleton
-            Aliases.TryGetValue(kind, out var aliases);
+            anim = GetComponent<Animator>();
+            bool human = anim && anim.avatar && anim.avatar.isHuman;
             foreach (var n in PersonJoints)
             {
-                var t = FindDeep(transform, aliases != null && aliases.TryGetValue(n, out var alias) ? alias : n);
+                var t = human ? anim.GetBoneTransform(HumanJoints[n]) : FindDeep(transform, n);
+                if (!t && human && n == "spine") t = anim.GetBoneTransform(HumanBodyBones.Spine);
                 if (!t) continue;
                 j[n] = new Joint
                 {
@@ -89,19 +87,15 @@ namespace Dearlife
                     upInParent = t.parent ? Quaternion.Inverse(t.parent.rotation) * transform.up : Vector3.up,
                 };
             }
-            if (kind == "mpfb")
+            if (human)
             {
                 LowerArms();
-                anim = GetComponent<Animator>();
-                if (anim && anim.avatar && anim.avatar.isHuman)
-                {
-                    if (!anim.runtimeAnimatorController) anim.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("Animation/People");
-                    anim.applyRootMotion = false;
-                    anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-                    animated = anim.runtimeAnimatorController != null;
-                    var foot = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
-                    if (foot) ankleHeight = Mathf.Max(0.03f, foot.position.y - transform.position.y);   // still at rest here
-                }
+                if (!anim.runtimeAnimatorController) anim.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("Animation/People");
+                anim.applyRootMotion = false;
+                anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                animated = anim.runtimeAnimatorController != null;
+                var foot = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
+                if (foot) ankleHeight = Mathf.Max(0.03f, foot.position.y - transform.position.y);   // still at rest here
             }
             if (!pet)
             {
@@ -130,7 +124,7 @@ namespace Dearlife
 
 
         /// <summary>
-        /// MPFB skeletons rest in an "A" pose (arms out at about 45 degrees). Swing each upper arm down to hang 10 degrees
+        /// Most skeletons rest in an "A" or a "T" pose (arms out). Swing each upper arm down to hang 10 degrees
         /// off the body and make that the rest, so every pose starts from relaxed arms.
         /// </summary>
         void LowerArms()
@@ -152,7 +146,7 @@ namespace Dearlife
             }
         }
 
-        /// <summary>The bones were moved (a body slider changed, see <see cref="BodyShape"/>): take their new places as the rest positions.</summary>
+        /// <summary>The bones were moved: take their new places as the rest positions.</summary>
         public void RefreshRest(float restHip)
         {
             foreach (var jt in j.Values) if (jt.t) jt.restPos = jt.t.localPosition;
@@ -286,9 +280,6 @@ namespace Dearlife
         void Set(string n, float forward = 0f, float lift = 0f, float yaw = 0f)
         {
             if (!j.TryGetValue(n, out var jt)) return;
-            // the MPFB spine bones are turned the other way round (without this people lean back instead of over the cat
-            // when petting it)
-            if (kind == "mpfb" && (n == "spine" || n == "neck")) forward = -forward;
             jt.tgt = forward; jt.liftTgt = lift; jt.yawTgt = yaw;
         }
 
@@ -314,9 +305,9 @@ namespace Dearlife
                 anim.SetInteger("pose", (int)p);
                 if (feminine < 0f || Time.frameCount % 30 == 0)
                 {
-                    // from the body slider: -1 (feminine end) walks the feminine walk, +1 the masculine one
-                    var shape = GetComponent<BodyShape>();
-                    feminine = shape ? Mathf.Clamp01(0.5f - shape.Get("gender") * 0.75f) : 0.5f;
+                    // from the model: 1 walks the feminine walk, 0 the masculine one
+                    var model = GetComponent<PersonModel>();
+                    feminine = model ? Mathf.Clamp01(model.feminine) : 0.5f;
                     anim.SetFloat("feminine", feminine);
                 }
                 float clipSpeed = Mathf.Lerp(WalkClipSpeedM, WalkClipSpeedF, feminine);
@@ -383,11 +374,37 @@ namespace Dearlife
             }
         }
 
+        /// <summary>
+        /// Standing poses (v0.49.0): a recording retargeted onto a body with other proportions leaves the soles a few
+        /// centimetres under or over the floor. Both feet are shifted together so the lower one rests on it at the ankle
+        /// height the model has at rest (high heels included); a foot the recording lifts stays lifted.
+        /// </summary>
+        void GroundIK()
+        {
+            if (ankleHeight < 0f) return;
+            var l = anim.GetIKPosition(AvatarIKGoal.LeftFoot);
+            var r = anim.GetIKPosition(AvatarIKGoal.RightFoot);
+            float dy = Mathf.Clamp(transform.position.y + ankleHeight - Mathf.Min(l.y, r.y), -0.08f, 0.08f);
+            l.y += dy; r.y += dy;
+            float floor = transform.position.y + ankleHeight;
+            foreach (var (goal, p) in new[] { (AvatarIKGoal.LeftFoot, l), (AvatarIKGoal.RightFoot, r) })
+            {
+                anim.SetIKPosition(goal, p);
+                anim.SetIKPositionWeight(goal, 1f);
+                // a foot on the floor lies flat on it (as it does at rest), turned the way the recording points it; one
+                // that is lifted keeps the recording's tilt
+                var fwd = Vector3.ProjectOnPlane(anim.GetIKRotation(goal) * Vector3.forward, Vector3.up);
+                if (fwd.sqrMagnitude < 1e-4f) continue;
+                anim.SetIKRotation(goal, Quaternion.LookRotation(fwd, Vector3.up));
+                anim.SetIKRotationWeight(goal, Mathf.Clamp01(1f - (p.y - floor) / 0.06f));
+            }
+        }
+
         void OnAnimatorIK(int layer)
         {
             if (pose == Pose.Walk && speedSmooth > 0.05f && !OnSeat) { WalkIK(); return; }
             hipAverage = -1f;
-            if (!OnSeat) return;
+            if (!OnSeat) { if (pose != Pose.Swim) GroundIK(); return; }
             if (offsetFor != seat) { seatOffset = Vector3.zero; offsetFor = seat; kneeKnown = false; }
             anim.bodyPosition += transform.TransformVector(seatOffset);
             if (pose != Pose.Sit) return;

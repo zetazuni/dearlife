@@ -728,7 +728,6 @@ namespace Dearlife
             GameAudio.StopAct(actSound);
             actSound = GameAudio.PlayAct(d.id, d.seconds, it.Centre);
             if (d.id == "bath" && it.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(true);
-            if ((d.id == "sleep" || d.id == "nap") && GetComponent<PersonLook>() is PersonLook look && look) look.Dress(true);   // into pyjamas
             if (d.needsTv && spot != null) { var tv = TvScreen.Facing(spot); if (tv != null && !tv.on) tv.SetOn(true, true); }
             if (d.sitNear && spot != null && mode == Mode.Using) TablePlate(it, d);
             if (d.seat || (d.sitNear && spot != null && mode == Mode.Using)) { timer = d.seconds; return; }   // seated: TickUsing runs it
@@ -749,7 +748,6 @@ namespace Dearlife
             if (d.pose == CharacterRig.Pose.Swim)
             {
                 standPos = transform.position; agent.enabled = false; GameAudio.Play(GameAudio.Sfx.Splash);
-                if (GetComponent<PersonLook>() is PersonLook sl && sl) sl.DressForSwim(true);   // into swimwear
             }
             if (d.id == "shower" && it && it.GetComponent<ShowerStall>() is ShowerStall st && st)
             {
@@ -895,8 +893,6 @@ namespace Dearlife
             GameAudio.StopAct(actSound); actSound = null;
             ReleaseHeld();
             if (d.id == "bath" && activeIt && activeIt.GetComponent<BathTub>() is BathTub tub && tub) tub.Fill(false);
-            if ((d.id == "sleep" || d.id == "nap") && GetComponent<PersonLook>() is PersonLook look && look) look.Dress(false);
-            if (d.pose == CharacterRig.Pose.Swim && GetComponent<PersonLook>() is PersonLook sl && sl) sl.DressForSwim(false);
             if (plate) { Destroy(plate); plate = null; }
             if (onBelt)
             {

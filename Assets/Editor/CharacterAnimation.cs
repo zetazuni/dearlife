@@ -6,9 +6,10 @@ namespace Dearlife.EditorTools
 {
     /// <summary>
     /// Phase 2 of docs/CHARACTER_PLAN.md: motion capture from the CMU library (Assets/Art/Animations/CMU, free to use and
-    /// share, not to resell) retargeted onto the MPFB2 people through Unity's Humanoid system. Both skeletons get an explicit
-    /// bone map (CMU uses Daz style names, MPFB Unreal style ones) and a T pose reference, because Humanoid treats the rest
-    /// pose as zero: MPFB rests in an A pose, so without it every arm would come out 45 degrees off.
+    /// share, not to resell) retargeted onto the people through Unity's Humanoid system. Every skeleton gets an explicit
+    /// bone map (CMU uses Daz style names; each person's map comes with the model, see PersonImport) and a T pose reference,
+    /// because Humanoid treats the rest pose as zero: most models rest in an A pose, so without it every arm would come out
+    /// 45 degrees off.
     /// </summary>
     public static class CharacterAnimation
     {
@@ -33,24 +34,6 @@ namespace Dearlife.EditorTools
             { "Right Ring Proximal", "rRing1" }, { "Right Ring Intermediate", "rRing2" },
             { "Right Little Proximal", "rPinky1" }, { "Right Little Intermediate", "rPinky2" },
         };
-
-        static Dictionary<string, string> MpfbMap()
-        {
-            var m = new Dictionary<string, string>
-            {
-                { "Hips", "pelvis" }, { "Spine", "spine_01" }, { "Chest", "spine_02" }, { "UpperChest", "spine_03" }, { "Neck", "neck_01" }, { "Head", "head" },
-            };
-            foreach (var (side, s) in new[] { ("Left", "l"), ("Right", "r") })
-            {
-                m[side + "Shoulder"] = "clavicle_" + s; m[side + "UpperArm"] = "upperarm_" + s; m[side + "LowerArm"] = "lowerarm_" + s; m[side + "Hand"] = "hand_" + s;
-                m[side + "UpperLeg"] = "thigh_" + s; m[side + "LowerLeg"] = "calf_" + s; m[side + "Foot"] = "foot_" + s; m[side + "Toes"] = "ball_" + s;
-                foreach (var (finger, f) in new[] { ("Thumb", "thumb"), ("Index", "index"), ("Middle", "middle"), ("Ring", "ring"), ("Little", "pinky") })
-                {
-                    m[$"{side} {finger} Proximal"] = $"{f}_01_{s}"; m[$"{side} {finger} Intermediate"] = $"{f}_02_{s}"; m[$"{side} {finger} Distal"] = $"{f}_03_{s}";
-                }
-            }
-            return m;
-        }
 
         /// <summary>Makes a model Humanoid with the given bone map and a T pose (arms level, straight) as its reference.</summary>
         public static bool MakeHumanoid(string path, Dictionary<string, string> map, out string report)
@@ -234,11 +217,6 @@ namespace Dearlife.EditorTools
                 ConfigureClip(p);
             }
             BuildController();
-            foreach (var guid in AssetDatabase.FindAssets("mpfb t:Model", new[] { "Assets/Art/Models/Characters" }))
-            {
-                string p = AssetDatabase.GUIDToAssetPath(guid);
-                MakeHumanoid(p, MpfbMap(), out var r); log.AppendLine(r);
-            }
             Debug.Log("Dearlife: character animation set up.\n" + log);
         }
     }

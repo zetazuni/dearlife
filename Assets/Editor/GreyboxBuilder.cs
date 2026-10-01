@@ -1723,7 +1723,7 @@ namespace Dearlife.EditorTools
         // ---------- people, pets and the places they use ----------
 
         /// <summary>Only the cat lives in the built scene: the people (the default household, or the save's own) are made
-        /// while the game runs, by Residents, from the character creator's data.</summary>
+        /// while the game runs, by Residents, from the ready made people (PersonModel).</summary>
         static void MoveIn(Transform parent)
         {
             Pet(parent, "bedah", "Bedah", new Vector3(3.2f, 0.02f, 6.3f));
