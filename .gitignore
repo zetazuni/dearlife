@@ -50,6 +50,8 @@ Thumbs.db
 # secrets
 sketchfab_api_key.txt
 polypizza_api_key.txt
+blendswap_api_key.txt
+swapblend_api.txt
 *.blend1
 Where_u_left.blend
 tools/__pycache__/
